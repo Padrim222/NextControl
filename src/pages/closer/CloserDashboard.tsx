@@ -1,275 +1,262 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Phone, Clock, CheckCircle, Calendar, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import type { CallOutcome, Client, CallLog } from '@/types';
-import { CallReportCard } from '@/components/closer/CallReportCard';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { motion } from 'framer-motion';
+import {
+    Phone,
+    Target,
+    TrendingUp,
+    BarChart3,
+    MessageSquare,
+    Calendar,
+    CheckCircle,
+    Clock,
+    ChevronRight,
+    Percent,
+    AlertTriangle,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import type { DailySubmission, Analysis, CloserMetrics } from '@/types';
 
 export default function CloserDashboard() {
     const { user } = useAuth();
-    const [clients, setClients] = useState<Client[]>([]);
-    const [myLogs, setMyLogs] = useState<CallLog[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    // Quick Add State
-    const [selectedClient, setSelectedClient] = useState<string>('');
-    const [outcome, setOutcome] = useState<CallOutcome>('no_sale');
-    const [notes, setNotes] = useState('');
-    const [transcription, setTranscription] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const navigate = useNavigate();
+    const [submissions, setSubmissions] = useState<DailySubmission[]>([]);
+    const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null);
+    const [todaySubmitted, setTodaySubmitted] = useState(false);
 
     useEffect(() => {
         if (!user) return;
-
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch assigned clients
-                const { data: clientsData, error: clientsError } = await supabase
-                    .from('clients')
-                    .select('*')
-                    .eq('assigned_closer_id', user.id);
-
-                if (clientsError) throw clientsError;
-                setClients(clientsData || []);
-
-                // Fetch my call logs
-                const { data: logsData, error: logsError } = await supabase
-                    .from('call_logs')
-                    .select('*')
-                    .eq('closer_id', user.id)
-                    .order('created_at', { ascending: false });
-
-                if (logsError) throw logsError;
-                setMyLogs(logsData || []);
-            } catch (error) {
-                console.error('Error fetching closer data:', error);
-                toast.error('Erro ao carregar dados');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchData();
     }, [user]);
 
-    const handleQuickReport = async (clientName: string, callOutcome: CallOutcome, callNotes?: string) => {
-        if (!user) return;
-
-        const client = clients.find(c => c.name === clientName);
-        if (!client) {
-            toast.error('Cliente não encontrado');
-            return;
-        }
-
+    const fetchData = async () => {
+        if (!supabase || !user) return;
         try {
-            const { error } = await supabase.from('call_logs').insert({
-                closer_id: user.id,
-                client_id: client.id,
-                call_date: new Date().toISOString().split('T')[0],
-                outcome: callOutcome,
-                notes: callNotes || null,
-            });
-
-            if (error) throw error;
-
-            toast.success(`Call com ${clientName} registrada: ${callOutcome}`);
-
-            // Refresh logs
-            const { data } = await supabase
-                .from('call_logs')
+            const today = new Date().toISOString().split('T')[0];
+            const { data: subs } = await (supabase as any)
+                .from('daily_submissions')
                 .select('*')
-                .eq('closer_id', user.id)
-                .order('created_at', { ascending: false });
-            if (data) setMyLogs(data);
-        } catch {
-            toast.error('Erro ao registrar');
+                .eq('seller_id', user.id)
+                .order('submission_date', { ascending: false })
+                .limit(7);
+
+            if (subs) {
+                setSubmissions(subs);
+                setTodaySubmitted(subs.some((s: DailySubmission) => s.submission_date === today));
+            }
+
+            const { data: analyses } = await (supabase as any)
+                .from('analyses')
+                .select('*')
+                .in('submission_id', (subs || []).map((s: DailySubmission) => s.id))
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (analyses?.[0]) setLatestAnalysis(analyses[0]);
+        } catch (error) {
+            console.error('Error fetching data:', error);
         }
     };
 
-    const handleManualSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!user || !selectedClient) return;
+    // Aggregate stats from latest submissions
+    const totalCalls = submissions.reduce((acc, s) => {
+        const m = s.metrics as CloserMetrics;
+        return acc + (m?.calls_made || 0);
+    }, 0);
 
-        setIsSubmitting(true);
-        try {
-            const { error } = await supabase.from('call_logs').insert({
-                closer_id: user.id,
-                client_id: selectedClient,
-                call_date: new Date().toISOString().split('T')[0],
-                transcription: transcription || null,
-                outcome,
-                notes: notes || null,
-            });
+    const avgConversion = submissions.length > 0
+        ? (submissions.reduce((acc, s) => {
+            const m = s.metrics as CloserMetrics;
+            return acc + (m?.conversion_rate || 0);
+        }, 0) / submissions.length).toFixed(1)
+        : '—';
 
-            if (error) throw error;
-
-            toast.success('Call registrada com sucesso!');
-            setTranscription('');
-            setNotes('');
-            setSelectedClient('');
-
-            // Refresh logs
-            const { data } = await supabase
-                .from('call_logs')
-                .select('*')
-                .eq('closer_id', user.id)
-                .order('created_at', { ascending: false });
-            if (data) setMyLogs(data);
-        } catch {
-            toast.error('Erro ao registrar');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    // Build schedule from clients (real data, not hardcoded)
-    const scheduledCalls = clients.map((client, idx) => ({
-        id: client.id,
-        clientName: client.name,
-        company: client.company || '',
-        time: `${10 + idx * 2}:00`,
-        status: undefined,
-    }));
-
-    const salesCount = myLogs.filter(l => l.outcome === 'sale').length;
-    const conversionRate = myLogs.length > 0 ? Math.round((salesCount / myLogs.length) * 100) : 0;
-
-    if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
-        );
-    }
+    const stats = [
+        {
+            label: 'Calls (7d)',
+            value: totalCalls,
+            icon: Phone,
+            color: 'text-solar',
+        },
+        {
+            label: 'Status Hoje',
+            value: todaySubmitted ? 'Enviado ✓' : 'Pendente',
+            icon: todaySubmitted ? CheckCircle : Clock,
+            color: todaySubmitted ? 'text-nc-success' : 'text-nc-warning',
+        },
+        {
+            label: 'Conversão Média',
+            value: `${avgConversion}%`,
+            icon: Percent,
+            color: 'text-nc-info',
+        },
+        {
+            label: 'Último Score',
+            value: latestAnalysis?.score ? `${latestAnalysis.score}/100` : '—',
+            icon: Target,
+            color: 'text-solar',
+        },
+    ];
 
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold">
-                            Sala de Guerra <span className="sf-gradient-text">Closers</span> ⚔️
-                        </h1>
-                        <p className="text-muted-foreground mt-1">
-                            Foco total na agenda de hoje, {user?.name}.
-                        </p>
-                    </div>
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button className="sf-gradient">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Registro Manual
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Registro Manual de Call</DialogTitle>
-                            </DialogHeader>
-                            <form onSubmit={handleManualSubmit} className="space-y-4 mt-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Cliente</label>
-                                    <Select value={selectedClient} onValueChange={setSelectedClient}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecione..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {clients.map(c => (
-                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Resultado</label>
-                                    <Select value={outcome} onValueChange={(v) => setOutcome(v as CallOutcome)}>
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="sale">✅ Venda</SelectItem>
-                                            <SelectItem value="no_sale">❌ Não Venda</SelectItem>
-                                            <SelectItem value="reschedule">📅 Reagendou</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Notas</label>
-                                    <Textarea
-                                        value={notes}
-                                        onChange={e => setNotes(e.target.value)}
-                                        placeholder="Resumo da call..."
-                                    />
-                                </div>
-                                <Button type="submit" disabled={isSubmitting} className="w-full">
-                                    Registrar
-                                </Button>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+        <div className="space-y-6 max-w-4xl mx-auto">
+            {/* Header */}
+            <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-between"
+            >
+                <div>
+                    <h1 className="font-display text-2xl font-bold">
+                        Olá, <span className="nc-gradient-text">{user?.name?.split(' ')[0]}</span>
+                    </h1>
+                    <p className="text-muted-foreground text-sm mt-1">
+                        {todaySubmitted
+                            ? '📞 Check-in de hoje enviado. Análise da call em andamento.'
+                            : '⏰ Registre suas calls do dia!'}
+                    </p>
                 </div>
+                <Button onClick={() => navigate('/training/coach')} variant="outline" className="nc-btn-ghost">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Consultoria
+                </Button>
+            </motion.div>
 
-                {/* Stats Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <Card className="sf-card-hover border-blue-500/20">
-                        <CardContent className="p-6 flex justify-between items-center">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Calls Hoje</p>
-                                <p className="text-2xl font-bold">{scheduledCalls.length}</p>
-                            </div>
-                            <Calendar className="h-8 w-8 text-blue-500 opacity-80" />
-                        </CardContent>
-                    </Card>
-                    <Card className="sf-card-hover border-green-500/20">
-                        <CardContent className="p-6 flex justify-between items-center">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Vendas Fechadas</p>
-                                <p className="text-2xl font-bold text-green-500">{salesCount}</p>
-                            </div>
-                            <CheckCircle className="h-8 w-8 text-green-500 opacity-80" />
-                        </CardContent>
-                    </Card>
-                    <Card className="sf-card-hover border-blue-500/20">
-                        <CardContent className="p-6 flex justify-between items-center">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Conversão</p>
-                                <p className="text-2xl font-bold text-blue-500">{conversionRate}%</p>
-                            </div>
-                            <Phone className="h-8 w-8 text-blue-500 opacity-80" />
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div className="mb-6">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-primary" />
-                        Agenda do Dia
-                    </h2>
-                    {scheduledCalls.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-8">
-                            Nenhum cliente atribuído. Contate o administrador.
-                        </p>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {scheduledCalls.map(call => (
-                                <CallReportCard
-                                    key={call.id}
-                                    clientName={call.clientName}
-                                    companyName={call.company}
-                                    scheduledTime={call.time}
-                                    onReport={(reportOutcome) => handleQuickReport(call.clientName, reportOutcome)}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {stats.map((stat, i) => (
+                    <motion.div
+                        key={stat.label}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                    >
+                        <Card className="nc-card-border nc-card-hover bg-card">
+                            <CardContent className="pt-4 pb-4 px-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                                    <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
+                                </div>
+                                <p className={`text-xl font-mono font-semibold ${stat.color}`}>
+                                    {stat.value}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                ))}
             </div>
+
+            {/* Daily Submission Entry */}
+            {!todaySubmitted && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+                    <Card
+                        className="nc-card-border nc-card-hover bg-card cursor-pointer group"
+                        onClick={() => navigate('/seller/report')}
+                    >
+                        <CardContent className="py-8 text-center">
+                            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-solar/10 mb-4 group-hover:bg-solar/20 transition-colors">
+                                <Phone className="h-7 w-7 text-solar" />
+                            </div>
+                            <h3 className="text-lg font-semibold mb-1">Check-in de Closer</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Registre calls, taxa de conversão e upload de gravação
+                            </p>
+                            <Button className="mt-4 nc-btn-primary">
+                                Começar <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
+
+            {/* Latest Coach Feedback */}
+            {latestAnalysis && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+                    <Card className="nc-card-border bg-card">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-solar" />
+                                Última Análise de Call
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="flex items-center gap-4">
+                                <div className="text-center px-4 py-2 rounded-lg bg-solar/10">
+                                    <p className="text-2xl font-mono font-bold text-solar">{latestAnalysis.score}</p>
+                                    <p className="text-xs text-muted-foreground">Score</p>
+                                </div>
+                                <p className="text-sm text-muted-foreground flex-1 line-clamp-3">
+                                    {latestAnalysis.content}
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 rounded-lg bg-nc-success/10 border border-nc-success/20">
+                                    <p className="text-xs font-medium text-nc-success mb-2 uppercase">Pontos Fortes</p>
+                                    <ul className="text-xs text-muted-foreground space-y-1">
+                                        {latestAnalysis.strengths?.slice(0, 3).map((s, i) => (
+                                            <li key={i} className="flex items-start gap-1.5">
+                                                <CheckCircle className="h-3 w-3 text-nc-success mt-0.5 shrink-0" />
+                                                {s}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div className="p-3 rounded-lg bg-nc-warning/10 border border-nc-warning/20">
+                                    <p className="text-xs font-medium text-nc-warning mb-2 uppercase">Melhorar</p>
+                                    <ul className="text-xs text-muted-foreground space-y-1">
+                                        {latestAnalysis.improvements?.slice(0, 3).map((s, i) => (
+                                            <li key={i} className="flex items-start gap-1.5">
+                                                <AlertTriangle className="h-3 w-3 text-nc-warning mt-0.5 shrink-0" />
+                                                {s}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
+
+            {/* Recent Submissions */}
+            {submissions.length > 0 && (
+                <Card className="nc-card-border bg-card">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4 text-solar" />
+                            Últimos Check-ins
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {submissions.slice(0, 5).map((sub) => {
+                                const metrics = sub.metrics as CloserMetrics;
+                                return (
+                                    <div
+                                        key={sub.id}
+                                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-secondary/50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-solar" />
+                                            <span className="text-sm font-mono">{sub.submission_date}</span>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                            <span className="font-mono">{metrics?.calls_made || 0} calls</span>
+                                            <span className="font-mono">{metrics?.conversion_rate || 0}% conv.</span>
+                                            {sub.call_recording && <Phone className="h-3 w-3 text-nc-info" />}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

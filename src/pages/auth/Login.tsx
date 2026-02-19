@@ -7,16 +7,25 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Shield, BarChart3, Phone, Eye } from 'lucide-react';
+import { Shield, BarChart3, Phone, Eye, HeadphonesIcon, Sparkles } from 'lucide-react';
 
 const ROLE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
     admin: { label: 'Administrador', icon: Shield, color: 'text-amber-500' },
     seller: { label: 'Seller', icon: BarChart3, color: 'text-emerald-500' },
     closer: { label: 'Closer', icon: Phone, color: 'text-blue-500' },
     client: { label: 'Cliente', icon: Eye, color: 'text-rose-500' },
+    cs: { label: 'CS de Vendas', icon: HeadphonesIcon, color: 'text-cyan-500' },
 };
 
 const REMEMBER_KEY = 'nc_remember_email';
+
+const roleRoutes: Record<string, string> = {
+    admin: '/admin',
+    seller: '/seller',
+    closer: '/closer',
+    client: '/client',
+    cs: '/cs',
+};
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -31,7 +40,6 @@ export default function Login() {
     const roleMeta = roleParam ? ROLE_META[roleParam] : null;
     const RoleIcon = roleMeta?.icon;
 
-    // Load saved email on mount
     useEffect(() => {
         const saved = localStorage.getItem(REMEMBER_KEY);
         if (saved) {
@@ -40,31 +48,16 @@ export default function Login() {
         }
     }, []);
 
-    // If already logged in, redirect immediately
     useEffect(() => {
         if (isAuthenticated && user?.role) {
-            const roleRoutes: Record<string, string> = {
-                admin: '/admin',
-                seller: '/seller',
-                closer: '/closer',
-                client: '/client',
-            };
-            navigate(roleRoutes[user.role] || '/', { replace: true });
+            navigate(roleRoutes[user.role] || '/admin', { replace: true });
         }
     }, [isAuthenticated, user, navigate]);
-
-    const roleRoutes: Record<string, string> = {
-        admin: '/admin',
-        seller: '/seller',
-        closer: '/closer',
-        client: '/client',
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
-        // Remember email
         if (rememberMe) {
             localStorage.setItem(REMEMBER_KEY, email);
         } else {
@@ -73,10 +66,9 @@ export default function Login() {
 
         try {
             const role = await login(email, password);
-
             if (role) {
                 toast.success('Login realizado com sucesso!');
-                navigate(roleRoutes[role] || '/', { replace: true });
+                navigate(roleRoutes[role] || '/admin', { replace: true });
             } else {
                 toast.error('Email ou senha inválidos');
             }
@@ -97,9 +89,15 @@ export default function Login() {
             >
                 <Card className="sf-card-glow">
                     <CardHeader className="text-center">
-                        <div className="mx-auto mb-4">
-                            <span className="text-3xl font-bold sf-gradient-text">Next Control</span>
+                        <div className="mx-auto mb-2 flex items-center justify-center gap-2">
+                            <div className="w-9 h-9 rounded-lg nc-gradient flex items-center justify-center">
+                                <Sparkles className="h-4 w-4 text-deep-space" />
+                            </div>
+                            <span className="text-2xl font-bold sf-gradient-text">Next Control</span>
                         </div>
+                        <p className="text-xs text-muted-foreground tracking-widest uppercase mb-3">
+                            Consultoria de Bolso
+                        </p>
 
                         {roleMeta && RoleIcon ? (
                             <div className="flex items-center justify-center gap-2 mb-2">
@@ -110,8 +108,8 @@ export default function Login() {
                             </div>
                         ) : null}
 
-                        <CardTitle className="text-2xl">Bem-vindo de volta</CardTitle>
-                        <CardDescription>Entre com suas credenciais para acessar o sistema</CardDescription>
+                        <CardTitle className="text-xl">Bem-vindo de volta</CardTitle>
+                        <CardDescription>Entre com suas credenciais</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -138,7 +136,6 @@ export default function Login() {
                                 />
                             </div>
 
-                            {/* Remember me */}
                             <div className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -157,20 +154,17 @@ export default function Login() {
                             </Button>
                         </form>
 
-                        <div className="mt-6 flex items-center justify-between text-sm">
-                            <Link
-                                to="/"
-                                className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-                            >
-                                <ArrowLeft className="h-3 w-3" />
-                                Voltar
-                            </Link>
+                        <div className="mt-6 text-center text-sm">
                             <Link to="/register" className="text-primary hover:underline">
-                                Registre-se
+                                Criar nova conta
                             </Link>
                         </div>
                     </CardContent>
                 </Card>
+
+                <p className="mt-4 text-xs text-center text-muted-foreground/40">
+                    Next Control © {new Date().getFullYear()} — Sistema Interno
+                </p>
             </motion.div>
         </div>
     );

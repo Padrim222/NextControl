@@ -4,51 +4,67 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FunnelChart } from '@/components/charts/FunnelChart';
 import { ProjectTimeline } from '@/components/client/ProjectTimeline';
-import { TrendingUp, Users, DollarSign, Calendar } from 'lucide-react';
-import type { Client, DailyReport } from '@/types';
+import { TrendingUp, Users, DollarSign, Calendar, Target, FileText } from 'lucide-react';
+import { InstructionBalloon } from '@/components/ui/instruction-balloon';
+import type { Client, DailySubmission, SellerMetrics, CloserMetrics } from '@/types';
 
 export default function ClientDashboard() {
     const { user } = useAuth();
-
     const [client, setClient] = useState<Client | null>(null);
-    const [reports, setReports] = useState<DailyReport[]>([]);
+    const [submissions, setSubmissions] = useState<DailySubmission[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!user || !user.email) return;
+        if (!user) return;
 
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Fetch client record by email (linked to user account)
-                const { data: clientData, error: clientError } = await supabase
-                    .from('clients')
-                    .select('*')
-                    .eq('email', user.email)
+                // 1. Get Client ID from User
+                const { data: userData, error: userError } = await (supabase as any)
+                    .from('users')
+                    .select('client_id')
+                    .eq('id', user.id)
                     .single();
 
-                if (clientError || !clientData) {
-                    console.warn('No client record found for user:', user.email);
+                if (userError || !userData?.client_id) {
+                    console.warn('User has no client_id linked');
                     setIsLoading(false);
                     return;
                 }
 
-                setClient(clientData);
-
-                // Fetch approved reports for this client
-                const { data: reportsData, error: reportsError } = await supabase
-                    .from('daily_reports')
+                // 2. Fetch Client Details
+                const { data: clientData } = await (supabase as any)
+                    .from('clients')
                     .select('*')
-                    .eq('client_id', clientData.id)
-                    .eq('status', 'approved');
+                    .eq('id', userData.client_id)
+                    .single();
 
-                if (reportsError) {
-                    console.error('Error fetching reports:', reportsError);
+                if (clientData) setClient(clientData);
+
+                // 3. Fetch Team Members first
+                const { data: teamMembers } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('client_id', userData.client_id);
+
+                const teamIds = teamMembers?.map(u => u.id) || [];
+
+                if (teamIds.length === 0) {
+                    setSubmissions([]);
                 } else {
-                    setReports(reportsData || []);
+                    const { data: subData, error: subError } = await (supabase as any)
+                        .from('daily_submissions')
+                        .select('*')
+                        .in('seller_id', teamIds)
+                        .order('submission_date', { ascending: false });
+
+                    if (subError) throw subError;
+                    setSubmissions(subData || []);
                 }
+
             } catch (error) {
-                console.error('Error in client dashboard data fetch:', error);
+                console.error('Error fetching client data:', error);
             } finally {
                 setIsLoading(false);
             }
@@ -58,99 +74,146 @@ export default function ClientDashboard() {
     }, [user]);
 
     if (isLoading) {
-        return <div className="min-h-screen flex items-center justify-center">Carregando dados do projeto...</div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center fade-in">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <p className="text-muted-foreground">Carregando dados do projeto...</p>
+                </div>
+            </div>
+        );
     }
 
-    // Aggregate Data
-    const totalLeads = reports.reduce((acc, curr) => acc + curr.chat_ativo + curr.boas_vindas, 0);
-    const totalCalls = reports.reduce((acc, curr) => acc + curr.pitchs, 0);
-    const totalSales = reports.reduce((acc, curr) => acc + curr.capturas, 0);
+    if (!client) {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-6 text-center">
+                <div>
+                    <h1 className="text-2xl font-bold mb-2">Ops! Acesso não configurado.</h1>
+                    <p className="text-muted-foreground">Seu usuário não está vinculado a nenhum projeto (Cliente).</p>
+                    <p className="text-sm mt-4 text-muted-foreground">Entre em contato com o suporte: suporte@nextcontrol.com</p>
+                </div>
+            </div>
+        );
+    }
 
-    // Mock metric for conversion
-    const conversionRate = totalLeads > 0 ? Math.round((totalSales / totalLeads) * 100) : 0;
+    // --- AGGREGATION LOGIC ---
+    let totalApproaches = 0;
+    let totalCalls = 0;
+    let totalSales = 0;
+    let totalProposals = 0;
 
-    // Latest Funnel Data (from last 7 reports or aggregated)
+    submissions.forEach(sub => {
+        const m = sub.metrics as any;
+        if (m.approaches !== undefined) {
+            // Seller
+            totalApproaches += (m.approaches || 0);
+            totalProposals += (m.proposals || 0);
+            totalSales += (m.sales || 0);
+        } else if (m.calls_made !== undefined) {
+            // Closer
+            totalCalls += (m.calls_made || 0);
+            // Estimate closer sales from CR? Or assume reported elsewhere?
+            // For now, let's purely aggregate.
+            // If closer has sales field? No, just rate.
+            // We'll rely on Sellers reporting 'sales' usually.
+        }
+    });
+
+    const conversionRate = totalApproaches > 0 ? Math.round((totalSales / totalApproaches) * 100) : 0;
+
+    // Funnel Data
     const funnelData = [
-        { name: 'Oportunidades', value: totalLeads, fill: '#8b5cf6' },
-        { name: 'Qualificados', value: reports.reduce((acc, r) => acc + r.nutricao, 0), fill: '#ec4899' },
-        { name: 'Agendamentos', value: totalCalls, fill: '#f59e0b' },
-        { name: 'Vendas', value: totalSales, fill: '#10b981' },
+        { name: 'Abordagens', value: totalApproaches, fill: '#8b5cf6' }, // Violet
+        { name: 'Propostas', value: totalProposals, fill: '#f59e0b' },   // Amber
+        { name: 'Calls', value: totalCalls, fill: '#3b82f6' },           // Blue
+        { name: 'Vendas', value: totalSales, fill: '#10b981' },          // Green
+    ];
+
+    const stats = [
+        {
+            label: 'Abordagens',
+            value: totalApproaches,
+            icon: Users,
+            color: 'text-blue-500',
+            tooltip: 'Total de pessoas que seu time contatou (Outbound) ou que chegaram organicamente (Inbound).'
+        },
+        {
+            label: 'Propostas',
+            value: totalProposals,
+            icon: FileText,
+            color: 'text-yellow-500',
+            tooltip: 'Orçamentos ou propostas formais enviadas para leads qualificados.'
+        },
+        {
+            label: 'Vendas',
+            value: totalSales,
+            icon: DollarSign,
+            color: 'text-green-500',
+            tooltip: 'Vendas fechadas e pagas. O dinheiro no bolso.'
+        },
+        {
+            label: 'Conversão',
+            value: totalProposals > 0 ? `${((totalSales / totalProposals) * 100).toFixed(1)}%` : '0%',
+            icon: Target,
+            color: 'text-purple-500',
+            tooltip: 'De cada 100 propostas, quantas viram venda. Acima de 20% é saudável.'
+        }
     ];
 
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
+        <div className="min-h-screen p-6 fade-in pb-20 md:pb-6">
+            <div className="max-w-7xl mx-auto space-y-8 fade-in">
+                {/* Header */}
+                <div>
                     <h1 className="text-3xl font-bold">
-                        Bem-vindo, <span className="sf-gradient-text">{client?.name || 'Cliente'}</span>!
+                        Bem-vindo, <span className="nc-gradient-text">{client.name}</span>!
                     </h1>
                     <p className="text-muted-foreground mt-1">
                         Acompanhe o progresso do seu projeto em tempo real.
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <Card className="sf-card-hover border-primary/20">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
-                                Leads Totais
-                            </CardTitle>
-                            <Users className="h-4 w-4 text-primary" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{totalLeads}</div>
-                            <p className="text-xs text-muted-foreground">+12% essa semana</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="sf-card-hover border-pink-500/20">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
-                                Taxa de Conversão
-                            </CardTitle>
-                            <TrendingUp className="h-4 w-4 text-pink-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-pink-500">{conversionRate}%</div>
-                            <p className="text-xs text-muted-foreground">Média do setor: 15%</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="sf-card-hover border-yellow-500/20">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
-                                Reuniões Realizadas
-                            </CardTitle>
-                            <Calendar className="h-4 w-4 text-yellow-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-yellow-500">{totalCalls}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="sf-card-hover border-green-500/20">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
-                                Novos Clientes
-                            </CardTitle>
-                            <DollarSign className="h-4 w-4 text-green-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-green-500">{totalSales}</div>
-                        </CardContent>
-                    </Card>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    {stats.map((stat, i) => (
+                        <Card key={i} className="nc-card-border hover:border-primary/20 transition-colors">
+                            <CardContent className="p-6 flex items-center justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                                        <InstructionBalloon title={stat.label}>
+                                            {stat.tooltip}
+                                        </InstructionBalloon>
+                                    </div>
+                                    <h3 className={`text-2xl font-bold ${stat.color}`}>{stat.value}</h3>
+                                </div>
+                                <div className={`p-3 rounded-full bg-card border border-border`}>
+                                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
 
+                {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-2 sf-card-glow">
+                    {/* Funnel Chart */}
+                    <Card className="lg:col-span-2 nc-card-border">
                         <CardHeader>
-                            <CardTitle>Funil de Vendas</CardTitle>
-                            <CardDescription>Visualização acumulada do período</CardDescription>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-solar" />
+                                Funil de Vendas
+                            </CardTitle>
+                            <CardDescription>Performance acumulada de todos os canais</CardDescription>
                         </CardHeader>
                         <CardContent className="h-[400px]">
                             <FunnelChart data={funnelData} />
                         </CardContent>
                     </Card>
 
+                    {/* Timeline */}
                     <div className="lg:col-span-1">
-                        <ProjectTimeline reports={reports} />
+                        <ProjectTimeline reports={submissions} />
                     </div>
                 </div>
             </div>

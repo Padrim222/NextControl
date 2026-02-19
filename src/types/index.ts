@@ -1,13 +1,20 @@
-// Database schema types for Next Control CRM
-// Compatible with Neon Postgres and future Supabase migration
+// ============================================
+// Next Control — Consultoria de Bolso — TypeScript Types
+// Next Control CRM + Coaching System
+// Compatible with Supabase
+// ============================================
 
-export type UserRole = 'admin' | 'seller' | 'closer' | 'client';
+// ---- CORE ENUMS ----
 
+export type UserRole = 'admin' | 'seller' | 'closer' | 'client' | 'cs';
 export type UserStatus = 'pending' | 'active' | 'suspended';
-
+export type SellerType = 'seller' | 'closer';
 export type ReportStatus = 'pending' | 'approved' | 'rejected';
-
 export type CallOutcome = 'sale' | 'no_sale' | 'reschedule' | 'no_show';
+export type AgentType = 'social_selling' | 'call_analysis' | 'metrics';
+export type DeliveryStatus = 'pending' | 'approved' | 'delivered';
+
+// ---- CORE ENTITIES ----
 
 export interface User {
     id: string;
@@ -15,18 +22,100 @@ export interface User {
     role: UserRole;
     status: UserStatus;
     name: string;
+    phone?: string;
+    seller_type?: SellerType;
+    cs_id?: string;
+    client_id?: string;
     created_at: string;
+    updated_at?: string;
 }
 
 export interface Client {
     id: string;
     name: string;
-    email?: string; // Link to User account
+    email?: string;
     company?: string;
     assigned_seller_id?: string;
     assigned_closer_id?: string;
     created_at: string;
 }
+
+// ---- TREINADOR DE BOLSO ENTITIES ----
+
+export interface SellerMetrics {
+    approaches: number;
+    followups: number;
+    proposals: number;
+    sales: number;
+}
+
+export interface CloserMetrics {
+    calls_made: number;
+    conversion_rate: number;
+    main_objections: string[];
+}
+
+export interface DailySubmission {
+    id: string;
+    seller_id: string;
+    submission_date: string;
+    metrics: SellerMetrics | CloserMetrics;
+    conversation_prints: string[];
+    call_recording?: string;
+    notes?: string;
+    status: 'pending' | 'approved' | 'rejected';
+    created_at: string;
+}
+
+export interface Analysis {
+    id: string;
+    submission_id: string;
+    agent_type: AgentType;
+    content: string;
+    strengths: string[];
+    improvements: string[];
+    patterns: {
+        objections?: string[];
+        approach?: string;
+        rapport?: string;
+        discovery?: string;
+        presentation?: string;
+        close?: string;
+    };
+    next_steps: string[];
+    score: number;
+    created_at: string;
+}
+
+export interface Report {
+    id: string;
+    seller_id: string;
+    submission_id?: string;
+    analysis_id?: string;
+    pdf_url?: string;
+    status: DeliveryStatus;
+    reviewed_by?: string;
+    review_notes?: string;
+    sent_at?: string;
+    created_at: string;
+}
+
+export interface CoachInteraction {
+    id: string;
+    seller_id: string;
+    question: string;
+    answer?: string;
+    context: {
+        recent_scores?: number[];
+        strengths?: string[];
+        weaknesses?: string[];
+        seller_type?: SellerType;
+        tenure_months?: number;
+    };
+    created_at: string;
+}
+
+// ---- LEGACY ENTITIES (backward compat) ----
 
 export interface DailyReport {
     id: string;
@@ -34,8 +123,6 @@ export interface DailyReport {
     client_id: string;
     report_date: string;
     status: ReportStatus;
-
-    // Funnel metrics
     chat_ativo: number;
     boas_vindas: number;
     reaquecimento: number;
@@ -45,7 +132,6 @@ export interface DailyReport {
     pitchs: number;
     capturas: number;
     followups: number;
-
     notes?: string;
     created_at: string;
 }
@@ -75,26 +161,90 @@ export interface WeeklyReport {
     client_id: string;
     week_start: string;
     week_end: string;
-
-    // Aggregated metrics
     total_chat_ativo: number;
     total_boas_vindas: number;
     total_conexoes: number;
     total_mapeamentos: number;
     total_pitchs: number;
     total_capturas: number;
-
-    // Conversion rates (calculated)
     conv_bv_to_conexao?: number;
     conv_conexao_to_map?: number;
     conv_map_to_pitch?: number;
     conv_pitch_to_captura?: number;
-
     summary?: string;
     created_at: string;
 }
 
-// Funnel metrics keys for form handling
+// ---- CONSELHO RY ENTITIES ----
+
+export type QuestionStatus = 'pending' | 'answered' | 'escalated';
+export type AnalysisStatus = 'draft' | 'approved' | 'rejected' | 'sent';
+export type TrainingCategory = 'script' | 'methodology' | 'strategy' | 'best_practice' | 'error_pattern';
+export type TrainingTargetRole = 'seller' | 'closer' | 'both';
+
+export interface ClientQuestion {
+    id: string;
+    client_id: string;
+    asked_by: string;
+    question_text: string;
+    status: QuestionStatus;
+    response_text?: string;
+    responded_by?: string;
+    escalated_to?: 'yorik' | 'head';
+    created_at: string;
+    responded_at?: string;
+}
+
+export interface HeadAgentAnalysis {
+    id: string;
+    report_id?: string;
+    call_log_id?: string;
+    response_time_score?: number;
+    script_adherence_score?: number;
+    organization_score?: number;
+    operational_notes?: string;
+    correct_product_offered?: boolean;
+    methodology_followed?: boolean;
+    tactical_notes?: string;
+    suggested_scripts?: string;
+    new_strategies?: string;
+    errors_identified?: string;
+    status: AnalysisStatus;
+    approved_by?: string;
+    approved_at?: string;
+    sent_via_whatsapp: boolean;
+    sent_at?: string;
+    created_at: string;
+}
+
+export interface ChecklistItem {
+    text: string;
+    checked: boolean;
+}
+
+export interface ImprovementChecklist {
+    id: string;
+    analysis_id: string;
+    seller_id?: string;
+    closer_id?: string;
+    title: string;
+    items: ChecklistItem[];
+    created_at: string;
+}
+
+export interface TrainingMaterial {
+    id: string;
+    title: string;
+    content: string;
+    category: TrainingCategory;
+    target_role: TrainingTargetRole;
+    source_analysis_id?: string;
+    is_active: boolean;
+    created_at: string;
+}
+
+// ---- FUNNEL METRICS (Legacy) ----
+
 export const FUNNEL_METRICS = [
     'chat_ativo',
     'boas_vindas',
@@ -109,7 +259,6 @@ export const FUNNEL_METRICS = [
 
 export type FunnelMetricKey = typeof FUNNEL_METRICS[number];
 
-// Labels for UI display
 export const FUNNEL_LABELS: Record<FunnelMetricKey, { label: string; emoji: string }> = {
     chat_ativo: { label: 'Chat Ativo', emoji: '💬' },
     boas_vindas: { label: 'Boas-vindas', emoji: '🤝' },
@@ -121,3 +270,17 @@ export const FUNNEL_LABELS: Record<FunnelMetricKey, { label: string; emoji: stri
     capturas: { label: 'Capturas', emoji: '✅' },
     followups: { label: 'Follow-up', emoji: '👀' },
 };
+
+// ---- SELLER SUBMISSION METRICS ----
+
+export const SELLER_METRICS_FIELDS = [
+    { key: 'approaches', label: 'Abordagens', emoji: '💬' },
+    { key: 'followups', label: 'Follow-ups', emoji: '🔄' },
+    { key: 'proposals', label: 'Propostas Enviadas', emoji: '📋' },
+    { key: 'sales', label: 'Vendas', emoji: '🎯' },
+] as const;
+
+export const CLOSER_METRICS_FIELDS = [
+    { key: 'calls_made', label: 'Calls Realizadas', emoji: '📞' },
+    { key: 'conversion_rate', label: 'Taxa de Conversão (%)', emoji: '📈' },
+] as const;

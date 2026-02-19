@@ -41,7 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fetchProfile(session.user.id);
         }
       } else {
-        setUser(null);
+        // Don't clear beta users — they are in-memory only
+        if (!user?.id?.startsWith('beta-')) {
+          setUser(null);
+        }
         setIsLoading(false);
       }
     });
@@ -85,10 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginAsBeta = (role: UserRole) => {
     const betaNames: Record<UserRole, string> = {
-      admin: 'Admin Beta',
-      seller: 'Seller Beta',
-      closer: 'Closer Beta',
+      admin: 'Admin Head',
+      seller: 'Carlos Seller',
+      closer: 'Ana Closer',
       client: 'Cliente Beta',
+      cs: 'Ronaldo CS',
     };
     setUser({
       id: `beta-${role}`,
@@ -96,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: betaNames[role],
       role,
       status: 'active',
+      seller_type: role === 'seller' ? 'seller' : role === 'closer' ? 'closer' : undefined,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     } as User);
@@ -119,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return false;
     }
-    await supabase.from('users').upsert([{ id: authData.user.id, email, name, role }], { onConflict: 'id' });
+    await (supabase as any).from('users').upsert([{ id: authData.user.id, email, name, role }], { onConflict: 'id' });
     toast.success('Conta criada com sucesso!');
     setIsLoading(false);
     return true;

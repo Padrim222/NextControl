@@ -46,9 +46,12 @@ export default function Register() {
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
             <Card className="w-full max-w-md sf-card-glow">
                 <CardHeader className="text-center">
-                    <div className="mx-auto mb-4">
+                    <div className="mx-auto mb-2">
                         <span className="text-3xl font-bold sf-gradient-text">Next Control</span>
                     </div>
+                    <p className="text-xs text-muted-foreground tracking-widest uppercase mb-3">
+                        Consultoria de Bolso
+                    </p>
                     <CardTitle className="text-2xl">Crie sua conta</CardTitle>
                     <CardDescription>Preencha os dados para começar</CardDescription>
                 </CardHeader>
@@ -86,6 +89,7 @@ export default function Register() {
                                     <SelectItem value="client">Cliente</SelectItem>
                                     <SelectItem value="seller">Seller (Vendedor)</SelectItem>
                                     <SelectItem value="closer">Closer (Fechador)</SelectItem>
+                                    <SelectItem value="cs">CS de Vendas</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

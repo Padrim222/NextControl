@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/components/layout/RoleGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
@@ -12,9 +12,13 @@ import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import SellerDashboard from "@/pages/seller/SellerDashboard";
 import DailyReport from "@/pages/seller/DailyReport";
+import WeeklyEvolution from "@/pages/seller/WeeklyEvolution";
 import CloserDashboard from "@/pages/closer/CloserDashboard";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import ClientDashboard from "@/pages/client/ClientDashboard";
+import CSInbox from "@/pages/cs/CSInbox";
+import TrainingHub from "@/pages/training/TrainingHub";
+import CoachChat from "@/pages/training/CoachChat";
 
 const queryClient = new QueryClient();
 
@@ -42,11 +46,32 @@ const App = () => (
               }
             />
             <Route
+              path="/seller/report"
+              element={
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                  <DashboardLayout>
+                    <DailyReport />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
               path="/seller/report/:clientId"
+              element={
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                  <DashboardLayout>
+                    <DailyReport />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+
+            <Route
+              path="/seller/evolution"
               element={
                 <RoleGuard allowedRoles={['seller', 'admin']}>
                   <DashboardLayout>
-                    <DailyReport />
+                    <WeeklyEvolution />
                   </DashboardLayout>
                 </RoleGuard>
               }
@@ -83,6 +108,40 @@ const App = () => (
                 <RoleGuard allowedRoles={['client', 'admin']}>
                   <DashboardLayout>
                     <ClientDashboard />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+
+            {/* CS Dashboard Route */}
+            <Route
+              path="/cs"
+              element={
+                <RoleGuard allowedRoles={['admin', 'cs']}>
+                  <DashboardLayout>
+                    <CSInbox />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+
+            {/* Training Routes */}
+            <Route
+              path="/training"
+              element={
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                  <DashboardLayout>
+                    <TrainingHub />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/training/coach"
+              element={
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                  <DashboardLayout>
+                    <CoachChat />
                   </DashboardLayout>
                 </RoleGuard>
               }

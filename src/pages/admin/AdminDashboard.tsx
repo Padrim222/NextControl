@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FUNNEL_LABELS, type FunnelMetricKey, type DailyReport, type User } from '@/types';
+import type { User, DailySubmission, Analysis, CallLog, Report } from '@/types';
 import { toast } from 'sonner';
 import {
     Users,
@@ -12,6 +12,9 @@ import {
     CheckCircle,
     XCircle,
     Sparkles,
+    MessageCircle,
+    Download,
+    Eye,
 } from 'lucide-react';
 import {
     Dialog,
@@ -20,156 +23,176 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { HeadAgentPanel } from '@/components/admin/HeadAgentPanel';
+import { StrategistPanel } from '@/components/admin/StrategistPanel';
+import { ImprovementChecklist } from '@/components/admin/ImprovementChecklist';
+import { downloadReportAsPDF } from '@/lib/pdf-export';
+
+interface SubmissionWithSeller extends DailySubmission {
+    seller?: { name: string; email: string; seller_type: string };
+}
 
 export default function AdminDashboard() {
     const { user } = useAuth();
-    const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
+    const [selectedSubmission, setSelectedSubmission] = useState<SubmissionWithSeller | null>(null);
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
     const [realUsers, setRealUsers] = useState<User[]>([]);
     const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
-    const [pendingReports, setPendingReports] = useState<DailyReport[]>([]);
-    const [approvedReports, setApprovedReports] = useState<DailyReport[]>([]);
+    const [submissions, setSubmissions] = useState<SubmissionWithSeller[]>([]);
+    const [analyses, setAnalyses] = useState<Analysis[]>([]);
+    const [reports, setReports] = useState<Report[]>([]);
+    const [callLogs, setCallLogs] = useState<CallLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchAll = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch users
-                const { data: usersData } = await supabase
-                    .from('users')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                if (usersData) setRealUsers(usersData as User[]);
-
-                // Fetch clients
-                const { data: clientsData } = await supabase
-                    .from('clients')
-                    .select('id, name');
-                if (clientsData) setClients(clientsData);
-
-                // Fetch pending reports
-                const { data: pendingData } = await supabase
-                    .from('daily_reports')
-                    .select('*')
-                    .eq('status', 'pending')
-                    .order('created_at', { ascending: false });
-                if (pendingData) setPendingReports(pendingData as DailyReport[]);
-
-                // Fetch approved reports
-                const { data: approvedData } = await supabase
-                    .from('daily_reports')
-                    .select('*')
-                    .eq('status', 'approved')
-                    .order('created_at', { ascending: false });
-                if (approvedData) setApprovedReports(approvedData as DailyReport[]);
-            } catch (error) {
-                console.error('Error fetching admin data:', error);
-                toast.error('Erro ao carregar dados');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchAll();
     }, []);
 
-    const getClientName = (clientId: string) => {
-        return clients.find(c => c.id === clientId)?.name || 'Cliente Desconhecido';
+    const fetchAll = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch users
+            const { data: usersData } = await (supabase as any)
+                .from('users')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (usersData) setRealUsers(usersData as User[]);
+
+            // Fetch clients
+            const { data: clientsData } = await supabase
+                .from('clients')
+                .select('id, name');
+            if (clientsData) setClients(clientsData);
+
+            // Fetch daily submissions with seller info
+            const { data: subsData } = await (supabase as any)
+                .from('daily_submissions')
+                .select('*, seller:users!seller_id(name, email, seller_type)')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            if (subsData) setSubmissions(subsData);
+
+            // Fetch analyses
+            const { data: analysesData } = await (supabase as any)
+                .from('analyses')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            if (analysesData) setAnalyses(analysesData);
+
+            // Fetch reports
+            const { data: reportsData } = await (supabase as any)
+                .from('reports')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            if (reportsData) setReports(reportsData);
+
+            // Fetch call logs
+            const { data: callData } = await supabase
+                .from('call_logs')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (callData) setCallLogs(callData as CallLog[]);
+        } catch (error) {
+            console.error('Error fetching admin data:', error);
+            toast.error('Erro ao carregar dados');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const getSellerName = (sellerId: string) => {
-        return realUsers.find(u => u.id === sellerId)?.name || 'Seller Desconhecido';
+        return realUsers.find(u => u.id === sellerId)?.name || 'Vendedor';
     };
 
-    const handleApprove = async (reportId: string) => {
+    const getAnalysisForSubmission = (submissionId: string) => {
+        return analyses.find(a => a.submission_id === submissionId);
+    };
+
+    const getReportForSubmission = (submissionId: string) => {
+        return reports.find(r => r.submission_id === submissionId);
+    };
+
+    // Submissions that have no analysis yet (pending review)
+    const pendingSubmissions = submissions.filter(s => !getAnalysisForSubmission(s.id));
+    const analyzedSubmissions = submissions.filter(s => !!getAnalysisForSubmission(s.id));
+
+    const handleAnalyze = async (submission: SubmissionWithSeller) => {
         setIsGeneratingAI(true);
-
         try {
-            // Update status to approved
-            const { error: updateError } = await supabase
-                .from('daily_reports')
-                .update({ status: 'approved' })
-                .eq('id', reportId);
+            const { data: analysis, error } = await (supabase as any).functions.invoke('analyze-submission', {
+                body: { submission_id: submission.id },
+            });
 
-            if (updateError) throw updateError;
+            if (error) throw error;
 
-            // Generate AI feedback
-            const report = pendingReports.find(r => r.id === reportId) || selectedReport;
-            if (report) {
-                const feedback = generateAIFeedback(report);
-
-                const { error: feedbackError } = await supabase
-                    .from('ai_feedback')
-                    .insert({
-                        report_id: reportId,
-                        generated_by: user?.id,
-                        feedback_text: feedback,
-                        model: 'gpt-4o',
-                    });
-
-                if (feedbackError) console.error('Error saving feedback:', feedbackError);
-            }
-
-            // Move from pending to approved locally
-            setPendingReports(prev => prev.filter(r => r.id !== reportId));
-            if (report) {
-                setApprovedReports(prev => [{ ...report, status: 'approved' as const }, ...prev]);
-            }
-
-            toast.success('Relatório aprovado e feedback gerado!');
-            setSelectedReport(null);
-        } catch {
-            toast.error('Erro ao aprovar relatório');
+            toast.success(`🤖 Análise concluída! Score: ${analysis?.score || '—'}/100`);
+            fetchAll();
+            setSelectedSubmission(null);
+        } catch (err) {
+            console.error('Analysis error:', err);
+            toast.error('Erro na análise IA');
         } finally {
             setIsGeneratingAI(false);
         }
     };
 
-    const handleReject = async (reportId: string) => {
-        const { error } = await supabase
-            .from('daily_reports')
-            .update({ status: 'rejected' })
-            .eq('id', reportId);
-
-        if (error) {
-            toast.error('Erro ao rejeitar');
+    const handleGenerateReport = async (submission: SubmissionWithSeller) => {
+        const analysis = getAnalysisForSubmission(submission.id);
+        if (!analysis) {
+            toast.error('Primeiro analise a submissão antes de gerar o relatório');
             return;
         }
 
-        setPendingReports(prev => prev.filter(r => r.id !== reportId));
-        toast.info('Relatório rejeitado');
-        setSelectedReport(null);
+        setIsGeneratingPDF(true);
+        try {
+            const { data: reportData, error } = await (supabase as any).functions.invoke('generate-report', {
+                body: { submission_id: submission.id, analysis_id: analysis.id },
+            });
+
+            if (error) throw error;
+
+            // Download PDF from HTML content
+            if (reportData?.html_content) {
+                const sellerName = submission.seller?.name || 'vendedor';
+                const date = submission.submission_date;
+                await downloadReportAsPDF(reportData.html_content, `relatorio_${sellerName}_${date}.pdf`);
+                toast.success('📄 PDF gerado e baixado!');
+            } else {
+                toast.success('Relatório criado!');
+            }
+
+            fetchAll();
+            setSelectedSubmission(null);
+        } catch (err) {
+            console.error('Report generation error:', err);
+            toast.error('Erro ao gerar relatório');
+        } finally {
+            setIsGeneratingPDF(false);
+        }
     };
 
-    const generateAIFeedback = (report: DailyReport): string => {
-        const convRate = report.boas_vindas > 0
-            ? ((report.capturas / report.boas_vindas) * 100).toFixed(1)
-            : 0;
+    const handleDeliverWhatsApp = async (submission: SubmissionWithSeller) => {
+        const analysis = getAnalysisForSubmission(submission.id);
+        const sellerName = submission.seller?.name || 'Vendedor';
+        const date = new Date(submission.submission_date).toLocaleDateString('pt-BR');
+        const metrics = submission.metrics as any;
 
-        return `## Análise de Performance
+        let metricsText = '';
+        if (metrics.approaches != null) {
+            metricsText = `💬 Abordagens: ${metrics.approaches}\n🔄 Follow-ups: ${metrics.followups}\n📋 Propostas: ${metrics.proposals}\n🎯 Vendas: ${metrics.sales}`;
+        } else if (metrics.calls_made != null) {
+            metricsText = `📞 Calls: ${metrics.calls_made}\n📈 Conversão: ${metrics.conversion_rate}%`;
+        }
 
-### Pontos Fortes 💪
-- ${report.boas_vindas} boas-vindas realizadas
-- Taxa de conversão geral: ${convRate}%
-${report.capturas > 0 ? `- ${report.capturas} capturas no dia - excelente!` : ''}
+        const text = `📊 *Relatório Diário — ${sellerName}*\nData: ${date}\n\n${metricsText}${analysis ? `\n\n🤖 Score IA: ${analysis.score}/100\n\n✅ Forças: ${(analysis.strengths || []).join(', ')}\n⚠️ Melhorar: ${(analysis.improvements || []).join(', ')}` : ''}\n\n_Next Control · Consultoria de Bolso_`;
 
-### Oportunidades de Melhoria 📈
-${report.mapeamentos < report.conexoes * 0.5
-                ? `- Aumentar taxa de mapeamento (atualmente ${((report.mapeamentos / report.conexoes) * 100).toFixed(0)}% das conexões)`
-                : '- Mapeamentos estão em boa proporção'}
-${report.followups < report.mapeamentos
-                ? `- Intensificar follow-ups (${report.followups} vs ${report.mapeamentos} mapeamentos)`
-                : ''}
-
-### Script Sugerido 📝
-1. Foque em qualificar melhor os leads na fase de boas-vindas
-2. Use perguntas abertas para entender as dores do lead
-3. Marque mais calls de descoberta para leads engajados
-
----
-*Gerado por IA • Next Control*`;
+        const encoded = encodeURIComponent(text);
+        window.open(`https://wa.me/?text=${encoded}`, '_blank');
+        toast.success('WhatsApp aberto!');
     };
 
     if (isLoading) {
@@ -186,7 +209,7 @@ ${report.followups < report.mapeamentos
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold">
-                        Painel <span className="sf-gradient-text">Administrador</span> 👔
+                        Painel <span className="nc-gradient-text">Administrador</span> 👔
                     </h1>
                     <p className="text-muted-foreground mt-1">
                         Olá, {user?.name} • Next Control
@@ -195,50 +218,50 @@ ${report.followups < report.mapeamentos
 
                 {/* Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <Card className="sf-card-hover">
+                    <Card className="nc-card-hover nc-card-border">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Equipe</p>
+                                    <p className="text-2xl font-bold">{realUsers.filter(u => u.role !== 'admin' && u.role !== 'client').length}</p>
+                                </div>
+                                <Users className="h-8 w-8 text-solar opacity-80" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="nc-card-hover nc-card-border">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Clientes</p>
                                     <p className="text-2xl font-bold">{clients.length}</p>
                                 </div>
-                                <Users className="h-8 w-8 text-primary opacity-80" />
+                                <Users className="h-8 w-8 text-nc-info opacity-80" />
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="sf-card-hover">
+                    <Card className="nc-card-hover nc-card-border border-nc-warning/30">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Usuários</p>
-                                    <p className="text-2xl font-bold">{realUsers.length}</p>
+                                    <p className="text-sm text-muted-foreground">Aguardando Análise</p>
+                                    <p className="text-2xl font-bold text-nc-warning">{pendingSubmissions.length}</p>
                                 </div>
-                                <Users className="h-8 w-8 text-blue-500 opacity-80" />
+                                <Clock className="h-8 w-8 text-nc-warning opacity-80" />
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="sf-card-hover border-yellow-500/30">
+                    <Card className="nc-card-hover nc-card-border">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Pendentes</p>
-                                    <p className="text-2xl font-bold text-yellow-500">{pendingReports.length}</p>
+                                    <p className="text-sm text-muted-foreground">Analisados</p>
+                                    <p className="text-2xl font-bold text-nc-success">{analyzedSubmissions.length}</p>
                                 </div>
-                                <Clock className="h-8 w-8 text-yellow-500 opacity-80" />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="sf-card-hover">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Aprovados</p>
-                                    <p className="text-2xl font-bold text-green-500">{approvedReports.length}</p>
-                                </div>
-                                <CheckCircle className="h-8 w-8 text-green-500 opacity-80" />
+                                <CheckCircle className="h-8 w-8 text-nc-success opacity-80" />
                             </div>
                         </CardContent>
                     </Card>
@@ -246,22 +269,22 @@ ${report.followups < report.mapeamentos
 
                 {/* Action Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    {/* User Validation Inbox */}
-                    <Card className="sf-card-glow border-blue-500/20">
+                    {/* User Validation */}
+                    <Card className="nc-card-border">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <Users className="h-5 w-5 text-blue-500" />
+                                <Users className="h-5 w-5 text-nc-info" />
                                 Validação de Acessos
                             </CardTitle>
                             <CardDescription>
-                                Libere o acesso para novos membros da equipe
+                                Libere acesso para novos membros
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             {realUsers.filter(u => u.status === 'pending').length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p>Todos os usuários validados</p>
+                                    <p>Todos validados</p>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -276,27 +299,23 @@ ${report.followups < report.mapeamentos
                                                     size="sm"
                                                     variant="ghost"
                                                     onClick={async () => {
-                                                        const { error } = await supabase.from('users').update({ status: 'suspended' }).eq('id', pendingUser.id);
-                                                        if (error) {
-                                                            toast.error('Erro ao suspender usuário');
-                                                        } else {
-                                                            toast.success('Usuário rejeitado');
-                                                            setRealUsers(prev => prev.map(u => u.id === pendingUser.id ? { ...u, status: 'suspended' } : u));
+                                                        const { error } = await (supabase as any).from('users').update({ status: 'suspended' }).eq('id', pendingUser.id);
+                                                        if (error) { toast.error('Erro'); } else {
+                                                            toast.success('Rejeitado');
+                                                            setRealUsers(prev => prev.map(u => u.id === pendingUser.id ? { ...u, status: 'suspended' as const } : u));
                                                         }
                                                     }}
                                                 >
-                                                    <XCircle className="h-4 w-4 text-red-500" />
+                                                    <XCircle className="h-4 w-4 text-nc-error" />
                                                 </Button>
                                                 <Button
                                                     size="sm"
-                                                    className="bg-green-500 hover:bg-green-600 text-white"
+                                                    className="bg-nc-success hover:bg-nc-success/90 text-white"
                                                     onClick={async () => {
-                                                        const { error } = await supabase.from('users').update({ status: 'active' }).eq('id', pendingUser.id);
-                                                        if (error) {
-                                                            toast.error('Erro ao ativar usuário');
-                                                        } else {
+                                                        const { error } = await (supabase as any).from('users').update({ status: 'active' }).eq('id', pendingUser.id);
+                                                        if (error) { toast.error('Erro'); } else {
                                                             toast.success('Acesso liberado!');
-                                                            setRealUsers(prev => prev.map(u => u.id === pendingUser.id ? { ...u, status: 'active' } : u));
+                                                            setRealUsers(prev => prev.map(u => u.id === pendingUser.id ? { ...u, status: 'active' as const } : u));
                                                         }
                                                     }}
                                                 >
@@ -310,50 +329,58 @@ ${report.followups < report.mapeamentos
                         </CardContent>
                     </Card>
 
-                    {/* Pending Reports Inbox */}
-                    <Card className="sf-card-glow border-yellow-500/20">
+                    {/* Pending Submissions */}
+                    <Card className="nc-card-border border-nc-warning/20">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <Clock className="h-5 w-5 text-yellow-500" />
-                                Inbox de Métricas
+                                <Clock className="h-5 w-5 text-nc-warning" />
+                                Submissões Pendentes
                             </CardTitle>
-                            <CardDescription>
-                                Valide os relatórios diários
-                            </CardDescription>
+                            <CardDescription>Submissões aguardando análise IA</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {pendingReports.length === 0 ? (
+                            {pendingSubmissions.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p>Nenhum relatório pendente</p>
+                                    <p>Nenhuma submissão pendente</p>
                                 </div>
                             ) : (
                                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                                    {pendingReports.map((report) => (
+                                    {pendingSubmissions.map((sub) => (
                                         <div
-                                            key={report.id}
-                                            className="flex items-center justify-between p-3 bg-card rounded-lg border hover:border-primary/50 transition-colors"
+                                            key={sub.id}
+                                            className="flex items-center justify-between p-3 bg-card rounded-lg border hover:border-solar/50 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                                    <FileText className="h-4 w-4 text-primary" />
+                                                <div className="h-8 w-8 rounded-full bg-solar/10 flex items-center justify-center">
+                                                    <FileText className="h-4 w-4 text-solar" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-sm">{getClientName(report.client_id)}</p>
+                                                    <p className="font-medium text-sm">{sub.seller?.name || getSellerName(sub.seller_id)}</p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {getSellerName(report.seller_id)} • {new Date(report.report_date).toLocaleDateString('pt-BR')}
+                                                        {new Date(sub.submission_date).toLocaleDateString('pt-BR')} • {sub.conversation_prints?.length || 0} prints
                                                     </p>
                                                 </div>
                                             </div>
-
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-8"
-                                                onClick={() => setSelectedReport(report)}
-                                            >
-                                                Review
-                                            </Button>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8"
+                                                    onClick={() => setSelectedSubmission(sub)}
+                                                >
+                                                    <Eye className="h-3 w-3 mr-1" />
+                                                    Ver
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    className="h-8 bg-solar hover:bg-solar/90 text-deep-space"
+                                                    onClick={() => handleAnalyze(sub)}
+                                                >
+                                                    <Sparkles className="h-3 w-3 mr-1" />
+                                                    Analisar
+                                                </Button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -362,85 +389,157 @@ ${report.followups < report.mapeamentos
                     </Card>
                 </div>
 
-                {/* Report Detail Modal */}
-                <Dialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>
+                {/* Conselho RY: Head Agent + Strategist */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <HeadAgentPanel
+                        reports={[]}
+                        callLogs={callLogs}
+                        sellerName={realUsers.find(u => u.role === 'seller')?.name || 'Equipe'}
+                        clientName={clients[0]?.name || 'Cliente'}
+                    />
+                    <StrategistPanel
+                        clientName={clients[0]?.name || 'Cliente'}
+                        onStrategySent={(strategy) => {
+                            toast.success('Estratégia enviada!', { description: strategy.substring(0, 80) + '...' });
+                        }}
+                    />
+                </div>
+
+                {/* Analyzed Submissions */}
+                {analyzedSubmissions.length > 0 && (
+                    <Card className="nc-card-border border-nc-success/20 mb-8">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <CheckCircle className="h-5 w-5 text-nc-success" />
+                                Submissões Analisadas
+                            </CardTitle>
+                            <CardDescription>
+                                Resultados das análises IA — gere PDFs ou envie via WhatsApp
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                                {analyzedSubmissions.slice(0, 20).map((sub) => {
+                                    const analysis = getAnalysisForSubmission(sub.id);
+                                    const report = getReportForSubmission(sub.id);
+                                    return (
+                                        <div
+                                            key={sub.id}
+                                            className="flex items-center justify-between p-3 bg-card rounded-lg border"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 rounded-full bg-nc-success/10 flex items-center justify-center">
+                                                    <CheckCircle className="h-4 w-4 text-nc-success" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-sm">{sub.seller?.name || getSellerName(sub.seller_id)}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {new Date(sub.submission_date).toLocaleDateString('pt-BR')} • Score: <span className="font-mono font-bold">{analysis?.score || '—'}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8"
+                                                    onClick={() => handleGenerateReport(sub)}
+                                                    disabled={isGeneratingPDF}
+                                                >
+                                                    <Download className="h-3 w-3 mr-1" />
+                                                    PDF
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    className="h-8 bg-nc-success hover:bg-nc-success/90 text-white gap-1"
+                                                    onClick={() => handleDeliverWhatsApp(sub)}
+                                                >
+                                                    <MessageCircle className="h-3 w-3" />
+                                                    WhatsApp
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Submission Detail Modal */}
+                <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                            <DialogTitle>Detalhes do Relatório</DialogTitle>
+                            <DialogTitle>Detalhes da Submissão</DialogTitle>
                             <DialogDescription>
-                                {selectedReport && (
+                                {selectedSubmission && (
                                     <>
-                                        Cliente: {getClientName(selectedReport.client_id)} •
-                                        Seller: {getSellerName(selectedReport.seller_id)} •
-                                        {new Date(selectedReport.report_date).toLocaleDateString('pt-BR')}
+                                        {selectedSubmission.seller?.name || getSellerName(selectedSubmission.seller_id)} •{' '}
+                                        {new Date(selectedSubmission.submission_date).toLocaleDateString('pt-BR')}
                                     </>
                                 )}
                             </DialogDescription>
                         </DialogHeader>
 
-                        {selectedReport && (
+                        {selectedSubmission && (
                             <div className="space-y-4">
-                                {/* Metrics Grid */}
-                                <div className="grid grid-cols-3 gap-3">
-                                    {Object.entries(FUNNEL_LABELS).map(([key, { label, emoji }]) => (
-                                        <div key={key} className="bg-muted rounded-lg p-3 text-center">
-                                            <span className="text-lg">{emoji}</span>
-                                            <p className="text-xs text-muted-foreground mt-1">{label}</p>
-                                            <p className="text-xl font-bold">
-                                                {selectedReport[key as FunnelMetricKey] || 0}
-                                            </p>
-                                        </div>
-                                    ))}
+                                {/* Metrics */}
+                                <div>
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wider">Métricas</h3>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {Object.entries(selectedSubmission.metrics as Record<string, any>).map(([key, value]) => (
+                                            <div key={key} className="bg-muted rounded-lg p-3">
+                                                <p className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</p>
+                                                <p className="text-lg font-mono font-bold">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</p>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
 
+                                {/* Prints */}
+                                {selectedSubmission.conversation_prints?.length > 0 && (
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                                            Prints ({selectedSubmission.conversation_prints.length})
+                                        </h3>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {selectedSubmission.conversation_prints.map((url, i) => (
+                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="aspect-square bg-muted rounded-lg overflow-hidden border hover:border-solar transition-colors">
+                                                    <img src={url} alt={`Print ${i + 1}`} className="w-full h-full object-cover" />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Notes */}
-                                {selectedReport.notes && (
+                                {selectedSubmission.notes && (
                                     <div className="bg-muted rounded-lg p-4">
-                                        <p className="text-sm font-medium mb-2">Observações do Seller:</p>
-                                        <p className="text-sm text-muted-foreground">{selectedReport.notes}</p>
+                                        <p className="text-sm font-medium mb-1">Observações:</p>
+                                        <p className="text-sm text-muted-foreground">{selectedSubmission.notes}</p>
                                     </div>
                                 )}
 
                                 {/* Actions */}
                                 <div className="flex gap-3 pt-4 border-t">
                                     <Button
-                                        variant="outline"
-                                        className="flex-1"
-                                        onClick={() => {
-                                            toast.success('Gerando PDF...', { description: 'O download iniciará em instantes.' });
-                                            setTimeout(() => toast.success('Relatório baixado!'), 2000);
-                                        }}
-                                    >
-                                        <FileText className="h-4 w-4 mr-2" />
-                                        PDF
-                                    </Button>
-                                </div>
-                                <div className="flex gap-3 mt-3">
-                                    <Button
-                                        variant="destructive"
-                                        className="flex-1"
-                                        onClick={() => handleReject(selectedReport.id)}
-                                        disabled={isGeneratingAI}
-                                    >
-                                        <XCircle className="h-4 w-4 mr-2" />
-                                        Rejeitar
-                                    </Button>
-                                    <Button
-                                        className="flex-[2] sf-gradient"
-                                        onClick={() => handleApprove(selectedReport.id)}
+                                        className="flex-1 bg-solar hover:bg-solar/90 text-deep-space"
+                                        onClick={() => handleAnalyze(selectedSubmission)}
                                         disabled={isGeneratingAI}
                                     >
                                         {isGeneratingAI ? (
-                                            <>
-                                                <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                                                IA Analisando...
-                                            </>
+                                            <><Sparkles className="h-4 w-4 mr-2 animate-spin" /> Analisando...</>
                                         ) : (
-                                            <>
-                                                <CheckCircle className="h-4 w-4 mr-2" />
-                                                Aprovar + Análise IA
-                                            </>
+                                            <><Sparkles className="h-4 w-4 mr-2" /> Analisar com IA</>
                                         )}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => handleGenerateReport(selectedSubmission)}
+                                        disabled={isGeneratingPDF || !getAnalysisForSubmission(selectedSubmission.id)}
+                                    >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        PDF
                                     </Button>
                                 </div>
                             </div>

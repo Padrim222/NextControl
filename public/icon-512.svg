@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#0A0B0D"/>
+  <g transform="translate(100, 120)">
+    <!-- Upward trend arrow -->
+    <path d="M40 250 L120 180 L200 200 L280 80" stroke="#E6B84D" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <polygon points="280,80 280,130 240,90" fill="#E6B84D"/>
+    <!-- Base line -->
+    <line x1="30" y1="270" x2="300" y2="270" stroke="#333" stroke-width="4"/>
+    <!-- Coaching whistle circle -->
+    <circle cx="160" cy="40" r="35" fill="none" stroke="#E6B84D" stroke-width="8"/>
+    <circle cx="160" cy="40" r="12" fill="#E6B84D"/>
+  </g>
+</svg>
