@@ -14,11 +14,20 @@ import SellerDashboard from "@/pages/seller/SellerDashboard";
 import DailyReport from "@/pages/seller/DailyReport";
 import WeeklyEvolution from "@/pages/seller/WeeklyEvolution";
 import CloserDashboard from "@/pages/closer/CloserDashboard";
+import CallAnalysis from "@/pages/closer/CallAnalysis";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminManage from "@/pages/admin/AdminManage";
 import ClientDashboard from "@/pages/client/ClientDashboard";
 import CSInbox from "@/pages/cs/CSInbox";
 import TrainingHub from "@/pages/training/TrainingHub";
 import CoachChat from "@/pages/training/CoachChat";
+import RagManager from "@/pages/admin/RagManager";
+
+// Public Form Pages (no auth)
+import ExpertForm from "@/pages/forms/ExpertForm";
+import SellerForm from "@/pages/forms/SellerForm";
+import CloserForm from "@/pages/forms/CloserForm";
+import FormSuccess from "@/pages/forms/FormSuccess";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +42,12 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+
+            {/* Public Form Routes (no auth, no dashboard layout) */}
+            <Route path="/form/expert-weekly" element={<ExpertForm />} />
+            <Route path="/form/seller-daily" element={<SellerForm />} />
+            <Route path="/form/closer-daily" element={<CloserForm />} />
+            <Route path="/form/success" element={<FormSuccess />} />
 
             {/* Seller Routes */}
             <Route
@@ -69,7 +84,7 @@ const App = () => (
             <Route
               path="/seller/evolution"
               element={
-                <RoleGuard allowedRoles={['seller', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
                   <DashboardLayout>
                     <WeeklyEvolution />
                   </DashboardLayout>
@@ -89,6 +104,17 @@ const App = () => (
               }
             />
 
+            <Route
+              path="/closer/call-analysis"
+              element={
+                <RoleGuard allowedRoles={['closer', 'admin']}>
+                  <DashboardLayout>
+                    <CallAnalysis />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+
             {/* Admin Routes */}
             <Route
               path="/admin"
@@ -96,6 +122,26 @@ const App = () => (
                 <RoleGuard allowedRoles={['admin']}>
                   <DashboardLayout>
                     <AdminDashboard />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/admin/manage"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <AdminManage />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/admin/rag"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <RagManager />
                   </DashboardLayout>
                 </RoleGuard>
               }
@@ -129,7 +175,7 @@ const App = () => (
             <Route
               path="/training"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'client', 'admin']}>
                   <DashboardLayout>
                     <TrainingHub />
                   </DashboardLayout>
@@ -139,7 +185,7 @@ const App = () => (
             <Route
               path="/training/coach"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'client', 'admin']}>
                   <DashboardLayout>
                     <CoachChat />
                   </DashboardLayout>

@@ -8,7 +8,6 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<string | null>;
-  loginAsBeta: (role: UserRole) => void;
   logout: () => Promise<void>;
   register: (email: string, password: string, name: string, role: UserRole) => Promise<boolean>;
   hasRole: (roles: UserRole | UserRole[]) => boolean;
@@ -41,10 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fetchProfile(session.user.id);
         }
       } else {
-        // Don't clear beta users — they are in-memory only
-        if (!user?.id?.startsWith('beta-')) {
-          setUser(null);
-        }
+        setUser(null);
         setIsLoading(false);
       }
     });
@@ -86,26 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
-  const loginAsBeta = (role: UserRole) => {
-    const betaNames: Record<UserRole, string> = {
-      admin: 'Admin Head',
-      seller: 'Carlos Seller',
-      closer: 'Ana Closer',
-      client: 'Cliente Beta',
-      cs: 'Ronaldo CS',
-    };
-    setUser({
-      id: `beta-${role}`,
-      email: `${role}@beta.local`,
-      name: betaNames[role],
-      role,
-      status: 'active',
-      seller_type: role === 'seller' ? 'seller' : role === 'closer' ? 'closer' : undefined,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    } as User);
-    setIsLoading(false);
-  };
+
 
   const logout = async () => {
     if (supabase) await supabase.auth.signOut();
@@ -136,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, loginAsBeta, logout, register, hasRole }}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout, register, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

@@ -3,7 +3,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Spinner } from '@/components/ui/Spinner';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { Bar, BarChart, XAxis, YAxis, Cell } from 'recharts';
 import {
     TrendingUp,
     ArrowLeft,
@@ -95,6 +99,12 @@ export default function WeeklyEvolution() {
             setWeeks(weekData);
         } catch (error) {
             console.error('Error fetching weekly data:', error);
+            toast.error('Erro ao carregar evolução semanal.', {
+                action: {
+                    label: 'Tentar novamente',
+                    onClick: () => fetchWeeklyData(),
+                },
+            });
         } finally {
             setIsLoading(false);
         }
@@ -125,7 +135,7 @@ export default function WeeklyEvolution() {
 
             {isLoading ? (
                 <div className="flex items-center justify-center py-20">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                    <Spinner size="md" />
                 </div>
             ) : weeks.length === 0 ? (
                 <Card className="nc-card-border bg-card">
@@ -166,40 +176,58 @@ export default function WeeklyEvolution() {
                         </Card>
                     </div>
 
-                    {/* Score Chart (CSS-based) */}
+                    {/* Score Chart — Recharts */}
                     <Card className="nc-card-border bg-card">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-base">Score por Semana</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-end gap-2 h-40">
-                                {weeks.map((week, i) => (
-                                    <motion.div
-                                        key={week.week}
-                                        initial={{ height: 0 }}
-                                        animate={{ height: `${(week.avgScore / maxScore) * 100}%` }}
-                                        transition={{ delay: i * 0.1, duration: 0.5 }}
-                                        className="flex-1 flex flex-col items-center justify-end"
+                            <ChartContainer
+                                config={{
+                                    score: { label: 'Score', color: 'hsl(var(--nc-success))' },
+                                }}
+                                className="h-[200px] w-full"
+                            >
+                                <BarChart data={weeks} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
+                                    <XAxis
+                                        dataKey="week"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tick={{ fontSize: 10 }}
+                                    />
+                                    <YAxis
+                                        domain={[0, 100]}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tick={{ fontSize: 10 }}
+                                    />
+                                    <ChartTooltip
+                                        content={
+                                            <ChartTooltipContent
+                                                formatter={(value) => `${value}/100`}
+                                            />
+                                        }
+                                    />
+                                    <Bar
+                                        dataKey="avgScore"
+                                        radius={[4, 4, 0, 0]}
+                                        animationDuration={800}
                                     >
-                                        <span className="text-xs font-mono font-bold mb-1">{week.avgScore}</span>
-                                        <div
-                                            className="w-full rounded-t-md"
-                                            style={{
-                                                height: '100%',
-                                                minHeight: 4,
-                                                background: week.avgScore >= 70
-                                                    ? 'linear-gradient(to top, #22c55e80, #22c55e)'
-                                                    : week.avgScore >= 40
-                                                        ? 'linear-gradient(to top, #eab30880, #eab308)'
-                                                        : 'linear-gradient(to top, #ef444480, #ef4444)',
-                                            }}
-                                        />
-                                        <span className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-                                            {week.week}
-                                        </span>
-                                    </motion.div>
-                                ))}
-                            </div>
+                                        {weeks.map((week) => (
+                                            <Cell
+                                                key={week.week}
+                                                fill={
+                                                    week.avgScore >= 70
+                                                        ? 'hsl(var(--nc-success))'
+                                                        : week.avgScore >= 40
+                                                            ? 'hsl(var(--nc-warning))'
+                                                            : 'hsl(var(--nc-error))'
+                                                }
+                                            />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ChartContainer>
                         </CardContent>
                     </Card>
 

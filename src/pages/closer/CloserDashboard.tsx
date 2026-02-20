@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { DailySubmission, Analysis, CloserMetrics } from '@/types';
+import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
 
 export default function CloserDashboard() {
     const { user } = useAuth();
@@ -62,10 +63,19 @@ export default function CloserDashboard() {
         }
     };
 
-    // Aggregate stats from latest submissions
     const totalCalls = submissions.reduce((acc, s) => {
         const m = s.metrics as CloserMetrics;
         return acc + (m?.calls_made || 0);
+    }, 0);
+
+    const totalProposals = submissions.reduce((acc, s) => {
+        const m = s.metrics as CloserMetrics;
+        return acc + (m?.proposals_sent || 0);
+    }, 0);
+
+    const totalSales = submissions.reduce((acc, s) => {
+        const m = s.metrics as CloserMetrics;
+        return acc + (m?.sales_closed || 0);
     }, 0);
 
     const avgConversion = submissions.length > 0
@@ -81,6 +91,18 @@ export default function CloserDashboard() {
             value: totalCalls,
             icon: Phone,
             color: 'text-solar',
+        },
+        {
+            label: 'Propostas (7d)',
+            value: totalProposals,
+            icon: Target,
+            color: 'text-nc-info',
+        },
+        {
+            label: 'Vendas (7d)',
+            value: totalSales,
+            icon: CheckCircle,
+            color: 'text-nc-success',
         },
         {
             label: 'Status Hoje',
@@ -120,14 +142,23 @@ export default function CloserDashboard() {
                             : '⏰ Registre suas calls do dia!'}
                     </p>
                 </div>
-                <Button onClick={() => navigate('/training/coach')} variant="outline" className="nc-btn-ghost">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Consultoria
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={() => navigate('/seller/evolution')} variant="outline" className="nc-btn-ghost">
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        Evolução
+                    </Button>
+                    <Button onClick={() => navigate('/training/coach')} variant="outline" className="nc-btn-ghost">
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Consultoria
+                    </Button>
+                </div>
             </motion.div>
 
+            {/* Pending Form Banner */}
+            <FormPendingBanner formType="closer_daily" />
+
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {stats.map((stat, i) => (
                     <motion.div
                         key={stat.label}

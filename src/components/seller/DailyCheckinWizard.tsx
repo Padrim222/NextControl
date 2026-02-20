@@ -36,6 +36,10 @@ const METRIC_HELP: Record<string, string> = {
     proposals: 'Quantas propostas de valor ou orçamento você enviou?',
     sales: 'Quantas vendas foram efetivamente fechadas e pagas hoje?',
     calls_made: 'Total de ligações (conectadas ou não) realizadas no dia.',
+    proposals_sent: 'Quantas propostas comerciais você enviou após as calls?',
+    sales_closed: 'Quantas vendas foram fechadas e confirmadas hoje?',
+    no_shows: 'Quantos leads agendados não apareceram na call?',
+    reschedules: 'Quantas calls foram reagendadas para outra data?',
     conversion_rate: 'Qual a porcentagem de fechamento sobre as calls realizadas? (Ex: 2 vendas em 10 calls = 20%)',
     main_objections: 'Liste as barreiras que os clientes mais usaram para não comprar.',
 };
@@ -61,6 +65,10 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
     });
     const [closerMetrics, setCloserMetrics] = useState<CloserMetrics>({
         calls_made: 0,
+        proposals_sent: 0,
+        sales_closed: 0,
+        no_shows: 0,
+        reschedules: 0,
         conversion_rate: 0,
         main_objections: [],
     });
@@ -416,6 +424,8 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                             ) : (
                                                 <>
                                                     <li>Calls: {closerMetrics.calls_made}</li>
+                                                    <li>Propostas: {closerMetrics.proposals_sent}</li>
+                                                    <li>Vendas: {closerMetrics.sales_closed}</li>
                                                     <li>Conversão: {closerMetrics.conversion_rate}%</li>
                                                 </>
                                             )}

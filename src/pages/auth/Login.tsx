@@ -34,7 +34,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const { login, loginAsBeta, user, isAuthenticated } = useAuth();
+    const { login, user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
@@ -162,34 +162,7 @@ export default function Login() {
                             </Link>
                         </div>
 
-                        {true && (
-                            <div className="mt-6 border-t border-border pt-4">
-                                <p className="text-xs text-muted-foreground text-center mb-3">
-                                    Modo Demo — Acesso rápido sem backend
-                                </p>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {(Object.entries(ROLE_META) as [UserRole, typeof ROLE_META[string]][]).map(([role, meta]) => {
-                                        const Icon = meta.icon;
-                                        return (
-                                            <Button
-                                                key={role}
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-xs"
-                                                onClick={() => {
-                                                    loginAsBeta(role);
-                                                    toast.success(`Logado como ${meta.label} (beta)`);
-                                                    navigate(roleRoutes[role] || '/admin', { replace: true });
-                                                }}
-                                            >
-                                                <Icon className={`h-3 w-3 mr-1 ${meta.color}`} />
-                                                {meta.label}
-                                            </Button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
+
                     </CardContent>
                 </Card>
 

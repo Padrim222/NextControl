@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seller Dashboard — Redesign Wireframe</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
+      background: #fff;
+      color: #333;
+      padding: 0;
+      line-height: 1.5;
+    }
+    .wireframe-title {
+      background: #f5f5f5;
+      padding: 16px 24px;
+      border-bottom: 2px solid #ccc;
+      font-size: 14px;
+      color: #666;
+    }
+    .wireframe-title h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
+    .wireframe-title p { font-size: 13px; color: #999; }
+
+    /* Phone frame */
+    .device-frame {
+      display: flex;
+      gap: 40px;
+      padding: 32px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .viewport {
+      border: 2px solid #999;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      background: #fff;
+    }
+    .viewport-label {
+      background: #eee;
+      text-align: center;
+      padding: 6px;
+      font-size: 12px;
+      color: #666;
+      font-weight: bold;
+      border-bottom: 1px solid #ccc;
+    }
+    .mobile { width: 375px; }
+    .desktop { width: 900px; }
+
+    /* ===== LAYOUT ===== */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid #ddd;
+      background: #fafafa;
+      position: relative;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .logo-icon {
+      width: 28px; height: 28px;
+      background: #ccc;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 4px;
+    }
+    .nav-link {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #999;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .nav-link.active {
+      background: #f0f0f0;
+      color: #333;
+      font-weight: bold;
+      border-color: #ddd;
+    }
+    .user-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+    .avatar {
+      width: 28px; height: 28px;
+      background: #ddd;
+      border-radius: 50%;
+    }
+
+    /* Content area */
+    .content {
+      padding: 20px 16px;
+    }
+    .content.desktop-content {
+      padding: 24px 32px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* ===== COMPONENTS ===== */
+    /* Greeting section */
+    .greeting {
+      margin-bottom: 20px;
+    }
+    .greeting h2 {
+      font-size: 18px;
+      margin-bottom: 2px;
+    }
+    .greeting p {
+      font-size: 12px;
+      color: #999;
+    }
+
+    /* Stats strip */
+    .stats-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      min-width: 110px;
+      flex: 1;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      position: relative;
+    }
+    .stat-card .stat-icon {
+      width: 20px; height: 20px;
+      background: #eee;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+    }
+    .stat-card .stat-label {
+      font-size: 10px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .stat-card .stat-value {
+      font-size: 18px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* CTA Card */
+    .cta-card {
+      border: 2px dashed #999;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+      cursor: pointer;
+      position: relative;
+    }
+    .cta-card:hover {
+      background: #fafafa;
+    }
+    .cta-icon {
+      width: 48px; height: 48px;
+      background: #eee;
+      border-radius: 12px;
+      margin: 0 auto 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .cta-card h3 { font-size: 16px; margin-bottom: 4px; }
+    .cta-card p { font-size: 12px; color: #999; margin-bottom: 12px; }
+    .cta-btn {
+      display: inline-block;
+      padding: 8px 20px;
+      background: #ccc;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    /* Section card */
+    .section-card {
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      position: relative;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .section-header .icon {
+      width: 16px; height: 16px;
+      background: #eee;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 6px;
+      font-size: 9px;
+    }
+    .section-body {
+      padding: 12px 16px;
+    }
+
+    /* Score display */
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .score-badge {
+      width: 60px; height: 60px;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #fafafa;
+    }
+    .score-badge .num {
+      font-size: 22px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+    }
+    .score-badge .label {
+      font-size: 9px;
+      color: #999;
+    }
+    .score-text {
+      flex: 1;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    /* Strengths / Improvements grid */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .feedback-box {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .feedback-box .fb-title {
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      color: #666;
+    }
+    .feedback-box .fb-title.green { color: #4a8; }
+    .feedback-box .fb-title.orange { color: #b84; }
+    .feedback-box li {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 3px;
+      list-style: none;
+      padding-left: 12px;
+      position: relative;
+    }
+    .feedback-box li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+    }
+
+    /* Timeline */
+    .timeline-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-size: 12px;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .timeline-item:hover {
+      background: #f8f8f8;
+      border-color: #eee;
+    }
+    .timeline-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+    .timeline-date { font-family: 'Courier New', monospace; font-size: 12px; }
+    .timeline-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 11px;
+      color: #999;
+    }
+    .timeline-score {
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      background: #f0f0f0;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .chevron { font-size: 14px; color: #ccc; }
+
+    /* Quick chart */
+    .mini-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 48px;
+      padding: 8px 0;
+    }
+    .mini-bar {
+      flex: 1;
+      background: #ddd;
+      border-radius: 3px 3px 0 0;
+      min-height: 4px;
+    }
+
+    /* ===== MOBILE BOTTOM NAV ===== */
+    .bottom-nav {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      border-top: 1px solid #ddd;
+      padding: 8px 0 12px;
+      background: #fafafa;
+      position: sticky;
+      bottom: 0;
+    }
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 10px;
+      color: #999;
+      cursor: pointer;
+      min-width: 56px;
+      padding: 4px;
+    }
+    .bottom-nav-item.active {
+      color: #333;
+      font-weight: bold;
+    }
+    .bottom-nav-icon {
+      width: 24px; height: 24px;
+      background: #eee;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+    .bottom-nav-item.active .bottom-nav-icon {
+      background: #ddd;
+    }
+
+    /* Quick actions */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .quick-action-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .quick-action-btn:hover { background: #fafafa; }
+
+    /* Reuse badge */
+    .reuse-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #4CAF50;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      z-index: 10;
+      white-space: nowrap;
+    }
+    .new-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #FF9800;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    /* Sparkline placeholder */
+    .sparkline {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 24px;
+    }
+    .spark-bar {
+      width: 4px;
+      background: #ccc;
+      border-radius: 2px;
+    }
+
+    /* Progress ring placeholder */
+    .progress-ring {
+      width: 40px; height: 40px;
+      border: 3px solid #eee;
+      border-top: 3px solid #999;
+      border-radius: 50%;
+    }
+
+    /* Skeleton row */
+    .skeleton {
+      background: #f0f0f0;
+      border-radius: 4px;
+      height: 12px;
+      margin-bottom: 6px;
+    }
+    .skeleton.w-60 { width: 60%; }
+    .skeleton.w-40 { width: 40%; }
+    .skeleton.w-80 { width: 80%; }
+
+    /* Section divider */
+    .section-divider {
+      font-size: 11px;
+      color: #bbb;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 20px 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #eee;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: #bbb;
+    }
+    .empty-state .icon { font-size: 32px; margin-bottom: 8px; }
+    .empty-state p { font-size: 12px; }
+
+    /* Desktop nav hide mobile nav */
+    @media (min-width: 640px) {
+      .mobile-only { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="wireframe-title">
+  <h1>🔧 Seller Dashboard — Redesign Wireframe</h1>
+  <p>Balanced approach: reuses existing Card, Button, Badge, Progress from shadcn + introduces MobileBottomNav, StatCardCompact, SubmissionTimeline components. Optimized for sales teams on mobile.</p>
+</div>
+
+<div class="device-frame">
+
+  <!-- ==================== MOBILE VIEW ==================== -->
+  <div>
+    <div style="text-align:center; margin-bottom: 8px; font-size: 13px; font-weight: bold; color: #666;">📱 Mobile (375px)</div>
+    <div class="viewport mobile">
+      <div class="viewport-label">Mobile — Seller Dashboard</div>
+
+      <!-- REUSABLE: Top Bar (simplified for mobile - logo + avatar only) -->
+      <!-- REUSABLE: DashboardLayout from src/components/layout/DashboardLayout.tsx -->
+      <div class="top-bar" style="position: relative;">
+        <span class="reuse-badge" title="src/components/layout/DashboardLayout.tsx">[REUSE] DashboardLayout</span>
+        <div class="logo">
+          <div class="logo-icon">✦</div>
+          <span>Next Control</span>
+        </div>
+        <div class="user-area">
+          <span style="font-size:11px;background:#f0f0f0;padding:2px 8px;border-radius:99px;">Seller</span>
+          <div class="avatar"></div>
+        </div>
+      </div>
+
+      <div class="content">
+        <!-- Greeting -->
+        <div class="greeting">
+          <h2>Olá, <span style="text-decoration: underline wavy #ccc;">Fabricio</span></h2>
+          <p>⏰ Hora de fazer o check-in do dia!</p>
+        </div>
+
+        <!-- Stats (horizontal scroll on mobile) -->
+        <div class="stats-strip" style="position: relative;">
+          <span class="reuse-badge" title="src/components/ui/card.tsx" style="top: -12px; right: 4px;">[REUSE] Card</span>
+
+          <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-label">7 dias</div>
+            <div class="stat-value">5</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">✓</div>
+            <div class="stat-label">Hoje</div>
+            <div class="stat-value" style="color: #999; font-size: 14px;">Pendente</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-label">Score</div>
+            <div class="stat-value">78</div>
+            <div class="sparkline" style="margin-top: 4px;">
+              <div class="spark-bar" style="height: 8px;"></div>
+              <div class="spark-bar" style="height: 14px;"></div>
+              <div class="spark-bar" style="height: 10px;"></div>
+              <div class="spark-bar" style="height: 18px;"></div>
+              <div class="spark-bar" style="height: 16px;"></div>
+              <div class="spark-bar" style="height: 22px;"></div>
+              <div class="spark-bar" style="height: 20px;"></div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">💬</div>
+            <div class="stat-label">Coach</div>
+            <div class="stat-value" style="font-size: 13px;">Online</div>
+          </div>
+        </div>
+
+        <!-- CTA — Check-in do Dia -->
+        <div class="cta-card" style="position: relative;">
+          <span class="reuse-badge" title="src/components/ui/card.tsx + src/components/ui/button.tsx">[REUSE] Card + Button</span>
+          <div class="cta-icon">📤</div>
+          <h3>Check-in do Dia</h3>
+          <p>Registre seus números e envie prints</p>
+          <div class="cta-btn">Começar →</div>
+        </div>
+
+        <!-- Quick Actions row -->
+        <div class="section-divider">Ações rápidas</div>
+        <div class="quick-actions" style="position: relative;">
+          <span class="new-badge" title="To be created at src/components/seller/QuickActions.tsx" style="top: -12px; right: 4px;">[NEW] QuickActions</span>
+          <div class="quick-action-btn">📈 Evolução</div>
+          <div class="quick-action-btn">💬 Coach IA</div>
+        </div>
+
+        <!-- Coach Feedback Section -->
+        <div class="section-divider">Último feedback</div>
+        <div class="section-card" style="position: relative;">
+          <span class="reuse-badge" title="src/components/ui/card.tsx">[REUSE] Card</span>
+          <div class="section-header">
+            <div><span class="icon">📊</span> Feedback do Coach</div>
+            <span style="font-size: 11px; color: #999;">há 2h</span>
+          </div>
+          <div class="section-body">
+            <div class="score-row">
+              <div class="score-badge">
+                <div class="num">78</div>
+                <div class="label">Score</div>
+              </div>
+              <div class="score-text">
+                Bom desempenho nas abordagens. Continue focando na qualidade das conversas iniciais e melhore o follow-up...
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="feedback-box">
+                <div class="fb-title green">✓ Forças</div>
+                <ul>
+                  <li>Abordagens consistentes</li>
+                  <li>Boa taxa de resposta</li>
+                  <li>Scripts personalizados</li>
+                </ul>
+              </div>
+              <div class="feedback-box">
+                <div class="fb-title orange">⚡ Melhorar</div>
+                <ul>
+                  <li>Follow-up tardio</li>
+                  <li>Poucos fechamentos</li>
+                  <li>Objeções não tratadas</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submissions Timeline -->
+        <div class="section-divider">Submissões recentes</div>
+        <div class="section-card" style="position: relative;">
+          <span class="new-badge" title="To be created at src/components/seller/SubmissionTimeline.tsx" style="top: -12px; right: 4px;">[NEW] SubmissionTimeline</span>
+          <div class="section-body" style="padding: 4px 8px;">
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #999;"></div>
+                <span class="timeline-date">19 fev</span>
+                <span style="font-size:10px;color:#999;">3 prints</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">82</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #ccc;"></div>
+                <span class="timeline-date">18 fev</span>
+                <span style="font-size:10px;color:#999;">5 prints</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">75</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #ccc;"></div>
+                <span class="timeline-date">17 fev</span>
+                <span style="font-size:10px;color:#999;">2 prints</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">68</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #ccc;"></div>
+                <span class="timeline-date">16 fev</span>
+                <span style="font-size:10px;color:#999;">4 prints</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">71</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height: 72px;"></div>
+      </div>
+
+      <!-- MOBILE BOTTOM NAVIGATION -->
+      <!-- NEW COMPONENT: MobileBottomNav -->
+      <div class="bottom-nav" style="position: relative;">
+        <span class="new-badge" title="To be created at src/components/layout/MobileBottomNav.tsx" style="top: -12px; right: 4px;">[NEW] MobileBottomNav</span>
+        <div class="bottom-nav-item active">
+          <div class="bottom-nav-icon">🏠</div>
+          <span>Home</span>
+        </div>
+        <div class="bottom-nav-item">
+          <div class="bottom-nav-icon">📝</div>
+          <span>Check-in</span>
+        </div>
+        <div class="bottom-nav-item">
+          <div class="bottom-nav-icon">📈</div>
+          <span>Evolução</span>
+        </div>
+        <div class="bottom-nav-item">
+          <div class="bottom-nav-icon">💬</div>
+          <span>Coach</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DESKTOP VIEW ==================== -->
+  <div>
+    <div style="text-align:center; margin-bottom: 8px; font-size: 13px; font-weight: bold; color: #666;">🖥️ Desktop (900px+)</div>
+    <div class="viewport desktop">
+      <div class="viewport-label">Desktop — Seller Dashboard</div>
+
+      <!-- Top Bar -->
+      <!-- REUSABLE: DashboardLayout from src/components/layout/DashboardLayout.tsx -->
+      <div class="top-bar" style="padding: 10px 24px; position: relative;">
+        <span class="reuse-badge" title="src/components/layout/DashboardLayout.tsx">[REUSE] DashboardLayout</span>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="logo">
+            <div class="logo-icon">✦</div>
+            <span>Next Control</span>
+          </div>
+          <div class="nav-links">
+            <div class="nav-link active">Dashboard</div>
+            <div class="nav-link">Check-in</div>
+            <div class="nav-link">Evolução</div>
+            <div class="nav-link">Coach</div>
+          </div>
+        </div>
+        <div class="user-area">
+          <span style="font-size: 11px; color: #999;">Fabricio Padrin</span>
+          <span style="font-size:10px;background:#f0f0f0;padding:2px 8px;border-radius:99px;">Seller</span>
+          <div class="avatar"></div>
+          <span style="font-size: 11px; color: #999; cursor: pointer;">Sair</span>
+        </div>
+      </div>
+
+      <div class="content desktop-content">
+        <!-- Greeting Row -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+          <div class="greeting" style="margin-bottom: 0;">
+            <h2>Olá, <span style="text-decoration: underline wavy #ccc;">Fabricio</span></h2>
+            <p>⏰ Hora de fazer o check-in do dia!</p>
+          </div>
+          <div style="display: flex; gap: 8px; position: relative;">
+            <span class="reuse-badge" title="src/components/ui/button.tsx" style="top: -12px; right: -4px;">[REUSE] Button</span>
+            <div class="quick-action-btn" style="flex: unset; padding: 8px 16px;">📈 Evolução</div>
+            <div class="quick-action-btn" style="flex: unset; padding: 8px 16px;">💬 Consultoria</div>
+          </div>
+        </div>
+
+        <!-- Stats Grid — 4 columns -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; position: relative;">
+          <span class="reuse-badge" title="src/components/ui/card.tsx" style="top: -12px; right: 4px;">[REUSE] Card</span>
+
+          <div class="stat-card">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+              <div class="stat-icon">📅</div>
+              <div class="stat-label" style="margin-bottom: 0;">Submissões (7d)</div>
+            </div>
+            <div class="stat-value">5</div>
+          </div>
+          <div class="stat-card">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+              <div class="stat-icon">⏰</div>
+              <div class="stat-label" style="margin-bottom: 0;">Status Hoje</div>
+            </div>
+            <div class="stat-value" style="color: #999; font-size: 16px;">Pendente</div>
+          </div>
+          <div class="stat-card">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+              <div class="stat-icon">🎯</div>
+              <div class="stat-label" style="margin-bottom: 0;">Último Score</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="stat-value">78/100</div>
+              <div class="sparkline">
+                <div class="spark-bar" style="height: 6px;"></div>
+                <div class="spark-bar" style="height: 12px;"></div>
+                <div class="spark-bar" style="height: 8px;"></div>
+                <div class="spark-bar" style="height: 16px;"></div>
+                <div class="spark-bar" style="height: 14px;"></div>
+                <div class="spark-bar" style="height: 20px;"></div>
+                <div class="spark-bar" style="height: 18px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+              <div class="stat-icon">💬</div>
+              <div class="stat-label" style="margin-bottom: 0;">Coach</div>
+            </div>
+            <div class="stat-value" style="font-size: 16px;">Disponível</div>
+          </div>
+        </div>
+
+        <!-- Two Column Layout: CTA + Feedback -->
+        <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 16px; margin-bottom: 24px;">
+
+          <!-- CTA Card -->
+          <div class="cta-card" style="margin-bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
+            <span class="reuse-badge" title="src/components/ui/card.tsx + src/components/ui/button.tsx">[REUSE] Card + Button</span>
+            <div class="cta-icon">📤</div>
+            <h3>Check-in do Dia</h3>
+            <p>Registre seus números e envie prints de conversas</p>
+            <div class="cta-btn">Começar →</div>
+          </div>
+
+          <!-- Coach Feedback -->
+          <div class="section-card" style="margin-bottom: 0; position: relative;">
+            <span class="reuse-badge" title="src/components/ui/card.tsx">[REUSE] Card</span>
+            <div class="section-header">
+              <div><span class="icon">📊</span> Último Feedback do Coach</div>
+              <span style="font-size: 11px; color: #999;">há 2h</span>
+            </div>
+            <div class="section-body">
+              <div class="score-row">
+                <div class="score-badge">
+                  <div class="num">78</div>
+                  <div class="label">Score</div>
+                </div>
+                <div class="score-text">
+                  Bom desempenho nas abordagens. Continue focando na qualidade das conversas iniciais e melhore o follow-up com leads que demonstraram interesse.
+                </div>
+              </div>
+              <div class="two-col">
+                <div class="feedback-box">
+                  <div class="fb-title green">✓ Forças</div>
+                  <ul>
+                    <li>Abordagens consistentes</li>
+                    <li>Boa taxa de resposta</li>
+                    <li>Scripts personalizados</li>
+                  </ul>
+                </div>
+                <div class="feedback-box">
+                  <div class="fb-title orange">⚡ Melhorar</div>
+                  <ul>
+                    <li>Follow-up tardio</li>
+                    <li>Poucos fechamentos</li>
+                    <li>Objeções não tratadas</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submissions Timeline -->
+        <div class="section-card" style="position: relative;">
+          <span class="new-badge" title="To be created at src/components/seller/SubmissionTimeline.tsx" style="top: -12px; right: 4px;">[NEW] SubmissionTimeline</span>
+          <div class="section-header">
+            <div><span class="icon">📋</span> Últimas Submissões</div>
+            <span style="font-size:11px; color: #999; cursor: pointer; text-decoration: underline;">Ver todas →</span>
+          </div>
+          <div class="section-body" style="padding: 4px 12px;">
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #999;"></div>
+                <span class="timeline-date">19 de fev, 2026</span>
+                <span style="font-size:10px;color:#999;">3 prints • 12 abordagens</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">82</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #ccc;"></div>
+                <span class="timeline-date">18 de fev, 2026</span>
+                <span style="font-size:10px;color:#999;">5 prints • 8 abordagens</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">75</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #ccc;"></div>
+                <span class="timeline-date">17 de fev, 2026</span>
+                <span style="font-size:10px;color:#999;">2 prints • 15 abordagens</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">68</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #ccc;"></div>
+                <span class="timeline-date">16 de fev, 2026</span>
+                <span style="font-size:10px;color:#999;">4 prints • 10 abordagens</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">71</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-left">
+                <div class="dot" style="background: #ccc;"></div>
+                <span class="timeline-date">15 de fev, 2026</span>
+                <span style="font-size:10px;color:#999;">6 prints • 18 abordagens</span>
+              </div>
+              <div class="timeline-right">
+                <span class="timeline-score">84</span>
+                <span class="chevron">›</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Component Legend -->
+<div style="max-width: 900px; margin: 24px auto; padding: 16px 24px; background: #f9f9f9; border-radius: 10px; border: 1px solid #eee;">
+  <h3 style="font-family: Arial, sans-serif; font-size: 14px; margin-bottom: 12px; color: #333;">📦 Component Inventory</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-family: Arial, sans-serif; font-size: 12px;">
+    <div>
+      <h4 style="font-size: 12px; color: #4CAF50; margin-bottom: 6px;">✅ Reusable (existing)</h4>
+      <ul style="list-style: none; padding: 0; color: #555;">
+        <li style="padding: 3px 0;">• <code>Card, CardContent, CardHeader, CardTitle</code> — <span style="color:#999">@/components/ui/card</span></li>
+        <li style="padding: 3px 0;">• <code>Button</code> — <span style="color:#999">@/components/ui/button</span></li>
+        <li style="padding: 3px 0;">• <code>Badge</code> — <span style="color:#999">@/components/ui/badge</span></li>
+        <li style="padding: 3px 0;">• <code>Progress</code> — <span style="color:#999">@/components/ui/progress</span></li>
+        <li style="padding: 3px 0;">• <code>Skeleton</code> — <span style="color:#999">@/components/ui/skeleton</span></li>
+        <li style="padding: 3px 0;">• <code>Sheet</code> — <span style="color:#999">@/components/ui/sheet (for mobile menu)</span></li>
+        <li style="padding: 3px 0;">• <code>DashboardLayout</code> — <span style="color:#999">@/components/layout/DashboardLayout</span></li>
+        <li style="padding: 3px 0;">• <code>Framer Motion</code> — <span style="color:#999">animations & transitions</span></li>
+      </ul>
+    </div>
+    <div>
+      <h4 style="font-size: 12px; color: #FF9800; margin-bottom: 6px;">🆕 New components needed</h4>
+      <ul style="list-style: none; padding: 0; color: #555;">
+        <li style="padding: 3px 0;">• <code>MobileBottomNav</code> — <span style="color:#999">@/components/layout/MobileBottomNav.tsx</span></li>
+        <li style="padding: 3px 0;">• <code>QuickActions</code> — <span style="color:#999">@/components/seller/QuickActions.tsx</span></li>
+        <li style="padding: 3px 0;">• <code>SubmissionTimeline</code> — <span style="color:#999">@/components/seller/SubmissionTimeline.tsx</span></li>
+        <li style="padding: 3px 0;">• <code>LoadingSkeleton</code> — <span style="color:#999">@/components/ui/loading-skeleton.tsx (shared)</span></li>
+        <li style="padding: 3px 0;">• <code>EmptyState</code> — <span style="color:#999">@/components/ui/empty-state.tsx (shared)</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <h4 style="font-family: Arial, sans-serif; font-size: 12px; margin-top: 16px; margin-bottom: 8px; color: #333;">🔑 Key Improvements in this Wireframe</h4>
+  <ul style="font-family: Arial, sans-serif; font-size: 12px; color: #555; list-style: none; padding: 0;">
+    <li style="padding: 3px 0;">✅ <strong>Mobile bottom nav</strong> — Sales teams can navigate without a hamburger menu</li>
+    <li style="padding: 3px 0;">✅ <strong>Clickable timeline items</strong> — Navigate to view submission details with chevron affordance</li>
+    <li style="padding: 3px 0;">✅ <strong>Sparkline in Score stat</strong> — Shows trend at a glance without navigating away</li>
+    <li style="padding: 3px 0;">✅ <strong>Formatted dates</strong> — "19 fev" instead of "2024-02-19"</li>
+    <li style="padding: 3px 0;">✅ <strong>Score badges on timeline</strong> — Quick scan of performance history</li>
+    <li style="padding: 3px 0;">✅ <strong>Desktop: 2-col layout</strong> — CTA alongside feedback for efficient use of space</li>
+    <li style="padding: 3px 0;">✅ <strong>Quick Actions strip</strong> — Easy access to Evolução and Coach on mobile</li>
+    <li style="padding: 3px 0;">✅ <strong>Relative timestamps</strong> — "há 2h" for feedback freshness</li>
+  </ul>
+</div>
+
+</body>
+</html>

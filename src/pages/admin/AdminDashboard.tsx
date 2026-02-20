@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { User, DailySubmission, Analysis, CallLog, Report } from '@/types';
+import { Spinner } from '@/components/ui/Spinner';
 import { toast } from 'sonner';
 import {
     Users,
@@ -27,6 +28,7 @@ import { HeadAgentPanel } from '@/components/admin/HeadAgentPanel';
 import { StrategistPanel } from '@/components/admin/StrategistPanel';
 import { ImprovementChecklist } from '@/components/admin/ImprovementChecklist';
 import { downloadReportAsPDF } from '@/lib/pdf-export';
+import { AdminFormPanel } from '@/components/admin/AdminFormPanel';
 
 interface SubmissionWithSeller extends DailySubmission {
     seller?: { name: string; email: string; seller_type: string };
@@ -198,7 +200,7 @@ export default function AdminDashboard() {
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                <Spinner size="md" />
             </div>
         );
     }
@@ -403,6 +405,11 @@ export default function AdminDashboard() {
                             toast.success('Estratégia enviada!', { description: strategy.substring(0, 80) + '...' });
                         }}
                     />
+                </div>
+
+                {/* Public Forms Panel */}
+                <div className="mb-8">
+                    <AdminFormPanel />
                 </div>
 
                 {/* Analyzed Submissions */}

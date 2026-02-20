@@ -29,31 +29,11 @@ const categoryConfig: Record<TrainingCategory, { label: string; icon: React.Elem
     error_pattern: { label: 'Erros Comuns', icon: AlertTriangle, color: 'text-nc-error' },
 };
 
-const fallbackMaterials: TrainingMaterial[] = [
-    {
-        id: 'fb-1', title: 'Script de Abordagem Fria', content: 'Técticas comprovadas para iniciar conversas com leads frios. Personalize antes de abordar, traga valor primeiro, use perguntas abertas.', category: 'script', target_role: 'seller', is_active: true, created_at: '',
-    },
-    {
-        id: 'fb-2', title: 'Metodologia SPIN Selling', content: 'Quatro tipos de perguntas: Situação, Problema, Implicação, Necessidade de Solução. Estruture suas conversas para descobrir dores reais.', category: 'methodology', target_role: 'both', is_active: true, created_at: '',
-    },
-    {
-        id: 'fb-3', title: 'Contornando "Tá Caro"', content: 'Nunca desconte direto. Isole a objeção, reframe para ROI, use social proof e parcele o valor para diminuir a percepção.', category: 'strategy', target_role: 'closer', is_active: true, created_at: '',
-    },
-    {
-        id: 'fb-4', title: 'Follow-up Eficiente (2-5-12)', content: 'Regra de ouro: 2 dias após contato, 5 dias se sem resposta, 12 dias para último follow-up. Sempre traga algo novo, nunca "só passando".', category: 'best_practice', target_role: 'seller', is_active: true, created_at: '',
-    },
-    {
-        id: 'fb-5', title: 'Erros em Calls de Fechamento', content: 'Falar demais, não fazer perguntas, pular qualificação, apresentar antes de entender o problema, não pedir o fechamento.', category: 'error_pattern', target_role: 'closer', is_active: true, created_at: '',
-    },
-    {
-        id: 'fb-6', title: 'Roteiro de Call Vencedora', content: 'Abertura (30s), Qualificação SPIN (2min), Apresentação conectada ao problema (3min), Objeções (2min), Fechamento (1min).', category: 'script', target_role: 'closer', is_active: true, created_at: '',
-    },
-];
 
 export default function TrainingHub() {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [materials, setMaterials] = useState<TrainingMaterial[]>(fallbackMaterials);
+    const [materials, setMaterials] = useState<TrainingMaterial[]>([]);
     const [filter, setFilter] = useState<TrainingCategory | 'all'>('all');
     const [selectedMaterial, setSelectedMaterial] = useState<TrainingMaterial | null>(null);
 
@@ -70,8 +50,8 @@ export default function TrainingHub() {
                 .eq('is_active', true)
                 .order('created_at', { ascending: false });
             if (data?.length) setMaterials(data);
-        } catch {
-            // fallback materials already set
+        } catch (error) {
+            console.error('Error fetching training materials:', error);
         }
     };
 

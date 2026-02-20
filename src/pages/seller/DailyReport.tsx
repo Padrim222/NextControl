@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { ArrowLeft, FileText } from 'lucide-react';
+import { Spinner } from '@/components/ui/Spinner';
 import DailyCheckinWizard from '@/components/seller/DailyCheckinWizard';
 import { AIFeedbackDisplay } from '@/components/seller/AIFeedbackDisplay';
 import type { Client, SellerType } from '@/types';
@@ -109,7 +110,7 @@ export default function DailyReport() {
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                <Spinner size="md" />
             </div>
         );
     }
@@ -119,16 +120,15 @@ export default function DailyReport() {
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
-                    <Button variant="ghost" onClick={() => navigate('/seller')} className="mb-4">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Voltar
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/seller')} className="mb-4">
+                        <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex items-center gap-3">
                         <div className="p-3 bg-primary/10 rounded-full">
                             <FileText className="h-8 w-8 text-primary" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold">Check-in Diário</h1>
+                            <h1 className="font-display text-2xl font-bold">Check-in Diário</h1>
                             <p className="text-muted-foreground">
                                 {client ? (
                                     <>Cliente: <span className="font-medium text-foreground">{client.name}</span>

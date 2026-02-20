@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import {
@@ -17,16 +18,20 @@ import {
     ChevronRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SubmissionTimeline } from '@/components/seller/SubmissionTimeline';
+import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import type { DailySubmission, Analysis } from '@/types';
 
 export default function SellerDashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [submissions, setSubmissions] = useState<DailySubmission[]>([]);
+    const [analyses, setAnalyses] = useState<Analysis[]>([]);
     const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null);
     const [todaySubmitted, setTodaySubmitted] = useState(false);
-
-    const sellerType = user?.seller_type || 'seller';
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!user) return;
@@ -35,35 +40,55 @@ export default function SellerDashboard() {
 
     const fetchData = async () => {
         if (!supabase || !user) return;
+        setIsLoading(true);
         try {
             const today = new Date().toISOString().split('T')[0];
 
             // Fetch recent submissions
-            const { data: subs } = await (supabase as any)
+            const { data: subs, error: subsError } = await (supabase as any)
                 .from('daily_submissions')
                 .select('*')
                 .eq('seller_id', user.id)
                 .order('submission_date', { ascending: false })
                 .limit(7);
 
+            if (subsError) throw subsError;
+
             if (subs) {
                 setSubmissions(subs);
                 setTodaySubmitted(subs.some((s: DailySubmission) => s.submission_date === today));
             }
 
-            // Fetch latest analysis
-            const { data: analyses } = await (supabase as any)
-                .from('analyses')
-                .select('*')
-                .in('submission_id', (subs || []).map((s: DailySubmission) => s.id))
-                .order('created_at', { ascending: false })
-                .limit(1);
+            // Fetch analyses for all recent submissions
+            if (subs?.length) {
+                const { data: analysesData, error: analysesError } = await (supabase as any)
+                    .from('analyses')
+                    .select('*')
+                    .in('submission_id', subs.map((s: DailySubmission) => s.id))
+                    .order('created_at', { ascending: false });
 
-            if (analyses?.[0]) setLatestAnalysis(analyses[0]);
+                if (analysesError) throw analysesError;
+
+                if (analysesData) {
+                    setAnalyses(analysesData);
+                    setLatestAnalysis(analysesData[0] || null);
+                }
+            }
         } catch (error) {
             console.error('Error fetching data:', error);
+            toast.error('Erro ao carregar dados. Tente novamente.', {
+                action: {
+                    label: 'Tentar novamente',
+                    onClick: () => fetchData(),
+                },
+            });
+        } finally {
+            setIsLoading(false);
         }
     };
+
+    // Build score map for timeline
+    const scoreMap = new Map(analyses.map((a) => [a.submission_id, a.score]));
 
     // Stats from last 7 submissions
     const totalSubmissions = submissions.length;
@@ -96,13 +121,66 @@ export default function SellerDashboard() {
         },
     ];
 
+    // Loading skeleton
+    if (isLoading) {
+        return (
+            <div className="space-y-6 max-w-4xl mx-auto">
+                {/* Header skeleton */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <Skeleton className="h-7 w-48 mb-2" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                    <div className="hidden sm:flex gap-2">
+                        <Skeleton className="h-9 w-28" />
+                        <Skeleton className="h-9 w-28" />
+                    </div>
+                </div>
+                {/* Stats skeleton */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[1, 2, 3, 4].map((i) => (
+                        <Card key={i} className="nc-card-border bg-card">
+                            <CardContent className="p-4">
+                                <Skeleton className="h-4 w-20 mb-3" />
+                                <Skeleton className="h-6 w-16" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+                {/* CTA skeleton */}
+                <Card className="nc-card-border bg-card">
+                    <CardContent className="py-8 flex flex-col items-center">
+                        <Skeleton className="h-14 w-14 rounded-xl mb-4" />
+                        <Skeleton className="h-5 w-40 mb-2" />
+                        <Skeleton className="h-4 w-56 mb-4" />
+                        <Skeleton className="h-10 w-32" />
+                    </CardContent>
+                </Card>
+                {/* Timeline skeleton */}
+                <Card className="nc-card-border bg-card">
+                    <CardContent className="p-4 space-y-3">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="flex items-center justify-between py-2">
+                                <div className="flex items-center gap-3">
+                                    <Skeleton className="h-2 w-2 rounded-full" />
+                                    <Skeleton className="h-4 w-24" />
+                                </div>
+                                <Skeleton className="h-4 w-16" />
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-between"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
             >
                 <div>
                     <h1 className="font-display text-2xl font-bold">
@@ -114,25 +192,28 @@ export default function SellerDashboard() {
                             : '⏰ Hora de fazer o check-in do dia!'}
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="hidden sm:flex gap-2">
                     <Button
-                        onClick={() => navigate('/seller/evolution')}
-                        variant="outline"
+                        variant="ghost"
                         className="nc-btn-ghost"
+                        onClick={() => navigate('/seller/evolution')}
                     >
                         <TrendingUp className="h-4 w-4 mr-2" />
                         Evolução
                     </Button>
                     <Button
-                        onClick={() => navigate('/training/coach')}
-                        variant="outline"
+                        variant="ghost"
                         className="nc-btn-ghost"
+                        onClick={() => navigate('/training/coach')}
                     >
                         <MessageSquare className="h-4 w-4 mr-2" />
                         Consultoria
                     </Button>
                 </div>
             </motion.div>
+
+            {/* Pending Form Banner */}
+            <FormPendingBanner formType="seller_daily" />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -144,12 +225,12 @@ export default function SellerDashboard() {
                         transition={{ delay: i * 0.1 }}
                     >
                         <Card className="nc-card-border nc-card-hover bg-card">
-                            <CardContent className="pt-4 pb-4 px-4">
+                            <CardContent className="p-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <stat.icon className={`h-4 w-4 ${stat.color}`} />
                                     <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
                                 </div>
-                                <p className={`text-xl font-mono font-semibold ${stat.color}`}>
+                                <p className={`text-lg sm:text-xl font-mono font-semibold ${stat.color}`}>
                                     {stat.value}
                                 </p>
                             </CardContent>
@@ -158,26 +239,26 @@ export default function SellerDashboard() {
                 ))}
             </div>
 
-            {/* Daily Submission Entry */}
+            {/* Daily Submission CTA */}
             {!todaySubmitted && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
                 >
-                    <Card
-                        className="nc-card-border nc-card-hover bg-card cursor-pointer group"
-                        onClick={() => navigate('/seller/report')}
-                    >
+                    <Card className="nc-card-border nc-card-hover bg-card">
                         <CardContent className="py-8 text-center">
-                            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-solar/10 mb-4 group-hover:bg-solar/20 transition-colors">
+                            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-solar/10 mb-4">
                                 <Send className="h-7 w-7 text-solar" />
                             </div>
                             <h3 className="text-lg font-semibold mb-1">Check-in do Dia</h3>
                             <p className="text-sm text-muted-foreground">
                                 Registre seus números e envie prints de conversas
                             </p>
-                            <Button className="mt-4 nc-btn-primary">
+                            <Button
+                                className="mt-4 nc-btn-primary"
+                                onClick={() => navigate('/seller/report')}
+                            >
                                 Começar <ChevronRight className="h-4 w-4 ml-1" />
                             </Button>
                         </CardContent>
@@ -194,10 +275,17 @@ export default function SellerDashboard() {
                 >
                     <Card className="nc-card-border bg-card">
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-solar" />
-                                Último Feedback do Coach
-                            </CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <TrendingUp className="h-4 w-4 text-solar" />
+                                    Último Feedback do Coach
+                                </CardTitle>
+                                {latestAnalysis.created_at && (
+                                    <span className="text-xs text-muted-foreground">
+                                        {formatDistanceToNow(new Date(latestAnalysis.created_at), { addSuffix: true, locale: ptBR })}
+                                    </span>
+                                )}
+                            </div>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {/* Score */}
@@ -212,7 +300,7 @@ export default function SellerDashboard() {
                             </div>
 
                             {/* Strengths & Improvements */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="p-3 rounded-lg bg-nc-success/10 border border-nc-success/20">
                                     <p className="text-xs font-medium text-nc-success mb-2 uppercase">Forças</p>
                                     <ul className="text-xs text-muted-foreground space-y-1">
@@ -251,31 +339,11 @@ export default function SellerDashboard() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-2">
-                            {submissions.slice(0, 5).map((sub, i) => {
-                                const metrics = sub.metrics as any;
-                                return (
-                                    <div
-                                        key={sub.id}
-                                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-secondary/50 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-solar" />
-                                            <span className="text-sm font-mono">{sub.submission_date}</span>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                            <span>{sub.conversation_prints?.length || 0} prints</span>
-                                            {metrics?.approaches != null && (
-                                                <span className="font-mono">{metrics.approaches} abordagens</span>
-                                            )}
-                                            {metrics?.calls_made != null && (
-                                                <span className="font-mono">{metrics.calls_made} calls</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        <SubmissionTimeline
+                            submissions={submissions}
+                            scoreMap={scoreMap}
+                            onItemClick={(sub) => navigate(`/seller/report/${sub.id}`)}
+                        />
                     </CardContent>
                 </Card>
             )}

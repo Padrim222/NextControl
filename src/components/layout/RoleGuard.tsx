@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Spinner } from '@/components/ui/Spinner';
 import type { UserRole } from '@/types';
 
 interface RoleGuardProps {
@@ -16,7 +17,7 @@ export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) 
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                <Spinner size="md" />
             </div>
         );
     }

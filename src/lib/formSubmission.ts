@@ -1,0 +1,81 @@
+import { supabase } from './supabase';
+import type { FormType, FormData } from '@/types/forms';
+
+interface SubmitFormParams {
+    formType: FormType;
+    submitterName: string;
+    submitterEmail?: string;
+    submitterPhone?: string;
+    data: FormData;
+    attachments?: string[];
+}
+
+export async function submitPublicForm({
+    formType,
+    submitterName,
+    submitterEmail,
+    submitterPhone,
+    data,
+    attachments = [],
+}: SubmitFormParams): Promise<{ id: string } | null> {
+    // Try to match existing user by email
+    let userId: string | undefined;
+    let clientId: string | undefined;
+
+    if (submitterEmail) {
+        const { data: existingUser } = await (supabase as any)
+            .from('users')
+            .select('id, client_id')
+            .eq('email', submitterEmail)
+            .maybeSingle();
+
+        if (existingUser) {
+            userId = existingUser.id;
+            clientId = existingUser.client_id;
+        }
+    }
+
+    const { data: inserted, error } = await (supabase as any)
+        .from('form_submissions')
+        .insert({
+            form_type: formType,
+            submitter_name: submitterName,
+            submitter_email: submitterEmail || null,
+            submitter_phone: submitterPhone || null,
+            user_id: userId || null,
+            client_id: clientId || null,
+            data,
+            attachments,
+            submission_date: new Date().toISOString().split('T')[0],
+        })
+        .select('id')
+        .single();
+
+    if (error) throw error;
+    return inserted;
+}
+
+export async function triggerFormAnalysis(submissionId: string, formType: FormType) {
+    const { error } = await (supabase as any).functions.invoke('analyze-form', {
+        body: { submission_id: submissionId, form_type: formType },
+    });
+    if (error) console.warn('AI analysis trigger error:', error);
+}
+
+export async function uploadFormFiles(
+    files: File[],
+    type: 'print' | 'call',
+): Promise<string[]> {
+    if (!files.length) return [];
+
+    const formData = new FormData();
+    formData.append('type', type);
+    files.forEach((f) => formData.append('files', f));
+
+    const { data, error } = await (supabase as any).functions.invoke('process-upload', {
+        body: formData,
+    });
+
+    if (error) throw error;
+    return data?.urls || [];
+}

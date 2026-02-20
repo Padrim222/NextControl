@@ -51,6 +51,10 @@ export interface SellerMetrics {
 
 export interface CloserMetrics {
     calls_made: number;
+    proposals_sent: number;
+    sales_closed: number;
+    no_shows: number;
+    reschedules: number;
     conversion_rate: number;
     main_objections: string[];
 }
@@ -282,5 +286,9 @@ export const SELLER_METRICS_FIELDS = [
 
 export const CLOSER_METRICS_FIELDS = [
     { key: 'calls_made', label: 'Calls Realizadas', emoji: '📞' },
+    { key: 'proposals_sent', label: 'Propostas Enviadas', emoji: '📋' },
+    { key: 'sales_closed', label: 'Vendas Fechadas', emoji: '🎯' },
+    { key: 'no_shows', label: 'No-Shows', emoji: '❌' },
+    { key: 'reschedules', label: 'Reagendamentos', emoji: '📅' },
     { key: 'conversion_rate', label: 'Taxa de Conversão (%)', emoji: '📈' },
 ] as const;
