@@ -18,6 +18,7 @@ export default function ClientDashboard() {
         if (!user) return;
 
         const fetchData = async () => {
+            if (!supabase) { setIsLoading(false); return; }
             setIsLoading(true);
             try {
                 // 1. Get Client ID from User
@@ -43,7 +44,7 @@ export default function ClientDashboard() {
                 if (clientData) setClient(clientData);
 
                 // 3. Fetch Team Members first
-                const { data: teamMembers } = await supabase
+                const { data: teamMembers } = await (supabase as any)
                     .from('users')
                     .select('id')
                     .eq('client_id', userData.client_id);
