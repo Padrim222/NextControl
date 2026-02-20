@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Shield, BarChart3, Phone, Eye, HeadphonesIcon, Sparkles } from 'lucide-react';
+import type { UserRole } from '@/types';
 
 const ROLE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
     admin: { label: 'Administrador', icon: Shield, color: 'text-amber-500' },
@@ -32,7 +34,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const { login, user, isAuthenticated } = useAuth();
+    const { login, loginAsBeta, user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
@@ -159,6 +161,35 @@ export default function Login() {
                                 Criar nova conta
                             </Link>
                         </div>
+
+                        {true && (
+                            <div className="mt-6 border-t border-border pt-4">
+                                <p className="text-xs text-muted-foreground text-center mb-3">
+                                    Modo Demo — Acesso rápido sem backend
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(Object.entries(ROLE_META) as [UserRole, typeof ROLE_META[string]][]).map(([role, meta]) => {
+                                        const Icon = meta.icon;
+                                        return (
+                                            <Button
+                                                key={role}
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-xs"
+                                                onClick={() => {
+                                                    loginAsBeta(role);
+                                                    toast.success(`Logado como ${meta.label} (beta)`);
+                                                    navigate(roleRoutes[role] || '/admin', { replace: true });
+                                                }}
+                                            >
+                                                <Icon className={`h-3 w-3 mr-1 ${meta.color}`} />
+                                                {meta.label}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
