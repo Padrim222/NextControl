@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, Users } from 'lucide-react';
 import { Spinner } from '@/components/ui/Spinner';
 import DailyCheckinWizard from '@/components/seller/DailyCheckinWizard';
 import { AIFeedbackDisplay } from '@/components/seller/AIFeedbackDisplay';
@@ -143,10 +143,38 @@ export default function DailyReport() {
 
                 {/* Submission Form or Feedback */}
                 {!submitted ? (
-                    <DailyCheckinWizard
-                        sellerType={sellerType}
-                        onSuccess={handleSubmissionSuccess}
-                    />
+                    <div className="space-y-4">
+                        {/* Profile Selector (Sprint 2.1.3) */}
+                        <Card className="nc-card-border bg-card">
+                            <CardContent className="py-3 px-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Users className="h-4 w-4" />
+                                        <span>Perfil:</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {(['seller', 'closer'] as const).map((type) => (
+                                            <button
+                                                key={type}
+                                                onClick={() => setSellerType(type)}
+                                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${sellerType === type
+                                                    ? 'bg-solar text-deep-space'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                                                    }`}
+                                            >
+                                                {type === 'seller' ? '🎯 Seller' : '📞 Closer'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <DailyCheckinWizard
+                            sellerType={sellerType}
+                            onSuccess={handleSubmissionSuccess}
+                        />
+                    </div>
                 ) : (
                     <div className="space-y-6 fade-in">
                         <AIFeedbackDisplay feedback={aiFeedback} isLoading={isAnalyzing} />

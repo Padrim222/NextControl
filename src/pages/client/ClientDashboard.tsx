@@ -17,6 +17,8 @@ import {
     HelpCircle,
     BookOpen,
     Brain,
+    Phone,
+    BarChart3,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -40,7 +42,20 @@ interface ClientReport {
     review_notes: string | null;
 }
 
-type Tab = 'plano' | 'relatorios' | 'perguntas';
+type Tab = 'plano' | 'relatorios' | 'perguntas' | 'calls';
+
+interface ApprovedCall {
+    id: string;
+    prospect_name: string;
+    call_date: string;
+    duration_minutes: number | null;
+    approved_at: string;
+    evaluation?: {
+        score_geral: number;
+        nivel: string;
+        pontos_positivos: string[];
+    };
+}
 
 export default function ClientDashboard() {
     const { user } = useAuth();
@@ -48,6 +63,7 @@ export default function ClientDashboard() {
     const [client, setClient] = useState<Client | null>(null);
     const [questions, setQuestions] = useState<ClientQuestion[]>([]);
     const [reports, setReports] = useState<ClientReport[]>([]);
+    const [approvedCalls, setApprovedCalls] = useState<ApprovedCall[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<Tab>('plano');
     const [newQuestion, setNewQuestion] = useState('');
@@ -75,8 +91,8 @@ export default function ClientDashboard() {
 
             const clientId = userData.client_id;
 
-            // Fetch client, questions, and reports in parallel
-            const [clientRes, questionsRes, reportsRes] = await Promise.all([
+            // Fetch client, questions, reports, and approved calls in parallel
+            const [clientRes, questionsRes, reportsRes, callsRes] = await Promise.all([
                 (supabase as any).from('clients').select('*').eq('id', clientId).single(),
                 (supabase as any)
                     .from('client_questions')
@@ -89,11 +105,36 @@ export default function ClientDashboard() {
                     .eq('status', 'delivered')
                     .order('created_at', { ascending: false })
                     .limit(20),
+                (supabase as any)
+                    .from('call_uploads')
+                    .select('id, prospect_name, call_date, duration_minutes, approved_at, evaluation_id')
+                    .eq('client_id', clientId)
+                    .eq('status', 'approved')
+                    .order('approved_at', { ascending: false })
+                    .limit(20),
             ]);
 
             if (clientRes.data) setClient(clientRes.data);
             if (questionsRes.data) setQuestions(questionsRes.data);
             if (reportsRes.data) setReports(reportsRes.data);
+
+            // Fetch evaluations for approved calls
+            const calls = callsRes.data || [];
+            if (calls.length > 0) {
+                const evalIds = calls.map((c: any) => c.evaluation_id).filter(Boolean);
+                let evals: any[] = [];
+                if (evalIds.length > 0) {
+                    const { data: evalData } = await (supabase as any)
+                        .from('call_evaluations')
+                        .select('id, score_geral, nivel, pontos_positivos')
+                        .in('id', evalIds);
+                    evals = evalData || [];
+                }
+                setApprovedCalls(calls.map((c: any) => ({
+                    ...c,
+                    evaluation: evals.find((e: any) => e.id === c.evaluation_id),
+                })));
+            }
         } catch (error) {
             console.error('Error fetching client data:', error);
         } finally {
@@ -194,6 +235,7 @@ export default function ClientDashboard() {
 
     const tabs: { key: Tab; label: string; icon: typeof FileText; count?: number }[] = [
         { key: 'plano', label: 'Meu Plano', icon: ClipboardList },
+        { key: 'calls', label: 'Calls', icon: Phone, count: approvedCalls.length },
         { key: 'relatorios', label: 'Relatórios', icon: FileText, count: reports.length },
         { key: 'perguntas', label: 'Perguntas', icon: MessageSquare, count: questions.length },
     ];
@@ -326,6 +368,79 @@ export default function ClientDashboard() {
                             </div>
                         </CardContent>
                     </Card>
+                )}
+
+                {activeTab === 'calls' && (
+                    <div className="space-y-4">
+                        {/* Weekly Report Shortcut */}
+                        <Card
+                            className="nc-card-border hover:border-primary/30 transition-all cursor-pointer group"
+                            onClick={() => navigate('/client/weekly-report')}
+                        >
+                            <CardContent className="p-5 flex items-center gap-4">
+                                <div className="p-3 rounded-xl bg-gradient-to-br from-solar/10 to-amber-500/10 border border-solar/20 group-hover:scale-105 transition-transform">
+                                    <BarChart3 className="h-6 w-6 text-solar" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold">Relatório Semanal</h3>
+                                    <p className="text-sm text-muted-foreground">Ver análise consolidada da semana</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Approved Calls */}
+                        <Card className="nc-card-border">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Phone className="h-5 w-5 text-primary" />
+                                    Calls Analisadas
+                                </CardTitle>
+                                <CardDescription>
+                                    Calls de vendas aprovadas pela equipe com análise IA
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {approvedCalls.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <Phone className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                                        <h3 className="font-medium text-muted-foreground mb-1">Nenhuma call aprovada ainda</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Análises de calls aparecerão aqui após aprovação do admin.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {approvedCalls.map(call => (
+                                            <div key={call.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 rounded-lg bg-emerald-500/10">
+                                                        <CheckCircle className="h-4 w-4 text-emerald-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{call.prospect_name || 'Call'}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {call.call_date && new Date(call.call_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                                            {call.duration_minutes && ` • ${call.duration_minutes}min`}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {call.evaluation && (
+                                                    <div className="text-right">
+                                                        <Badge variant="outline" className="text-solar border-solar/30">
+                                                            {call.evaluation.score_geral}/100
+                                                        </Badge>
+                                                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                            {call.evaluation.nivel}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 )}
 
                 {activeTab === 'relatorios' && (

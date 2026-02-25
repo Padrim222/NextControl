@@ -14,7 +14,12 @@ import {
     Bot,
     Target,
     TrendingUp,
+    TrendingDown,
     ArrowLeft,
+    BarChart3,
+    ChevronDown,
+    ChevronUp,
+    Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { CoachInteraction } from '@/types';
@@ -51,6 +56,8 @@ export default function CoachChat() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showContext, setShowContext] = useState(false);
+    const [aiContext, setAiContext] = useState<Record<string, any> | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +135,7 @@ export default function CoachChat() {
 
                     if (fnError) throw fnError;
                     aiResponse = data?.answer || generateMockResponse(text, sellerType);
+                    if (data?.context_used) setAiContext(data.context_used);
                 } catch (edgeFnError) {
                     console.warn('Edge Function fallback to mock:', edgeFnError);
                     aiResponse = generateMockResponse(text, sellerType);
@@ -181,10 +189,87 @@ export default function CoachChat() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowContext(p => !p)}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted"
+                    >
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        Contexto IA
+                        {showContext ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
                     <div className="w-2 h-2 rounded-full bg-nc-success animate-pulse" />
                     <span className="text-xs text-muted-foreground">Online</span>
                 </div>
             </div>
+
+            {/* Context Panel */}
+            <AnimatePresence>
+                {showContext && aiContext && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden border-b border-border"
+                    >
+                        <div className="p-3 bg-muted/30 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            {/* Metrics */}
+                            {aiContext.today_metrics && Object.keys(aiContext.today_metrics).length > 0 && (
+                                <div className="p-2 rounded-lg bg-card border border-border/50">
+                                    <p className="text-muted-foreground uppercase tracking-wider mb-1 text-[10px]">Métricas Hoje</p>
+                                    {Object.entries(aiContext.today_metrics).slice(0, 4).map(([k, v]) => {
+                                        const delta = aiContext.metric_deltas?.[k] || 0;
+                                        return (
+                                            <div key={k} className="flex items-center justify-between">
+                                                <span className="truncate">{k}</span>
+                                                <span className="flex items-center gap-0.5 font-mono">
+                                                    {String(v)}
+                                                    {delta !== 0 && (
+                                                        <span className={delta > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                                            {delta > 0 ? '↑' : '↓'}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Trend */}
+                            {aiContext.weekly_trend && aiContext.weekly_trend !== 'unknown' && (
+                                <div className="p-2 rounded-lg bg-card border border-border/50">
+                                    <p className="text-muted-foreground uppercase tracking-wider mb-1 text-[10px]">Tendência</p>
+                                    <div className="flex items-center gap-1">
+                                        {aiContext.weekly_trend === 'improving' && <TrendingUp className="h-4 w-4 text-emerald-400" />}
+                                        {aiContext.weekly_trend === 'declining' && <TrendingDown className="h-4 w-4 text-red-400" />}
+                                        {aiContext.weekly_trend === 'stable' && <Target className="h-4 w-4 text-amber-400" />}
+                                        <span className="font-semibold capitalize">{aiContext.weekly_trend === 'improving' ? 'Em Alta' : aiContext.weekly_trend === 'declining' ? 'Em Queda' : 'Estável'}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Scores */}
+                            {aiContext.recent_scores?.length > 0 && (
+                                <div className="p-2 rounded-lg bg-card border border-border/50">
+                                    <p className="text-muted-foreground uppercase tracking-wider mb-1 text-[10px]">Scores</p>
+                                    <span className="font-mono font-bold text-solar">
+                                        {aiContext.recent_scores.slice(0, 3).join(', ')}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Strategies */}
+                            <div className="p-2 rounded-lg bg-card border border-border/50">
+                                <p className="text-muted-foreground uppercase tracking-wider mb-1 text-[10px]">Estratégias</p>
+                                <div className="flex items-center gap-2">
+                                    <span className="flex items-center gap-0.5"><Zap className="h-3 w-3 text-emerald-400" /> {aiContext.active_strategies_count || 0} ativas</span>
+                                    <span className="flex items-center gap-0.5 text-muted-foreground">· {aiContext.discarded_strategies_count || 0} ❌</span>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto py-4 space-y-4 px-2">

@@ -22,6 +22,9 @@ import CSInbox from "@/pages/cs/CSInbox";
 import TrainingHub from "@/pages/training/TrainingHub";
 import CoachChat from "@/pages/training/CoachChat";
 import RagManager from "@/pages/admin/RagManager";
+import CallsPipeline from "@/pages/admin/CallsPipeline";
+import BetaManagement from "@/pages/admin/BetaManagement";
+import WeeklyReportPage from "@/pages/client/WeeklyReportPage";
 
 // Public Form Pages (no auth)
 import ExpertForm from "@/pages/forms/ExpertForm";
@@ -146,6 +149,26 @@ const App = () => (
                 </RoleGuard>
               }
             />
+            <Route
+              path="/admin/calls-pipeline"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <CallsPipeline />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/admin/beta-management"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <BetaManagement />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
 
             {/* Client Routes */}
             <Route
@@ -154,6 +177,16 @@ const App = () => (
                 <RoleGuard allowedRoles={['client', 'admin']}>
                   <DashboardLayout>
                     <ClientDashboard />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/client/weekly-report"
+              element={
+                <RoleGuard allowedRoles={['client', 'admin']}>
+                  <DashboardLayout>
+                    <WeeklyReportPage />
                   </DashboardLayout>
                 </RoleGuard>
               }

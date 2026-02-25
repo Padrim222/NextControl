@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -16,9 +17,12 @@ import {
     CheckCircle,
     Clock,
     ChevronRight,
+    LayoutDashboard,
+    Users,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SubmissionTimeline } from '@/components/seller/SubmissionTimeline';
+import { DailyProgressCard } from '@/components/seller/DailyProgressCard';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -215,138 +219,197 @@ export default function SellerDashboard() {
             {/* Pending Form Banner */}
             <FormPendingBanner formType="seller_daily" />
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {stats.map((stat, i) => (
-                    <motion.div
-                        key={stat.label}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                    >
+            {/* Tabs: Dashboard vs CRM */}
+            <Tabs defaultValue="dashboard" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                    <TabsTrigger value="dashboard" className="gap-2">
+                        <LayoutDashboard className="h-3.5 w-3.5" />
+                        Dashboard
+                    </TabsTrigger>
+                    <TabsTrigger value="crm" className="gap-2">
+                        <Users className="h-3.5 w-3.5" />
+                        CRM
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* TAB: Dashboard — metrics, progress, check-in, feedback */}
+                <TabsContent value="dashboard" className="space-y-6 mt-0">
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {stats.map((stat, i) => (
+                            <motion.div
+                                key={stat.label}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.1 }}
+                            >
+                                <Card className="nc-card-border nc-card-hover bg-card">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                                            <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
+                                        </div>
+                                        <p className={`text-lg sm:text-xl font-mono font-semibold ${stat.color}`}>
+                                            {stat.value}
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {/* Daily Progress vs. Yesterday */}
+                    {submissions.length >= 2 && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.35 }}
+                        >
+                            <DailyProgressCard submissions={submissions} />
+                        </motion.div>
+                    )}
+
+                    {/* Daily Submission CTA */}
+                    {!todaySubmitted && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                        >
+                            <Card className="nc-card-border nc-card-hover bg-card">
+                                <CardContent className="py-8 text-center">
+                                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-solar/10 mb-4">
+                                        <Send className="h-7 w-7 text-solar" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold mb-1">Check-in do Dia</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Registre seus números e envie prints de conversas
+                                    </p>
+                                    <Button
+                                        className="mt-4 nc-btn-primary"
+                                        onClick={() => navigate('/seller/report')}
+                                    >
+                                        Começar <ChevronRight className="h-4 w-4 ml-1" />
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* Latest Coach Feedback */}
+                    {latestAnalysis && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.5 }}
+                        >
+                            <Card className="nc-card-border bg-card">
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                            <TrendingUp className="h-4 w-4 text-solar" />
+                                            Último Feedback do Coach
+                                        </CardTitle>
+                                        {latestAnalysis.created_at && (
+                                            <span className="text-xs text-muted-foreground">
+                                                {formatDistanceToNow(new Date(latestAnalysis.created_at), { addSuffix: true, locale: ptBR })}
+                                            </span>
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    {/* Score */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-center px-4 py-2 rounded-lg bg-solar/10">
+                                            <p className="text-2xl font-mono font-bold text-solar">{latestAnalysis.score}</p>
+                                            <p className="text-xs text-muted-foreground">Score</p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground flex-1 line-clamp-3">
+                                            {latestAnalysis.content}
+                                        </p>
+                                    </div>
+
+                                    {/* Strengths & Improvements */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="p-3 rounded-lg bg-nc-success/10 border border-nc-success/20">
+                                            <p className="text-xs font-medium text-nc-success mb-2 uppercase">Forças</p>
+                                            <ul className="text-xs text-muted-foreground space-y-1">
+                                                {latestAnalysis.strengths?.slice(0, 3).map((s, i) => (
+                                                    <li key={i} className="flex items-start gap-1.5">
+                                                        <CheckCircle className="h-3 w-3 text-nc-success mt-0.5 shrink-0" />
+                                                        {s}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div className="p-3 rounded-lg bg-nc-warning/10 border border-nc-warning/20">
+                                            <p className="text-xs font-medium text-nc-warning mb-2 uppercase">Melhorar</p>
+                                            <ul className="text-xs text-muted-foreground space-y-1">
+                                                {latestAnalysis.improvements?.slice(0, 3).map((s, i) => (
+                                                    <li key={i} className="flex items-start gap-1.5">
+                                                        <Target className="h-3 w-3 text-nc-warning mt-0.5 shrink-0" />
+                                                        {s}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+                </TabsContent>
+
+                {/* TAB: CRM — submissions timeline */}
+                <TabsContent value="crm" className="space-y-6 mt-0">
+                    {/* Daily Submission CTA in CRM tab too */}
+                    {!todaySubmitted && (
                         <Card className="nc-card-border nc-card-hover bg-card">
-                            <CardContent className="p-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
+                            <CardContent className="py-6 text-center">
+                                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-solar/10 mb-3">
+                                    <Send className="h-6 w-6 text-solar" />
                                 </div>
-                                <p className={`text-lg sm:text-xl font-mono font-semibold ${stat.color}`}>
-                                    {stat.value}
-                                </p>
+                                <h3 className="text-base font-semibold mb-1">Check-in Pendente</h3>
+                                <Button
+                                    className="mt-3 nc-btn-primary"
+                                    size="sm"
+                                    onClick={() => navigate('/seller/report')}
+                                >
+                                    Fazer Check-in <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
                             </CardContent>
                         </Card>
-                    </motion.div>
-                ))}
-            </div>
+                    )}
 
-            {/* Daily Submission CTA */}
-            {!todaySubmitted && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                >
-                    <Card className="nc-card-border nc-card-hover bg-card">
-                        <CardContent className="py-8 text-center">
-                            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-solar/10 mb-4">
-                                <Send className="h-7 w-7 text-solar" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-1">Check-in do Dia</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Registre seus números e envie prints de conversas
-                            </p>
-                            <Button
-                                className="mt-4 nc-btn-primary"
-                                onClick={() => navigate('/seller/report')}
-                            >
-                                Começar <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            )}
-
-            {/* Latest Coach Feedback */}
-            {latestAnalysis && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                >
-                    <Card className="nc-card-border bg-card">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
+                    {/* Submissions Timeline */}
+                    {submissions.length > 0 && (
+                        <Card className="nc-card-border bg-card">
+                            <CardHeader className="pb-3">
                                 <CardTitle className="text-base flex items-center gap-2">
-                                    <TrendingUp className="h-4 w-4 text-solar" />
-                                    Último Feedback do Coach
+                                    <BarChart3 className="h-4 w-4 text-solar" />
+                                    Histórico de Submissões
                                 </CardTitle>
-                                {latestAnalysis.created_at && (
-                                    <span className="text-xs text-muted-foreground">
-                                        {formatDistanceToNow(new Date(latestAnalysis.created_at), { addSuffix: true, locale: ptBR })}
-                                    </span>
-                                )}
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {/* Score */}
-                            <div className="flex items-center gap-4">
-                                <div className="text-center px-4 py-2 rounded-lg bg-solar/10">
-                                    <p className="text-2xl font-mono font-bold text-solar">{latestAnalysis.score}</p>
-                                    <p className="text-xs text-muted-foreground">Score</p>
-                                </div>
-                                <p className="text-sm text-muted-foreground flex-1 line-clamp-3">
-                                    {latestAnalysis.content}
-                                </p>
-                            </div>
+                            </CardHeader>
+                            <CardContent>
+                                <SubmissionTimeline
+                                    submissions={submissions}
+                                    scoreMap={scoreMap}
+                                    onItemClick={(sub) => navigate(`/seller/report/${sub.id}`)}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
 
-                            {/* Strengths & Improvements */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="p-3 rounded-lg bg-nc-success/10 border border-nc-success/20">
-                                    <p className="text-xs font-medium text-nc-success mb-2 uppercase">Forças</p>
-                                    <ul className="text-xs text-muted-foreground space-y-1">
-                                        {latestAnalysis.strengths?.slice(0, 3).map((s, i) => (
-                                            <li key={i} className="flex items-start gap-1.5">
-                                                <CheckCircle className="h-3 w-3 text-nc-success mt-0.5 shrink-0" />
-                                                {s}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div className="p-3 rounded-lg bg-nc-warning/10 border border-nc-warning/20">
-                                    <p className="text-xs font-medium text-nc-warning mb-2 uppercase">Melhorar</p>
-                                    <ul className="text-xs text-muted-foreground space-y-1">
-                                        {latestAnalysis.improvements?.slice(0, 3).map((s, i) => (
-                                            <li key={i} className="flex items-start gap-1.5">
-                                                <Target className="h-3 w-3 text-nc-warning mt-0.5 shrink-0" />
-                                                {s}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            )}
-
-            {/* Recent Submissions Timeline */}
-            {submissions.length > 0 && (
-                <Card className="nc-card-border bg-card">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4 text-solar" />
-                            Últimas Submissões
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <SubmissionTimeline
-                            submissions={submissions}
-                            scoreMap={scoreMap}
-                            onItemClick={(sub) => navigate(`/seller/report/${sub.id}`)}
-                        />
-                    </CardContent>
-                </Card>
-            )}
+                    {submissions.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                            <p>Nenhuma submissão encontrada</p>
+                            <p className="text-xs mt-1">Faça seu primeiro check-in para começar!</p>
+                        </div>
+                    )}
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

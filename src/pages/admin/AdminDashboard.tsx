@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { User, DailySubmission, Analysis, CallLog, Report } from '@/types';
+import { useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/ui/Spinner';
 import { toast } from 'sonner';
 import {
@@ -16,6 +17,9 @@ import {
     MessageCircle,
     Download,
     Eye,
+    Phone,
+    Shield,
+    BarChart3,
 } from 'lucide-react';
 import {
     Dialog,
@@ -36,6 +40,7 @@ interface SubmissionWithSeller extends DailySubmission {
 
 export default function AdminDashboard() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [selectedSubmission, setSelectedSubmission] = useState<SubmissionWithSeller | null>(null);
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -216,6 +221,32 @@ export default function AdminDashboard() {
                     <p className="text-muted-foreground mt-1">
                         Olá, {user?.name} • Next Control
                     </p>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-6">
+                    <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => navigate('/admin/calls-pipeline')}
+                    >
+                        <Phone className="h-4 w-4" />
+                        Pipeline de Calls
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => navigate('/admin/beta-management')}
+                    >
+                        <Shield className="h-4 w-4" />
+                        Beta Management
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => navigate('/client/weekly-report')}
+                    >
+                        <BarChart3 className="h-4 w-4" />
+                        Relatórios Semanais
+                    </Button>
                 </div>
 
                 {/* Stats */}
@@ -515,6 +546,20 @@ export default function AdminDashboard() {
                                                     <img src={url} alt={`Print ${i + 1}`} className="w-full h-full object-cover" />
                                                 </a>
                                             ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Pasted Messages */}
+                                {selectedSubmission.pasted_messages && (
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                                            Mensagens Coladas
+                                        </h3>
+                                        <div className="bg-muted rounded-lg p-4 max-h-[200px] overflow-y-auto">
+                                            <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                                                {selectedSubmission.pasted_messages}
+                                            </pre>
                                         </div>
                                     </div>
                                 )}

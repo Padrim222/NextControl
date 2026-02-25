@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 const CALL_EVALUATION_PROMPT = `Você é um AVALIADOR PROFISSIONAL DE CALLS DE VENDAS da Next Control.
-Analise a transcrição de call e avalie o closer em 6 dimensões.
+Analise a transcrição de call usando o formato SANDUÍCHE: pontos positivos → gaps críticos → ações recomendadas.
 Seja direto, preciso e acionável. Português BR.
 
 Dimensões de Avaliação (0-10 cada):
@@ -18,6 +18,11 @@ Dimensões de Avaliação (0-10 cada):
 5. FECHAMENTO: Pedido de fechamento, urgentização, CTA
 6. COMUNICAÇÃO: Fluidez, escuta ativa, linguagem corporal vocal
 
+FORMATO SANDUÍCHE (OBRIGATÓRIO):
+- Camada 1: Pontos positivos identificados (mínimo 3)
+- Camada 2: Gaps críticos e estruturais (mínimo 3)
+- Camada 3: Ações recomendadas concretas (mínimo 3)
+
 RETORNE SOMENTE JSON válido:
 {
   "score_abertura": <0-10>,
@@ -27,12 +32,17 @@ RETORNE SOMENTE JSON válido:
   "score_fechamento": <0-10>,
   "score_comunicacao": <0-10>,
   "score_geral": <média ponderada, 1 decimal>,
-  "pontos_fortes": ["string"],
-  "melhorias": ["string"],
+  "pontos_fortes": ["string — pontos positivos detalhados"],
+  "gaps_criticos": ["string — gaps estruturais identificados"],
+  "acoes_recomendadas": ["string — ações concretas e acionáveis"],
+  "melhorias": ["string — resumo curto de áreas a melhorar"],
+  "insights_convertidas": ["string — o que funcionou nas partes que avançaram"],
+  "insights_perdidas": ["string — motivos de perda ou desengajamento"],
   "resultado": "vendeu" | "perdeu" | "follow-up",
-  "feedback_detalhado": "<análise em markdown, 150-250 palavras>",
+  "feedback_detalhado": "<análise SANDUÍCHE em markdown, 300-500 palavras: positivos → gaps → recomendações>",
   "nivel": "Iniciante" | "Intermediário" | "Avançado" | "Expert"
 }`
+
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -115,7 +125,7 @@ ${transcription}`
                     { role: 'user', content: userPrompt }
                 ],
                 temperature: 0.3,
-                max_tokens: 1500,
+                max_tokens: 3000,
                 response_format: { type: 'json_object' },
             }),
         })

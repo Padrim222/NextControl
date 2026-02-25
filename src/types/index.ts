@@ -65,6 +65,7 @@ export interface DailySubmission {
     submission_date: string;
     metrics: SellerMetrics | CloserMetrics;
     conversation_prints: string[];
+    pasted_messages?: string;
     call_recording?: string;
     notes?: string;
     status: 'pending' | 'approved' | 'rejected';

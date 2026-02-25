@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import {
     SELLER_METRICS_FIELDS,
     CLOSER_METRICS_FIELDS,
@@ -22,7 +23,11 @@ import {
     Upload,
     X,
     Camera,
-    Loader2
+    Loader2,
+    ClipboardPaste,
+    Image as ImageIcon,
+    Minus,
+    Plus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -44,12 +49,135 @@ const METRIC_HELP: Record<string, string> = {
     main_objections: 'Liste as barreiras que os clientes mais usaram para não comprar.',
 };
 
+// Categories for grouping metrics in checklist style
+const SELLER_CATEGORIES = [
+    {
+        name: 'Prospecção',
+        emoji: '🎯',
+        keys: ['approaches'],
+        color: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20',
+    },
+    {
+        name: 'Nutrição',
+        emoji: '🔄',
+        keys: ['followups'],
+        color: 'from-amber-500/10 to-orange-500/10 border-amber-500/20',
+    },
+    {
+        name: 'Conversão',
+        emoji: '📋',
+        keys: ['proposals', 'sales'],
+        color: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20',
+    },
+];
+
+const CLOSER_CATEGORIES = [
+    {
+        name: 'Calls',
+        emoji: '📞',
+        keys: ['calls_made', 'no_shows', 'reschedules'],
+        color: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20',
+    },
+    {
+        name: 'Conversão',
+        emoji: '🎯',
+        keys: ['proposals_sent', 'sales_closed', 'conversion_rate'],
+        color: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20',
+    },
+];
+
 interface DailyCheckinWizardProps {
     sellerType: SellerType;
     onSuccess?: (submissionId: string | null) => void;
 }
 
-const MAX_PRINTS = 5;
+// Stepper component for checklist-style number input
+function MetricStepper({
+    value,
+    onChange,
+    label,
+    emoji,
+    helpText,
+    max = 100,
+    isPercentage = false,
+}: {
+    value: number;
+    onChange: (val: number) => void;
+    label: string;
+    emoji: string;
+    helpText: string;
+    max?: number;
+    isPercentage?: boolean;
+}) {
+    return (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-all group">
+            <div className="text-2xl w-8 text-center shrink-0">{emoji}</div>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium truncate">{label}</span>
+                    <InstructionBalloon title={label} side="top">
+                        {helpText}
+                    </InstructionBalloon>
+                </div>
+                {max <= 10 && !isPercentage && (
+                    <div className="mt-1.5">
+                        <Slider
+                            value={[value]}
+                            onValueChange={([v]) => onChange(v)}
+                            max={max}
+                            step={1}
+                            className="w-full"
+                        />
+                    </div>
+                )}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                    type="button"
+                    onClick={() => onChange(Math.max(0, value - 1))}
+                    className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={value <= 0}
+                >
+                    <Minus className="w-3.5 h-3.5" />
+                </button>
+                <div className="w-12 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <span className="text-lg font-mono font-bold text-primary">
+                        {value}{isPercentage ? '%' : ''}
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => onChange(Math.min(max, value + 1))}
+                    className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={value >= max}
+                >
+                    <Plus className="w-3.5 h-3.5" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// Boolean toggle for 0-1 metrics
+function MetricToggle({
+    checked,
+    onChange,
+    label,
+    emoji,
+}: {
+    checked: boolean;
+    onChange: (val: boolean) => void;
+    label: string;
+    emoji: string;
+}) {
+    return (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-all">
+            <div className="text-2xl w-8 text-center shrink-0">{emoji}</div>
+            <span className="text-sm font-medium flex-1">{label}</span>
+            <Switch checked={checked} onCheckedChange={onChange} />
+        </div>
+    );
+}
 
 export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheckinWizardProps) {
     const { user } = useAuth();
@@ -75,38 +203,40 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
     const [notes, setNotes] = useState('');
     const [objectionsText, setObjectionsText] = useState('');
 
-    // Files
+    // Evidence: print + pasted messages
     const [printPreviews, setPrintPreviews] = useState<string[]>([]);
     const [printFiles, setPrintFiles] = useState<File[]>([]);
+    const [pastedMessages, setPastedMessages] = useState('');
     const [callFile, setCallFile] = useState<File | null>(null);
+    const [evidenceTab, setEvidenceTab] = useState<string>('paste');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Helper to get current metrics fields
     const metricsFields = sellerType === 'seller' ? SELLER_METRICS_FIELDS : CLOSER_METRICS_FIELDS;
+    const categories = sellerType === 'seller' ? SELLER_CATEGORIES : CLOSER_CATEGORIES;
 
     const handleNext = () => setCurrentStep(prev => prev + 1);
     const handleBack = () => setCurrentStep(prev => prev - 1);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
-        const remaining = MAX_PRINTS - printPreviews.length;
-        const toAdd = files.slice(0, remaining);
+        // Only 1 main print now
+        const toAdd = files.slice(0, 1);
 
         toAdd.forEach(file => {
             const reader = new FileReader();
             reader.onload = (ev) => {
-                setPrintPreviews(prev => [...prev, ev.target?.result as string]);
+                setPrintPreviews([ev.target?.result as string]);
             };
             reader.readAsDataURL(file);
         });
-        setPrintFiles(prev => [...prev, ...toAdd]);
+        setPrintFiles(toAdd);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const removePrint = (index: number) => {
-        setPrintPreviews(prev => prev.filter((_, i) => i !== index));
-        setPrintFiles(prev => prev.filter((_, i) => i !== index));
+    const removePrint = () => {
+        setPrintPreviews([]);
+        setPrintFiles([]);
     };
 
     const handleSubmit = async () => {
@@ -117,7 +247,7 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
             let printUrls: string[] = [];
             let callUrl: string | null = null;
 
-            // 1. Upload Prints
+            // 1. Upload Print (single)
             if (supabase && printFiles.length > 0) {
                 try {
                     const formData = new FormData();
@@ -135,7 +265,7 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                 }
             }
 
-            // 2. Upload Call
+            // 2. Upload Call (closer only)
             if (supabase && callFile) {
                 try {
                     const formData = new FormData();
@@ -164,6 +294,7 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                 submission_date: new Date().toISOString().split('T')[0],
                 metrics,
                 conversation_prints: printUrls,
+                pasted_messages: pastedMessages || null,
                 call_recording: callUrl,
                 notes: notes || null,
             };
@@ -203,15 +334,15 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
     const steps = [
         {
             id: 'metrics',
-            title: 'Métricas do Dia',
-            description: 'Registre seus números principais',
+            title: 'Checklist do Dia',
+            description: 'Marque seus números — estilo lista de mercado',
             icon: Target,
         },
         {
             id: 'evidence',
-            title: sellerType === 'seller' ? 'Evidências (Prints)' : 'Gravação de Call',
-            description: sellerType === 'seller' ? 'Upload de até 5 prints' : 'Upload da melhor call',
-            icon: Upload,
+            title: sellerType === 'seller' ? 'CRM & Conversas' : 'Gravação de Call',
+            description: sellerType === 'seller' ? 'Print ou cole mensagens' : 'Upload da melhor call',
+            icon: MessageSquare,
         },
         {
             id: 'notes',
@@ -220,6 +351,25 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
             icon: CheckCircle,
         }
     ];
+
+    const getMetricValue = (key: string): number => {
+        if (sellerType === 'seller') {
+            return (sellerMetrics as any)[key] || 0;
+        }
+        return (closerMetrics as any)[key] || 0;
+    };
+
+    const setMetricValue = (key: string, val: number) => {
+        if (sellerType === 'seller') {
+            setSellerMetrics((prev: SellerMetrics) => ({ ...prev, [key]: val }));
+        } else {
+            setCloserMetrics((prev: CloserMetrics) => ({ ...prev, [key]: val }));
+        }
+    };
+
+    const getFieldMeta = (key: string) => {
+        return metricsFields.find(f => f.key === key);
+    };
 
     return (
         <div className="max-w-xl mx-auto">
@@ -267,42 +417,41 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                         </CardHeader>
 
                         <CardContent className="flex-1 space-y-6">
-                            {/* STEP 1: METRICS */}
+                            {/* STEP 1: METRICS — Checklist "Lista de Mercado" */}
                             {currentStep === 0 && (
-                                <div className="space-y-4">
-                                    {metricsFields.map((field) => (
-                                        <div key={field.key} className="space-y-1.5">
-                                            <div className="flex items-center justify-between">
-                                                <Label className="flex items-center gap-2">
-                                                    <span className="text-xl">{field.emoji}</span>
-                                                    {field.label}
-                                                </Label>
-                                                <InstructionBalloon title={field.label} side="left">
-                                                    {METRIC_HELP[field.key] || 'Registre este número com atenção.'}
-                                                </InstructionBalloon>
+                                <div className="space-y-5">
+                                    {categories.map((cat) => (
+                                        <div key={cat.name}>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <span className="text-lg">{cat.emoji}</span>
+                                                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                                                    {cat.name}
+                                                </h3>
+                                                <div className="flex-1 h-px bg-border" />
                                             </div>
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                className="h-12 text-lg font-mono nc-input-glow"
-                                                value={
-                                                    sellerType === 'seller'
-                                                        ? (sellerMetrics[field.key as keyof SellerMetrics] || '')
-                                                        : (closerMetrics[field.key as keyof CloserMetrics] || '')
-                                                }
-                                                onChange={(e) => {
-                                                    const val = parseInt(e.target.value) || 0;
-                                                    if (sellerType === 'seller') {
-                                                        setSellerMetrics((prev: SellerMetrics) => ({ ...prev, [field.key]: val }));
-                                                    } else {
-                                                        setCloserMetrics((prev: CloserMetrics) => ({ ...prev, [field.key]: val }));
-                                                    }
-                                                }}
-                                            />
+                                            <div className="space-y-2">
+                                                {cat.keys.map((key) => {
+                                                    const field = getFieldMeta(key);
+                                                    if (!field) return null;
+                                                    const isPercent = key === 'conversion_rate';
+                                                    return (
+                                                        <MetricStepper
+                                                            key={key}
+                                                            value={getMetricValue(key)}
+                                                            onChange={(val) => setMetricValue(key, val)}
+                                                            label={field.label}
+                                                            emoji={field.emoji}
+                                                            helpText={METRIC_HELP[key] || 'Registre este número.'}
+                                                            max={isPercent ? 100 : 999}
+                                                            isPercentage={isPercent}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     ))}
 
-                                    {/* Closer Objections included in Step 1 or 3? Let's put in 3 or 1. Puts in 1 for now if closer */}
+                                    {/* Closer Objections */}
                                     {sellerType === 'closer' && (
                                         <div className="space-y-2 mt-4">
                                             <div className="flex items-center justify-between">
@@ -322,86 +471,127 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                 </div>
                             )}
 
-                            {/* STEP 2: EVIDENCE */}
+                            {/* STEP 2: EVIDENCE — Print único + Copiar/Colar */}
                             {currentStep === 1 && (
                                 <div className="space-y-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium">
-                                            {sellerType === 'seller' ? 'Prints de Conversa' : 'Gravação da Call'}
-                                        </h3>
-                                        <InstructionBalloon title="Evidências" side="left">
-                                            {sellerType === 'seller'
-                                                ? 'Anexe prints de boas abordagens ou objeções difíceis. A IA vai analisar sua técnica.'
-                                                : 'Suba o áudio da sua melhor (ou pior) call. A IA vai analisar seu SPIN Selling.'}
-                                        </InstructionBalloon>
-                                    </div>
                                     {sellerType === 'seller' ? (
-                                        <div className="grid grid-cols-2 gap-4">
-                                            {printPreviews.map((preview, i) => (
-                                                <div key={i} className="relative aspect-[9/16] bg-gray-900 rounded-lg overflow-hidden border border-border group">
-                                                    <img src={preview} alt="Print" className="w-full h-full object-cover" />
-                                                    <button onClick={() => removePrint(i)} className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {printPreviews.length < MAX_PRINTS && (
-                                                <button
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                    className="aspect-[9/16] rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-all"
-                                                >
-                                                    <Camera className="w-8 h-8" />
-                                                    <span className="text-xs font-bold uppercase">Adicionar Print</span>
-                                                </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-muted-foreground/25 rounded-xl hover:bg-muted/5 transition-all">
-                                            <Upload className="w-10 h-10 text-muted-foreground mb-3" />
-                                            {callFile ? (
-                                                <div className="text-center">
-                                                    <p className="font-medium text-primary">{callFile.name}</p>
-                                                    <Button variant="ghost" size="sm" onClick={() => setCallFile(null)} className="mt-2 text-red-400">
-                                                        Remover Arquivo
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <p className="font-medium">Arraste ou clique para enviar</p>
-                                                    <p className="text-xs text-muted-foreground text-center px-4 mt-1">
-                                                        Gravação da call (MP3, MP4, WAV)
+                                        <Tabs value={evidenceTab} onValueChange={setEvidenceTab} className="w-full">
+                                            <TabsList className="grid w-full grid-cols-2">
+                                                <TabsTrigger value="paste" className="gap-2">
+                                                    <ClipboardPaste className="w-4 h-4" />
+                                                    Colar Mensagens
+                                                </TabsTrigger>
+                                                <TabsTrigger value="print" className="gap-2">
+                                                    <ImageIcon className="w-4 h-4" />
+                                                    Print CRM
+                                                </TabsTrigger>
+                                            </TabsList>
+
+                                            <TabsContent value="paste" className="mt-4 space-y-3">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-sm text-muted-foreground">
+                                                        Cole as mensagens diretamente do CRM/WhatsApp
+                                                    </Label>
+                                                    <Textarea
+                                                        value={pastedMessages}
+                                                        onChange={(e) => setPastedMessages(e.target.value)}
+                                                        placeholder={"Cole aqui as conversas do dia...\n\nExemplo:\n[14:30] Você: Oi Maria, tudo bem?\n[14:31] Maria: Oi! Tudo sim\n[14:32] Você: Vi que você se interessou pelo nosso serviço..."}
+                                                        className="min-h-[200px] resize-none font-mono text-sm nc-input-glow"
+                                                    />
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {pastedMessages.length} caracteres
+                                                        {pastedMessages.length > 0 && (
+                                                            <span className="text-primary ml-2">
+                                                                ✓ A IA vai analisar sua técnica de abordagem
+                                                            </span>
+                                                        )}
                                                     </p>
-                                                    <Button variant="outline" className="mt-4" onClick={() => {
-                                                        const input = document.createElement('input');
-                                                        input.type = 'file';
-                                                        input.accept = 'audio/*,video/*';
-                                                        input.onchange = (e) => {
-                                                            const f = (e.target as HTMLInputElement).files?.[0];
-                                                            if (f) setCallFile(f);
-                                                        };
-                                                        input.click();
-                                                    }}>
-                                                        Selecionar Arquivo
-                                                    </Button>
-                                                </>
-                                            )}
+                                                </div>
+                                            </TabsContent>
+
+                                            <TabsContent value="print" className="mt-4 space-y-3">
+                                                <Label className="text-sm text-muted-foreground">
+                                                    Tire 1 print principal da tela do CRM
+                                                </Label>
+                                                {printPreviews.length > 0 ? (
+                                                    <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border border-border group">
+                                                        <img src={printPreviews[0]} alt="Print CRM" className="w-full h-full object-cover" />
+                                                        <button
+                                                            onClick={() => removePrint()}
+                                                            className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        className="w-full aspect-video rounded-xl border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-all"
+                                                    >
+                                                        <Camera className="w-10 h-10" />
+                                                        <span className="text-sm font-bold uppercase">Adicionar Print</span>
+                                                        <span className="text-xs opacity-70">1 print principal do CRM</span>
+                                                    </button>
+                                                )}
+                                            </TabsContent>
+                                        </Tabs>
+                                    ) : (
+                                        /* Closer: Call upload */
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className="text-sm font-medium">Gravação da Call</h3>
+                                                <InstructionBalloon title="Evidências" side="left">
+                                                    Suba o áudio da sua melhor (ou pior) call. A IA vai analisar seu SPIN Selling.
+                                                </InstructionBalloon>
+                                            </div>
+                                            <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-muted-foreground/25 rounded-xl hover:bg-muted/5 transition-all">
+                                                <Upload className="w-10 h-10 text-muted-foreground mb-3" />
+                                                {callFile ? (
+                                                    <div className="text-center">
+                                                        <p className="font-medium text-primary">{callFile.name}</p>
+                                                        <Button variant="ghost" size="sm" onClick={() => setCallFile(null)} className="mt-2 text-red-400">
+                                                            Remover Arquivo
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <p className="font-medium">Arraste ou clique para enviar</p>
+                                                        <p className="text-xs text-muted-foreground text-center px-4 mt-1">
+                                                            Gravação da call (MP3, MP4, WAV)
+                                                        </p>
+                                                        <Button variant="outline" className="mt-4" onClick={() => {
+                                                            const input = document.createElement('input');
+                                                            input.type = 'file';
+                                                            input.accept = 'audio/*,video/*';
+                                                            input.onchange = (e) => {
+                                                                const f = (e.target as HTMLInputElement).files?.[0];
+                                                                if (f) setCallFile(f);
+                                                            };
+                                                            input.click();
+                                                        }}>
+                                                            Selecionar Arquivo
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                     <input
                                         ref={fileInputRef}
                                         type="file"
                                         accept="image/*"
-                                        multiple
                                         className="hidden"
                                         onChange={handleFileSelect}
                                     />
                                     <p className="text-xs text-muted-foreground text-center mt-4">
-                                        {sellerType === 'seller' ? 'Envie conversas reais para análise da IA.' : 'Sua gravação será transcrita e analisada.'}
+                                        {sellerType === 'seller'
+                                            ? 'Cole mensagens OU envie print. A IA analisa ambos.'
+                                            : 'Sua gravação será transcrita e analisada.'}
                                     </p>
                                 </div>
                             )}
 
-                            {/* STEP 3: NOTES */}
+                            {/* STEP 3: NOTES & SUMMARY */}
                             {currentStep === 2 && (
                                 <div className="space-y-4">
                                     <Label>Observações Gerais</Label>
@@ -409,27 +599,69 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                         value={notes}
                                         onChange={(e) => setNotes(e.target.value)}
                                         placeholder="Destaques do dia, dificuldades, insights..."
-                                        className="min-h-[150px] resize-none nc-input-glow"
+                                        className="min-h-[120px] resize-none nc-input-glow"
                                     />
 
-                                    <div className="bg-muted/30 p-4 rounded-lg text-sm space-y-2">
-                                        <p className="font-medium text-muted-foreground">Resumo do envio:</p>
-                                        <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                                    {/* Summary Card */}
+                                    <div className="bg-muted/30 p-4 rounded-xl text-sm space-y-3 border border-border/50">
+                                        <p className="font-semibold text-foreground flex items-center gap-2">
+                                            <CheckCircle className="w-4 h-4 text-primary" />
+                                            Resumo do envio
+                                        </p>
+
+                                        {/* Metrics summary */}
+                                        <div className="grid grid-cols-2 gap-2">
                                             {sellerType === 'seller' ? (
                                                 <>
-                                                    <li>Abordagens: {sellerMetrics.approaches}</li>
-                                                    <li>Vendas: {sellerMetrics.sales}</li>
-                                                    <li>Prints: {printFiles.length}</li>
+                                                    {SELLER_METRICS_FIELDS.map(field => (
+                                                        <div key={field.key} className="flex items-center gap-2 text-muted-foreground">
+                                                            <span>{field.emoji}</span>
+                                                            <span>{field.label}:</span>
+                                                            <span className="font-mono font-bold text-foreground">
+                                                                {(sellerMetrics as any)[field.key] || 0}
+                                                            </span>
+                                                        </div>
+                                                    ))}
                                                 </>
                                             ) : (
                                                 <>
-                                                    <li>Calls: {closerMetrics.calls_made}</li>
-                                                    <li>Propostas: {closerMetrics.proposals_sent}</li>
-                                                    <li>Vendas: {closerMetrics.sales_closed}</li>
-                                                    <li>Conversão: {closerMetrics.conversion_rate}%</li>
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <span>📞</span> Calls: <span className="font-mono font-bold text-foreground">{closerMetrics.calls_made}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <span>📋</span> Propostas: <span className="font-mono font-bold text-foreground">{closerMetrics.proposals_sent}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <span>🎯</span> Vendas: <span className="font-mono font-bold text-foreground">{closerMetrics.sales_closed}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <span>📈</span> Conversão: <span className="font-mono font-bold text-foreground">{closerMetrics.conversion_rate}%</span>
+                                                    </div>
                                                 </>
                                             )}
-                                        </ul>
+                                        </div>
+
+                                        {/* Evidence summary */}
+                                        <div className="pt-2 border-t border-border/50 text-muted-foreground">
+                                            {printFiles.length > 0 && (
+                                                <p className="flex items-center gap-2">
+                                                    <ImageIcon className="w-3.5 h-3.5" /> 1 print do CRM anexado
+                                                </p>
+                                            )}
+                                            {pastedMessages.length > 0 && (
+                                                <p className="flex items-center gap-2">
+                                                    <ClipboardPaste className="w-3.5 h-3.5" /> {pastedMessages.length} caracteres de mensagens
+                                                </p>
+                                            )}
+                                            {callFile && (
+                                                <p className="flex items-center gap-2">
+                                                    <Upload className="w-3.5 h-3.5" /> Gravação: {callFile.name}
+                                                </p>
+                                            )}
+                                            {printFiles.length === 0 && pastedMessages.length === 0 && !callFile && (
+                                                <p className="text-xs italic">Nenhuma evidência anexada (opcional)</p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
