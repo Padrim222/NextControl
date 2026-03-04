@@ -36,37 +36,37 @@ import { toast } from 'sonner';
 import { InstructionBalloon } from '@/components/ui/instruction-balloon';
 
 const METRIC_HELP: Record<string, string> = {
-    approaches: 'Quantas pessoas novas você abordou hoje? (Outbound ou Inbound)',
+    followers: 'Quantos novos seguidores chegaram no perfil hoje?',
+    conversations: 'Quantas conversas ativas (direct/whatsapp) você iniciou?',
+    opportunities: 'Quantos leads você qualificou e enviou uma proposta/pitch?',
     followups: 'Quantos contatos de reconexão você fez com leads antigos?',
-    proposals: 'Quantas propostas de valor ou orçamento você enviou?',
-    sales: 'Quantas vendas foram efetivamente fechadas e pagas hoje?',
+    quality_score: 'Qual nota você dá para a qualidade dos leads hoje (0 a 10)?',
     calls_made: 'Total de ligações (conectadas ou não) realizadas no dia.',
     proposals_sent: 'Quantas propostas comerciais você enviou após as calls?',
     sales_closed: 'Quantas vendas foram fechadas e confirmadas hoje?',
     no_shows: 'Quantos leads agendados não apareceram na call?',
     reschedules: 'Quantas calls foram reagendadas para outra data?',
-    conversion_rate: 'Qual a porcentagem de fechamento sobre as calls realizadas? (Ex: 2 vendas em 10 calls = 20%)',
     main_objections: 'Liste as barreiras que os clientes mais usaram para não comprar.',
 };
 
 // Categories for grouping metrics in checklist style
 const SELLER_CATEGORIES = [
     {
-        name: 'Prospecção',
-        emoji: '🎯',
-        keys: ['approaches'],
+        name: 'Tração',
+        emoji: '👥',
+        keys: ['followers', 'conversations'],
         color: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20',
     },
     {
-        name: 'Nutrição',
-        emoji: '🔄',
-        keys: ['followups'],
+        name: 'Conversão',
+        emoji: '🎯',
+        keys: ['opportunities', 'followups'],
         color: 'from-amber-500/10 to-orange-500/10 border-amber-500/20',
     },
     {
-        name: 'Conversão',
-        emoji: '📋',
-        keys: ['proposals', 'sales'],
+        name: 'Avaliação',
+        emoji: '⭐',
+        keys: ['quality_score'],
         color: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20',
     },
 ];
@@ -81,7 +81,7 @@ const CLOSER_CATEGORIES = [
     {
         name: 'Conversão',
         emoji: '🎯',
-        keys: ['proposals_sent', 'sales_closed', 'conversion_rate'],
+        keys: ['proposals_sent', 'sales_closed'],
         color: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20',
     },
 ];
@@ -131,27 +131,28 @@ function MetricStepper({
                     </div>
                 )}
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
                 <button
                     type="button"
                     onClick={() => onChange(Math.max(0, value - 1))}
-                    className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    className="w-14 h-14 rounded-2xl bg-muted/50 hover:bg-red-500/10 hover:text-red-500 flex items-center justify-center text-muted-foreground transition-all duration-200 active:scale-90 border border-border/50 hover:border-red-500/30"
                     disabled={value <= 0}
                 >
-                    <Minus className="w-3.5 h-3.5" />
+                    <Minus className="w-6 h-6" />
                 </button>
-                <div className="w-12 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-                    <span className="text-lg font-mono font-bold text-primary">
+                <div className="w-20 h-14 rounded-2xl bg-primary/5 border-2 border-primary/20 flex items-center justify-center shadow-inner overflow-hidden relative">
+                    <div className="absolute inset-0 bg-primary/5 animate-pulse" />
+                    <span className="text-2xl font-display font-black text-primary relative z-10">
                         {value}{isPercentage ? '%' : ''}
                     </span>
                 </div>
                 <button
                     type="button"
                     onClick={() => onChange(Math.min(max, value + 1))}
-                    className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    className="w-14 h-14 rounded-2xl bg-muted/50 hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-all duration-200 active:scale-90 border border-border/50 hover:border-primary/30"
                     disabled={value >= max}
                 >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-6 h-6" />
                 </button>
             </div>
         </div>
@@ -186,10 +187,11 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
 
     // Form Data
     const [sellerMetrics, setSellerMetrics] = useState<SellerMetrics>({
-        approaches: 0,
+        followers: 0,
+        conversations: 0,
+        opportunities: 0,
         followups: 0,
-        proposals: 0,
-        sales: 0,
+        quality_score: 5,
     });
     const [closerMetrics, setCloserMetrics] = useState<CloserMetrics>({
         calls_made: 0,
@@ -197,7 +199,6 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
         sales_closed: 0,
         no_shows: 0,
         reschedules: 0,
-        conversion_rate: 0,
         main_objections: [],
     });
     const [notes, setNotes] = useState('');
@@ -220,23 +221,22 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
-        // Only 1 main print now
-        const toAdd = files.slice(0, 1);
+        const toAdd = files.slice(0, 5); // Allow up to 5 prints
 
         toAdd.forEach(file => {
             const reader = new FileReader();
             reader.onload = (ev) => {
-                setPrintPreviews([ev.target?.result as string]);
+                setPrintPreviews(prev => [...prev, ev.target?.result as string]);
             };
             reader.readAsDataURL(file);
         });
-        setPrintFiles(toAdd);
+        setPrintFiles(prev => [...prev, ...toAdd]);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const removePrint = () => {
-        setPrintPreviews([]);
-        setPrintFiles([]);
+    const removePrint = (index: number) => {
+        setPrintPreviews(prev => prev.filter((_, i) => i !== index));
+        setPrintFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async () => {
@@ -250,42 +250,54 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
             // 1. Upload Print (single)
             if (supabase && printFiles.length > 0) {
                 try {
-                    const formData = new FormData();
-                    formData.append('type', 'print');
-                    printFiles.forEach(f => formData.append('files', f));
+                    for (const file of printFiles) {
+                        const fileExt = file.name.split('.').pop() || 'jpg';
+                        const filePath = `${user.id}/prints/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-                    const { data: uploadResult, error: uploadError } = await (supabase as any).functions.invoke('process-upload', {
-                        body: formData,
-                    });
-                    if (uploadError) throw uploadError;
-                    printUrls = uploadResult?.urls || [];
+                        const { error: uploadError } = await supabase.storage
+                            .from('submissions')
+                            .upload(filePath, file);
+
+                        if (uploadError) throw uploadError;
+
+                        const { data } = supabase.storage
+                            .from('submissions')
+                            .getPublicUrl(filePath);
+
+                        printUrls.push(data.publicUrl);
+                    }
                 } catch (uploadErr) {
-                    console.warn('Upload fallback (mock):', uploadErr);
-                    printUrls = printPreviews.map((_, i) => `print_mock_${i}.jpg`);
+                    console.error('Upload falhou:', uploadErr);
+                    // Do not mock the URLs if the upload failed, so it doesn't break the admin panel.
                 }
             }
 
             // 2. Upload Call (closer only)
             if (supabase && callFile) {
                 try {
-                    const formData = new FormData();
-                    formData.append('type', 'call');
-                    formData.append('files', callFile);
+                    const fileExt = callFile.name.split('.').pop() || 'mp3';
+                    const filePath = `${user.id}/calls/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-                    const { data: uploadResult, error: uploadError } = await (supabase as any).functions.invoke('process-upload', {
-                        body: formData,
-                    });
+                    const { error: uploadError } = await supabase.storage
+                        .from('submissions')
+                        .upload(filePath, callFile);
+
                     if (uploadError) throw uploadError;
-                    callUrl = uploadResult?.urls?.[0] || null;
+
+                    const { data } = supabase.storage
+                        .from('submissions')
+                        .getPublicUrl(filePath);
+
+                    callUrl = data.publicUrl;
                 } catch (uploadErr) {
-                    console.warn('Call upload fallback:', uploadErr);
-                    callUrl = `call_mock_${Date.now()}.mp3`;
+                    console.error('Call upload falhou:', uploadErr);
                 }
             }
 
             // 3. Prepare Submission
-            const metrics = sellerType === 'seller' ? sellerMetrics : {
-                ...closerMetrics,
+            const baseMetrics = sellerType === 'seller' ? sellerMetrics : closerMetrics;
+            const metrics = {
+                ...baseMetrics,
                 main_objections: objectionsText.split('\n').filter(Boolean),
             };
 
@@ -433,7 +445,8 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                                 {cat.keys.map((key) => {
                                                     const field = getFieldMeta(key);
                                                     if (!field) return null;
-                                                    const isPercent = key === 'conversion_rate';
+                                                    const isPercent = false; // no percentage fields currently
+                                                    const isQuality = key === 'quality_score';
                                                     return (
                                                         <MetricStepper
                                                             key={key}
@@ -442,7 +455,7 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                                             label={field.label}
                                                             emoji={field.emoji}
                                                             helpText={METRIC_HELP[key] || 'Registre este número.'}
-                                                            max={isPercent ? 100 : 999}
+                                                            max={isQuality ? 10 : 999}
                                                             isPercentage={isPercent}
                                                         />
                                                     );
@@ -451,8 +464,8 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                         </div>
                                     ))}
 
-                                    {/* Closer Objections */}
-                                    {sellerType === 'closer' && (
+                                    {/* Objections (Seller and Closer) */}
+                                    {true && (
                                         <div className="space-y-2 mt-4">
                                             <div className="flex items-center justify-between">
                                                 <Label>Principais Objeções</Label>
@@ -514,23 +527,36 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                                     Tire 1 print principal da tela do CRM
                                                 </Label>
                                                 {printPreviews.length > 0 ? (
-                                                    <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border border-border group">
-                                                        <img src={printPreviews[0]} alt="Print CRM" className="w-full h-full object-cover" />
-                                                        <button
-                                                            onClick={() => removePrint()}
-                                                            className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </button>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {printPreviews.map((preview, idx) => (
+                                                            <div key={idx} className="relative aspect-video bg-muted rounded-lg overflow-hidden border border-border group">
+                                                                <img src={preview} alt="Print CRM" className="w-full h-full object-cover" />
+                                                                <button
+                                                                    onClick={() => removePrint(idx)}
+                                                                    className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        {printPreviews.length < 5 && (
+                                                            <button
+                                                                onClick={() => fileInputRef.current?.click()}
+                                                                className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-primary transition-all"
+                                                            >
+                                                                <Plus className="w-6 h-6" />
+                                                                <span className="text-[10px] uppercase font-bold">Mais Prints</span>
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     <button
                                                         onClick={() => fileInputRef.current?.click()}
                                                         className="w-full aspect-video rounded-xl border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-all"
                                                     >
-                                                        <Camera className="w-10 h-10" />
-                                                        <span className="text-sm font-bold uppercase">Adicionar Print</span>
-                                                        <span className="text-xs opacity-70">1 print principal do CRM</span>
+                                                        <Camera className="w-14 h-14" />
+                                                        <span className="text-sm font-bold uppercase tracking-widest">Adicionar Prints do CRM</span>
+                                                        <span className="text-xs opacity-70">Envie até 5 prints das conversas</span>
                                                     </button>
                                                 )}
                                             </TabsContent>
@@ -580,6 +606,7 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                         ref={fileInputRef}
                                         type="file"
                                         accept="image/*"
+                                        multiple
                                         className="hidden"
                                         onChange={handleFileSelect}
                                     />
@@ -633,9 +660,6 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                                     </div>
                                                     <div className="flex items-center gap-2 text-muted-foreground">
                                                         <span>🎯</span> Vendas: <span className="font-mono font-bold text-foreground">{closerMetrics.sales_closed}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                                        <span>📈</span> Conversão: <span className="font-mono font-bold text-foreground">{closerMetrics.conversion_rate}%</span>
                                                     </div>
                                                 </>
                                             )}

@@ -33,6 +33,7 @@ import { StrategistPanel } from '@/components/admin/StrategistPanel';
 import { ImprovementChecklist } from '@/components/admin/ImprovementChecklist';
 import { downloadReportAsPDF } from '@/lib/pdf-export';
 import { AdminFormPanel } from '@/components/admin/AdminFormPanel';
+import { ClientMaterialsPanel } from '@/components/admin/ClientMaterialsPanel';
 
 interface SubmissionWithSeller extends DailySubmission {
     seller?: { name: string; email: string; seller_type: string };
@@ -52,14 +53,23 @@ export default function AdminDashboard() {
     const [reports, setReports] = useState<Report[]>([]);
     const [callLogs, setCallLogs] = useState<CallLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('week');
 
     useEffect(() => {
         fetchAll();
-    }, []);
+    }, [timeFilter]);
 
     const fetchAll = async () => {
         setIsLoading(true);
         try {
+            const dateLimit = new Date();
+            if (timeFilter === 'week') {
+                dateLimit.setDate(dateLimit.getDate() - 7);
+            } else {
+                dateLimit.setDate(dateLimit.getDate() - 30);
+            }
+            const isoDate = dateLimit.toISOString();
+
             // Fetch users
             const { data: usersData } = await (supabase as any)
                 .from('users')
@@ -77,30 +87,34 @@ export default function AdminDashboard() {
             const { data: subsData } = await (supabase as any)
                 .from('daily_submissions')
                 .select('*, seller:users!seller_id(name, email, seller_type)')
+                .gte('created_at', isoDate)
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .limit(100);
             if (subsData) setSubmissions(subsData);
 
             // Fetch analyses
             const { data: analysesData } = await (supabase as any)
                 .from('analyses')
                 .select('*')
+                .gte('created_at', isoDate)
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .limit(100);
             if (analysesData) setAnalyses(analysesData);
 
             // Fetch reports
             const { data: reportsData } = await (supabase as any)
                 .from('reports')
                 .select('*')
+                .gte('created_at', isoDate)
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .limit(100);
             if (reportsData) setReports(reportsData);
 
             // Fetch call logs
             const { data: callData } = await supabase
                 .from('call_logs')
                 .select('*')
+                .gte('created_at', isoDate)
                 .order('created_at', { ascending: false });
             if (callData) setCallLogs(callData as CallLog[]);
         } catch (error) {
@@ -192,7 +206,8 @@ export default function AdminDashboard() {
         if (metrics.approaches != null) {
             metricsText = `💬 Abordagens: ${metrics.approaches}\n🔄 Follow-ups: ${metrics.followups}\n📋 Propostas: ${metrics.proposals}\n🎯 Vendas: ${metrics.sales}`;
         } else if (metrics.calls_made != null) {
-            metricsText = `📞 Calls: ${metrics.calls_made}\n📈 Conversão: ${metrics.conversion_rate}%`;
+            const conv = metrics.calls_made ? ((metrics.sales_closed || 0) / metrics.calls_made * 100).toFixed(1) : 0;
+            metricsText = `📞 Calls: ${metrics.calls_made}\n📈 Conversão: ${conv}%`;
         }
 
         const text = `📊 *Relatório Diário — ${sellerName}*\nData: ${date}\n\n${metricsText}${analysis ? `\n\n🤖 Score IA: ${analysis.score}/100\n\n✅ Forças: ${(analysis.strengths || []).join(', ')}\n⚠️ Melhorar: ${(analysis.improvements || []).join(', ')}` : ''}\n\n_Next Control · Consultoria de Bolso_`;
@@ -425,7 +440,7 @@ export default function AdminDashboard() {
                 {/* Conselho RY: Head Agent + Strategist */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                     <HeadAgentPanel
-                        reports={[]}
+                        reports={submissions as any}
                         callLogs={callLogs}
                         sellerName={realUsers.find(u => u.role === 'seller')?.name || 'Equipe'}
                         clientName={clients[0]?.name || 'Cliente'}
@@ -441,6 +456,11 @@ export default function AdminDashboard() {
                 {/* Public Forms Panel */}
                 <div className="mb-8">
                     <AdminFormPanel />
+                </div>
+
+                {/* Client Materials & RAG Knowledge Base */}
+                <div className="mb-8">
+                    <ClientMaterialsPanel />
                 </div>
 
                 {/* Analyzed Submissions */}
@@ -541,11 +561,30 @@ export default function AdminDashboard() {
                                             Prints ({selectedSubmission.conversation_prints.length})
                                         </h3>
                                         <div className="grid grid-cols-3 gap-2">
-                                            {selectedSubmission.conversation_prints.map((url, i) => (
-                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="aspect-square bg-muted rounded-lg overflow-hidden border hover:border-solar transition-colors">
-                                                    <img src={url} alt={`Print ${i + 1}`} className="w-full h-full object-cover" />
-                                                </a>
-                                            ))}
+                                            {selectedSubmission.conversation_prints.map((url, i) => {
+                                                const isValidUrl = typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'));
+                                                // If it looks like a relative path from our own storage
+                                                const finalUrl = (typeof url === 'string' && !url.startsWith('http') && url.includes('/'))
+                                                    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/submissions/${url}`
+                                                    : url;
+
+                                                return (
+                                                    <a
+                                                        key={i}
+                                                        href={isValidUrl || finalUrl ? finalUrl : '#'}
+                                                        onClick={(e) => (!isValidUrl && !finalUrl) && e.preventDefault()}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className={`aspect-square bg-muted rounded-lg overflow-hidden border transition-colors ${(isValidUrl || finalUrl) ? 'hover:border-solar cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                                                    >
+                                                        {(isValidUrl || finalUrl) ? (
+                                                            <img src={finalUrl} alt={`Print ${i + 1}`} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground p-2 text-center">Print Indisponível</div>
+                                                        )}
+                                                    </a>
+                                                )
+                                            })}
                                         </div>
                                     </div>
                                 )}

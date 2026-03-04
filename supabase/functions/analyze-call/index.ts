@@ -103,9 +103,34 @@ Deno.serve(async (req) => {
             .eq('id', user.id)
             .single()
 
+        // --- RAG CONTEXT FETCH ---
+        let ragContext = "";
+        const effectiveClientId = client_id;
+        if (effectiveClientId) {
+            const { data: materials } = await supabase
+                .from('client_materials')
+                .select('title, description')
+                .eq('client_id', effectiveClientId)
+                .eq('is_rag_active', true);
+
+            if (materials && materials.length > 0) {
+                const { data: clientData } = await supabase
+                    .from('clients')
+                    .select('name')
+                    .eq('id', effectiveClientId)
+                    .single();
+
+                ragContext = "\n\n=== CONTEXTO DE CONHECIMENTO DO CLIENTE (" + (clientData?.name || "N/A") + ") ===\n" +
+                    materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/REGRAS: ${m.description || 'Sem descrição'}`).join('\n\n') +
+                    "\n=======================================\n\nUse este contexto para validar se o closer está seguindo o playbook, as regras de preço, descontos e abordagem do produto.";
+            }
+        }
+        // -------------------------
+
         const userPrompt = `Closer: ${closer?.name || 'Desconhecido'}
 Prospect: ${prospect_name || 'N/A'}
 Duração: ${duration_minutes || 'N/A'} minutos
+${ragContext}
 
 TRANSCRIÇÃO DA CALL:
 ${transcription}`

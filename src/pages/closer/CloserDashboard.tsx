@@ -21,6 +21,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { DailySubmission, Analysis, CloserMetrics } from '@/types';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
+import { CloserInsightsWidget } from '@/components/closer/CloserInsightsWidget';
 
 export default function CloserDashboard() {
     const { user } = useAuth();
@@ -28,22 +29,31 @@ export default function CloserDashboard() {
     const [submissions, setSubmissions] = useState<DailySubmission[]>([]);
     const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null);
     const [todaySubmitted, setTodaySubmitted] = useState(false);
+    const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('week');
 
     useEffect(() => {
         if (!user) return;
         fetchData();
-    }, [user]);
+    }, [user, timeFilter]);
 
     const fetchData = async () => {
         if (!supabase || !user) return;
         try {
             const today = new Date().toISOString().split('T')[0];
+            const dateLimit = new Date();
+            if (timeFilter === 'week') {
+                dateLimit.setDate(dateLimit.getDate() - 7);
+            } else {
+                dateLimit.setDate(dateLimit.getDate() - 30);
+            }
+            const isoLimit = dateLimit.toISOString();
+
             const { data: subs } = await (supabase as any)
                 .from('daily_submissions')
                 .select('*')
                 .eq('seller_id', user.id)
-                .order('submission_date', { ascending: false })
-                .limit(7);
+                .gte('created_at', isoLimit)
+                .order('submission_date', { ascending: false });
 
             if (subs) {
                 setSubmissions(subs);
@@ -78,12 +88,7 @@ export default function CloserDashboard() {
         return acc + (m?.sales_closed || 0);
     }, 0);
 
-    const avgConversion = submissions.length > 0
-        ? (submissions.reduce((acc, s) => {
-            const m = s.metrics as CloserMetrics;
-            return acc + (m?.conversion_rate || 0);
-        }, 0) / submissions.length).toFixed(1)
-        : '—';
+
 
     const stats = [
         {
@@ -110,12 +115,7 @@ export default function CloserDashboard() {
             icon: todaySubmitted ? CheckCircle : Clock,
             color: todaySubmitted ? 'text-nc-success' : 'text-nc-warning',
         },
-        {
-            label: 'Conversão Média',
-            value: `${avgConversion}%`,
-            icon: Percent,
-            color: 'text-nc-info',
-        },
+
         {
             label: 'Último Score',
             value: latestAnalysis?.score ? `${latestAnalysis.score}/100` : '—',
@@ -142,20 +142,46 @@ export default function CloserDashboard() {
                             : '⏰ Registre suas calls do dia!'}
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <Button onClick={() => navigate('/seller/evolution')} variant="outline" className="nc-btn-ghost">
-                        <TrendingUp className="h-4 w-4 mr-2" />
-                        Evolução
-                    </Button>
-                    <Button onClick={() => navigate('/training/coach')} variant="outline" className="nc-btn-ghost">
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Consultoria
-                    </Button>
+
+                <div className="flex flex-col items-end gap-2">
+                    {/* Time filter UI */}
+                    <div className="flex bg-muted p-1 rounded-lg border border-border scale-90 sm:scale-100 transform origin-right">
+                        <Button
+                            variant={timeFilter === 'week' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setTimeFilter('week')}
+                            className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+                        >
+                            Semana
+                        </Button>
+                        <Button
+                            variant={timeFilter === 'month' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setTimeFilter('month')}
+                            className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+                        >
+                            Mês
+                        </Button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Button onClick={() => navigate('/seller/evolution')} variant="outline" className="nc-btn-ghost h-8 sm:h-10 text-xs sm:text-sm">
+                            <TrendingUp className="h-4 w-4 mr-2" />
+                            Evolução
+                        </Button>
+                        <Button onClick={() => navigate('/training/coach')} variant="outline" className="nc-btn-ghost h-8 sm:h-10 text-xs sm:text-sm">
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Consultoria
+                        </Button>
+                    </div>
                 </div>
             </motion.div>
 
             {/* Pending Form Banner */}
             <FormPendingBanner formType="closer_daily" />
+
+            {/* FUP Insights Widget */}
+            <CloserInsightsWidget />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -194,7 +220,7 @@ export default function CloserDashboard() {
                             </div>
                             <h3 className="text-lg font-semibold mb-1">Check-in de Closer</h3>
                             <p className="text-sm text-muted-foreground">
-                                Registre calls, taxa de conversão e upload de gravação
+                                Registre calls, feedbacks e upload de gravação
                             </p>
                             <Button className="mt-4 nc-btn-primary">
                                 Começar <ChevronRight className="h-4 w-4 ml-1" />
@@ -267,6 +293,7 @@ export default function CloserDashboard() {
                         <div className="space-y-2">
                             {submissions.slice(0, 5).map((sub) => {
                                 const metrics = sub.metrics as CloserMetrics;
+                                const convRate = metrics?.calls_made ? ((metrics.sales_closed || 0) / metrics.calls_made * 100).toFixed(1) : 0;
                                 return (
                                     <div
                                         key={sub.id}
@@ -278,7 +305,7 @@ export default function CloserDashboard() {
                                         </div>
                                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                             <span className="font-mono">{metrics?.calls_made || 0} calls</span>
-                                            <span className="font-mono">{metrics?.conversion_rate || 0}% conv.</span>
+                                            <span className="font-mono">{metrics?.sales_closed || 0} vendas</span>
                                             {sub.call_recording && <Phone className="h-3 w-3 text-nc-info" />}
                                         </div>
                                     </div>

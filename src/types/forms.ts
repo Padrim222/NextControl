@@ -9,6 +9,8 @@ export type AIStatus = 'pending' | 'processing' | 'done' | 'error';
 // ---- FORM-SPECIFIC DATA SCHEMAS ----
 
 export interface ExpertWeeklyData {
+    company_phase: 'validation' | 'traction' | 'scale' | 'optimization';
+    formula_x?: string;
     leads_range: '0-10' | '10-30' | '30-60' | '60+';
     opportunities_opened: number;
     sales_closed: number;
@@ -38,7 +40,6 @@ export interface SellerDailyData {
 export interface CloserDailyData {
     calls_made: number;
     sales_closed: number;
-    conversion_rate: number;
     main_objection: string;
     avoidable_loss: boolean;
     avoidable_loss_reason: string;
@@ -88,14 +89,14 @@ export const FORM_CONFIG: Record<FormType, {
         title: 'Check-in Social Seller',
         subtitle: 'Registro diário de métricas e evidências',
         frequency: 'Diário',
-        estimatedTime: '5–8 min',
+        estimatedTime: '3 min',
         emoji: '💬',
     },
     closer_daily: {
         title: 'Check-in Closer',
         subtitle: 'Registro diário de calls e conversão',
         frequency: 'Diário',
-        estimatedTime: '5–10 min',
+        estimatedTime: '3 min',
         emoji: '📞',
     },
 };

@@ -20,15 +20,24 @@ import {
     BOTTLENECK_OPTIONS,
 } from '@/types/forms';
 import type { ExpertWeeklyData } from '@/types/forms';
-import { BarChart3, Crosshair, Megaphone, CheckCircle } from 'lucide-react';
+import { BarChart3, Crosshair, Megaphone, CheckCircle, Compass, Shield } from 'lucide-react';
 
 const STEPS = [
     { id: 'identify', title: 'Identificação', emoji: '👤' },
-    { id: 'numbers', title: 'Números', emoji: '📊' },
-    { id: 'funnel', title: 'Funil', emoji: '🎯' },
-    { id: 'positioning', title: 'Posicionamento', emoji: '📢' },
+    { id: 'strategy_base', title: 'Fase & Modelo', emoji: '🚀' },
+    { id: 'numbers', title: 'Bloco 1: Números', emoji: '📊' },
+    { id: 'funnel', title: 'Bloco 2: Funil', emoji: '🎯' },
+    { id: 'positioning', title: 'Bloco 3: Posição', emoji: '📢' },
+    { id: 'decision', title: 'Decisão', emoji: '💡' },
     { id: 'summary', title: 'Envio', emoji: '✅' },
 ];
+
+const COMPANY_PHASES = [
+    { value: 'validation', label: 'Validação', desc: 'Provando a oferta' },
+    { value: 'traction', label: 'Tração', desc: 'Escalando aquisição' },
+    { value: 'scale', label: 'Escala', desc: 'Maximizando volume' },
+    { value: 'optimization', label: 'Otimização', desc: 'Melhorando margem' },
+] as const;
 
 export default function ExpertForm() {
     const navigate = useNavigate();
@@ -42,6 +51,8 @@ export default function ExpertForm() {
 
     // Form data
     const [data, setData] = useState<ExpertWeeklyData>({
+        company_phase: 'traction',
+        formula_x: '',
         leads_range: '0-10',
         opportunities_opened: 0,
         sales_closed: 0,
@@ -66,7 +77,21 @@ export default function ExpertForm() {
         else setPhone(value);
     };
 
-    const canProceed = currentStep === 0 ? name.trim().length > 0 : true;
+    const isStep0Valid = name.trim().length > 0;
+    const isStep1Valid = !!data.company_phase;
+    const isStep2Valid = data.opportunities_opened !== null && data.sales_closed !== null && data.revenue !== null;
+    const isStep3Valid = data.lead_volume_status !== null && data.lead_quality !== null && data.bottleneck !== null;
+    const isStep4Valid = data.brand_clarity_score !== null;
+    const isStep5Valid = data.strategic_notes.trim().length > 0;
+
+    let canProceed = false;
+    if (currentStep === 0) canProceed = isStep0Valid;
+    else if (currentStep === 1) canProceed = isStep1Valid;
+    else if (currentStep === 2) canProceed = isStep2Valid;
+    else if (currentStep === 3) canProceed = isStep3Valid;
+    else if (currentStep === 4) canProceed = isStep4Valid;
+    else if (currentStep === 5) canProceed = isStep5Valid;
+    else canProceed = true;
 
     const handleSubmit = async () => {
         if (!name.trim()) {
@@ -118,13 +143,63 @@ export default function ExpertForm() {
                     />
                 )}
 
-                {/* Step 1: Numbers */}
+                {/* Step 1: Strategy Base */}
                 {currentStep === 1 && (
                     <Card className="nc-card-border bg-card">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
+                                <Shield className="h-5 w-5 text-solar" />
+                                Fase & Modelo de Negócio
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                            <div className="space-y-2">
+                                <Label>Fase atual da sua empresa</Label>
+                                <RadioGroup
+                                    value={data.company_phase}
+                                    onValueChange={(v) => updateData('company_phase', v as ExpertWeeklyData['company_phase'])}
+                                    className="grid grid-cols-1 gap-2"
+                                >
+                                    {COMPANY_PHASES.map((ph) => (
+                                        <Label
+                                            key={ph.value}
+                                            htmlFor={`ph-${ph.value}`}
+                                            className={`flex flex-col gap-1 p-3 rounded-lg border cursor-pointer transition-all ${data.company_phase === ph.value
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-border hover:border-primary/40'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <RadioGroupItem value={ph.value} id={`ph-${ph.value}`} />
+                                                <span className="font-bold">{ph.label}</span>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground ml-6">{ph.desc}</span>
+                                        </Label>
+                                    ))}
+                                </RadioGroup>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Fórmula X (Opcional)</Label>
+                                <Input
+                                    value={data.formula_x}
+                                    onChange={(e) => updateData('formula_x', e.target.value)}
+                                    placeholder="Ex: Aquisição + Conversão = ROI"
+                                    className="h-12 font-mono nc-input-glow"
+                                />
+                                <p className="text-[10px] text-muted-foreground">Defina a métrica core ou o modelo de crescimento atual.</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Step 2: Numbers (Bloco 1) */}
+                {currentStep === 2 && (
+                    <Card className="nc-card-border bg-card">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
                                 <BarChart3 className="h-5 w-5 text-solar" />
-                                Números da Semana
+                                Bloco 1: Números da Semana
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-5">
@@ -140,8 +215,8 @@ export default function ExpertForm() {
                                             key={r.value}
                                             htmlFor={`leads-${r.value}`}
                                             className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${data.leads_range === r.value
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'border-border hover:border-primary/40'
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-border hover:border-primary/40'
                                                 }`}
                                         >
                                             <RadioGroupItem value={r.value} id={`leads-${r.value}`} />
@@ -157,8 +232,8 @@ export default function ExpertForm() {
                                     <Input
                                         type="number"
                                         min={0}
-                                        value={data.opportunities_opened || ''}
-                                        onChange={(e) => updateData('opportunities_opened', parseInt(e.target.value) || 0)}
+                                        value={data.opportunities_opened === null ? '' : data.opportunities_opened}
+                                        onChange={(e) => updateData('opportunities_opened', e.target.value === '' ? null as any : parseInt(e.target.value))}
                                         className="h-12 font-mono nc-input-glow"
                                     />
                                 </div>
@@ -167,8 +242,8 @@ export default function ExpertForm() {
                                     <Input
                                         type="number"
                                         min={0}
-                                        value={data.sales_closed || ''}
-                                        onChange={(e) => updateData('sales_closed', parseInt(e.target.value) || 0)}
+                                        value={data.sales_closed === null ? '' : data.sales_closed}
+                                        onChange={(e) => updateData('sales_closed', e.target.value === '' ? null as any : parseInt(e.target.value))}
                                         className="h-12 font-mono nc-input-glow"
                                     />
                                 </div>
@@ -180,8 +255,8 @@ export default function ExpertForm() {
                                     type="number"
                                     min={0}
                                     step={100}
-                                    value={data.revenue || ''}
-                                    onChange={(e) => updateData('revenue', parseFloat(e.target.value) || 0)}
+                                    value={data.revenue === null ? '' : data.revenue}
+                                    onChange={(e) => updateData('revenue', e.target.value === '' ? null as any : parseFloat(e.target.value))}
                                     className="h-12 font-mono nc-input-glow"
                                     placeholder="0.00"
                                 />
@@ -199,8 +274,8 @@ export default function ExpertForm() {
                                             key={opt.value}
                                             htmlFor={`ch-${opt.value}`}
                                             className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${data.top_channel === opt.value
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'border-border hover:border-primary/40'
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-border hover:border-primary/40'
                                                 }`}
                                         >
                                             <RadioGroupItem value={opt.value} id={`ch-${opt.value}`} />
@@ -213,13 +288,13 @@ export default function ExpertForm() {
                     </Card>
                 )}
 
-                {/* Step 2: Funnel */}
-                {currentStep === 2 && (
+                {/* Step 3: Funnel (Bloco 2) */}
+                {currentStep === 3 && (
                     <Card className="nc-card-border bg-card">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <Crosshair className="h-5 w-5 text-solar" />
-                                Funil e Demanda
+                                Bloco 2: Funil e Demanda
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-5">
@@ -235,8 +310,8 @@ export default function ExpertForm() {
                                             key={opt.value}
                                             htmlFor={`vol-${opt.value}`}
                                             className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${data.lead_volume_status === opt.value
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'border-border hover:border-primary/40'
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-border hover:border-primary/40'
                                                 }`}
                                         >
                                             <RadioGroupItem value={opt.value} id={`vol-${opt.value}`} />
@@ -258,8 +333,8 @@ export default function ExpertForm() {
                                             key={opt.value}
                                             htmlFor={`qual-${opt.value}`}
                                             className={`flex items-center justify-center gap-1.5 p-3 rounded-lg border cursor-pointer transition-all text-center ${data.lead_quality === opt.value
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'border-border hover:border-primary/40'
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-border hover:border-primary/40'
                                                 }`}
                                         >
                                             <RadioGroupItem value={opt.value} id={`qual-${opt.value}`} />
@@ -281,8 +356,8 @@ export default function ExpertForm() {
                                             key={opt.value}
                                             htmlFor={`bn-${opt.value}`}
                                             className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${data.bottleneck === opt.value
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'border-border hover:border-primary/40'
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-border hover:border-primary/40'
                                                 }`}
                                         >
                                             <RadioGroupItem value={opt.value} id={`bn-${opt.value}`} />
@@ -295,13 +370,13 @@ export default function ExpertForm() {
                     </Card>
                 )}
 
-                {/* Step 3: Positioning */}
-                {currentStep === 3 && (
+                {/* Step 4: Positioning (Bloco 3) */}
+                {currentStep === 4 && (
                     <Card className="nc-card-border bg-card">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <Megaphone className="h-5 w-5 text-solar" />
-                                Posicionamento e Comunicação
+                                Bloco 3: Posicionamento
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-5">
@@ -344,22 +419,38 @@ export default function ExpertForm() {
                                     <span>Cristalino</span>
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+                )}
 
+                {/* Step 5: Strategic Decision */}
+                {currentStep === 5 && (
+                    <Card className="nc-card-border bg-card">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Compass className="h-5 w-5 text-solar" />
+                                Decisão Estratégica
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
                             <div className="space-y-2">
-                                <Label>Notas estratégicas</Label>
+                                <Label>Notas de Decisão Estratégica</Label>
                                 <Textarea
                                     value={data.strategic_notes}
                                     onChange={(e) => updateData('strategic_notes', e.target.value)}
-                                    placeholder="Observações, decisões, insights da semana..."
-                                    className="min-h-[100px] nc-input-glow"
+                                    placeholder="O que você decide fazer a partir desta análise? Quais os próximos passos?"
+                                    className="min-h-[200px] nc-input-glow"
                                 />
+                                <p className="text-xs text-muted-foreground italic">
+                                    Essa é a parte mais importante para o seu Coach te orientar.
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
-                {/* Step 4: Summary */}
-                {currentStep === 4 && (
+                {/* Step 6: Summary */}
+                {currentStep === 6 && (
                     <Card className="nc-card-border bg-card">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
@@ -369,10 +460,15 @@ export default function ExpertForm() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3 text-sm">
-                                <div className="p-3 rounded-lg bg-muted/30">
-                                    <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Identificação</p>
-                                    <p className="font-medium">{name}</p>
-                                    {email && <p className="text-muted-foreground">{email}</p>}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 rounded-lg bg-muted/30">
+                                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Identificação</p>
+                                        <p className="font-medium">{name}</p>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-muted/30">
+                                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Fase</p>
+                                        <p className="font-medium capitalize">{data.company_phase}</p>
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="p-3 rounded-lg bg-muted/30">
@@ -383,18 +479,10 @@ export default function ExpertForm() {
                                         <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Faturamento</p>
                                         <p className="font-mono font-bold text-lg">R$ {data.revenue.toLocaleString()}</p>
                                     </div>
-                                    <div className="p-3 rounded-lg bg-muted/30">
-                                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Oportunidades</p>
-                                        <p className="font-mono font-bold text-lg">{data.opportunities_opened}</p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-muted/30">
-                                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Vendas</p>
-                                        <p className="font-mono font-bold text-lg">{data.sales_closed}</p>
-                                    </div>
                                 </div>
                                 <div className="p-3 rounded-lg bg-muted/30">
-                                    <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Gargalo</p>
-                                    <p className="font-medium capitalize">{data.bottleneck}</p>
+                                    <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Decisão Estratégica</p>
+                                    <p className="text-xs line-clamp-3">{data.strategic_notes}</p>
                                 </div>
                             </div>
                         </CardContent>

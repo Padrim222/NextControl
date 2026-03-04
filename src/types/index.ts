@@ -40,13 +40,40 @@ export interface Client {
     created_at: string;
 }
 
+export interface ClientMaterial {
+    id: string;
+    client_id: string;
+    title: string;
+    description: string | null;
+    file_url: string;
+    file_type: string;
+    is_rag_active: boolean;
+    sent_to_client: boolean;
+    created_at: string;
+    created_by: string;
+}
+
 // ---- TREINADOR DE BOLSO ENTITIES ----
 
 export interface SellerMetrics {
-    approaches: number;
-    followups: number;
-    proposals: number;
-    sales: number;
+    followers?: number;
+    conversations?: number;
+    opportunities?: number;
+    followups?: number;
+    quality_score?: number;
+    main_objections?: string[];
+    approaches?: number;
+    proposals?: number;
+    sales?: number;
+}
+
+export interface SellerPlaybookItem {
+    id: string;
+    user_id: string;
+    type: 'script' | 'blacklist' | 'objection_handling';
+    title: string;
+    content: string;
+    created_at: string;
 }
 
 export interface CloserMetrics {
@@ -55,7 +82,6 @@ export interface CloserMetrics {
     sales_closed: number;
     no_shows: number;
     reschedules: number;
-    conversion_rate: number;
     main_objections: string[];
 }
 
@@ -184,7 +210,7 @@ export interface WeeklyReport {
 
 export type QuestionStatus = 'pending' | 'answered' | 'escalated';
 export type AnalysisStatus = 'draft' | 'approved' | 'rejected' | 'sent';
-export type TrainingCategory = 'script' | 'methodology' | 'strategy' | 'best_practice' | 'error_pattern';
+export type TrainingCategory = 'process_optimization' | 'approach_technique' | 'sales_pitch' | 'objection_handling' | 'methodology' | 'best_practice';
 export type TrainingTargetRole = 'seller' | 'closer' | 'both';
 
 export interface ClientQuestion {
@@ -279,10 +305,11 @@ export const FUNNEL_LABELS: Record<FunnelMetricKey, { label: string; emoji: stri
 // ---- SELLER SUBMISSION METRICS ----
 
 export const SELLER_METRICS_FIELDS = [
-    { key: 'approaches', label: 'Abordagens', emoji: '💬' },
+    { key: 'followers', label: 'Novos Seguidores', emoji: '👥' },
+    { key: 'conversations', label: 'Conversas Iniciadas', emoji: '💬' },
+    { key: 'opportunities', label: 'Oportunidades (Pitches)', emoji: '🎯' },
     { key: 'followups', label: 'Follow-ups', emoji: '🔄' },
-    { key: 'proposals', label: 'Propostas Enviadas', emoji: '📋' },
-    { key: 'sales', label: 'Vendas', emoji: '🎯' },
+    { key: 'quality_score', label: 'Qualidade do Dia', emoji: '⭐' },
 ] as const;
 
 export const CLOSER_METRICS_FIELDS = [
@@ -291,5 +318,4 @@ export const CLOSER_METRICS_FIELDS = [
     { key: 'sales_closed', label: 'Vendas Fechadas', emoji: '🎯' },
     { key: 'no_shows', label: 'No-Shows', emoji: '❌' },
     { key: 'reschedules', label: 'Reagendamentos', emoji: '📅' },
-    { key: 'conversion_rate', label: 'Taxa de Conversão (%)', emoji: '📈' },
 ] as const;

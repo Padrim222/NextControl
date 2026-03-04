@@ -116,41 +116,35 @@ export default function CoachChat() {
         setIsLoading(true);
 
         try {
-            let aiResponse: string;
-
-            // Try Edge Function first, fall back to mock
-            if (supabase) {
-                try {
-                    const conversationHistory = messages
-                        .filter(m => m.id !== 'welcome')
-                        .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
-
-                    const { data, error: fnError } = await (supabase as any).functions.invoke('coach-chat', {
-                        body: {
-                            seller_id: user.id,
-                            message: text.trim(),
-                            conversation_history: conversationHistory.slice(-10),
-                        },
-                    });
-
-                    if (fnError) throw fnError;
-                    aiResponse = data?.answer || generateMockResponse(text, sellerType);
-                    if (data?.context_used) setAiContext(data.context_used);
-                } catch (edgeFnError) {
-                    console.warn('Edge Function fallback to mock:', edgeFnError);
-                    aiResponse = generateMockResponse(text, sellerType);
-
-                    // Save to database manually since Edge Function didn't
-                    await (supabase as any).from('coach_interactions').insert({
-                        seller_id: user.id,
-                        question: text.trim(),
-                        answer: aiResponse,
-                        context: { seller_type: sellerType },
-                    });
-                }
-            } else {
-                aiResponse = generateMockResponse(text, sellerType);
+            if (!supabase) {
+                throw new Error('Conexão com o servidor não disponível.');
             }
+
+            const conversationHistory = messages
+                .filter(m => m.id !== 'welcome')
+                .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+
+            const { data, error: fnError } = await (supabase as any).functions.invoke('coach-chat', {
+                body: {
+                    seller_id: user.id,
+                    message: text.trim(),
+                    conversation_history: conversationHistory.slice(-10),
+                },
+            });
+
+            if (fnError) throw fnError;
+
+            // Check for error in response body (edge function returns 200 with error payload)
+            if (data?.error) {
+                throw new Error(data.error);
+            }
+
+            const aiResponse = data?.answer;
+            if (!aiResponse) {
+                throw new Error('Resposta vazia da IA. Tente novamente.');
+            }
+
+            if (data?.context_used) setAiContext(data.context_used);
 
             const botMsg: ChatMessage = {
                 id: `b-${Date.now()}`,
@@ -159,8 +153,27 @@ export default function CoachChat() {
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, botMsg]);
-        } catch (error) {
+
+        } catch (error: any) {
             console.error('Error sending message:', error);
+            const errorMsg = error?.message || 'Erro desconhecido';
+
+            let userFriendlyError: string;
+            if (errorMsg.includes('API Key') || errorMsg.includes('not configured')) {
+                userFriendlyError = '⚠️ A IA não está configurada ainda. O admin precisa adicionar a chave OPENROUTER_API_KEY nos secrets do Supabase.\n\nEnquanto isso, entre em contato com seu CS para dúvidas.';
+            } else if (errorMsg.includes('limit') || errorMsg.includes('Limite')) {
+                userFriendlyError = '⏳ Você atingiu o limite diário de mensagens. Volte amanhã! Enquanto isso, revise suas análises no dashboard.';
+            } else {
+                userFriendlyError = `❌ Erro ao consultar a IA: ${errorMsg}\n\nTente novamente em alguns segundos.`;
+            }
+
+            const errorBotMsg: ChatMessage = {
+                id: `err-${Date.now()}`,
+                role: 'assistant',
+                content: userFriendlyError,
+                timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, errorBotMsg]);
         } finally {
             setIsLoading(false);
             inputRef.current?.focus();

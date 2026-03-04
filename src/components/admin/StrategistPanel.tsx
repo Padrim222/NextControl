@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import {
     Compass,
     Lightbulb,
     Send,
     ArrowRight,
     Sparkles,
+    AlertCircle,
 } from 'lucide-react';
 
 interface StrategistPanelProps {
@@ -16,98 +19,66 @@ interface StrategistPanelProps {
     onStrategySent?: (strategy: string) => void;
 }
 
-interface StrategyPath {
-    title: string;
-    description: string;
-    steps: string[];
-    priority: 'high' | 'medium' | 'low';
-}
-
 export function StrategistPanel({ clientName, briefing, onStrategySent }: StrategistPanelProps) {
     const [inputBriefing, setInputBriefing] = useState(briefing || '');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [paths, setPaths] = useState<StrategyPath[] | null>(null);
+    const [aiResponse, setAiResponse] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-    const generatePaths = () => {
+    const generatePaths = async () => {
         if (!inputBriefing.trim()) return;
 
         setIsGenerating(true);
+        setError(null);
+        setAiResponse(null);
 
-        // Simulate AI strategy generation
-        setTimeout(() => {
-            const generatedPaths = generateStrategicPaths(inputBriefing);
-            setPaths(generatedPaths);
+        try {
+            // 1. Fetch RAG materials for context
+            let ragContext = '';
+            const { data: clientObj } = await supabase.from('clients').select('id').eq('name', clientName).single();
+            if (clientObj) {
+                const { data: materials } = await (supabase as any)
+                    .from('client_materials')
+                    .select('title, description')
+                    .eq('client_id', clientObj.id)
+                    .eq('is_rag_active', true);
+
+                if (materials && materials.length > 0) {
+                    ragContext = "\n\n=== CONTEXTO DA BASE RAG DO CLIENTE ===\n" +
+                        materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/RESUMO: ${m.description || 'Sem descrição detalhada'}`).join('\n\n') +
+                        "\n=======================================\n\nUse estritamente as informações do contexto acima para embasar sua resposta.";
+                }
+            }
+
+            // Call coach-chat edge function with strategist context
+            const { data, error: fnError } = await (supabase as any).functions.invoke('coach-chat', {
+                body: {
+                    message: `[MODO ESTRATEGISTA YORIK — Cliente: ${clientName}]\n\nBriefing do cliente/admin:\n${inputBriefing}${ragContext}\n\nCom base nesse briefing, gere 2–3 caminhos estratégicos adaptados para esse cliente. Para cada caminho, inclua:\n- Título com emoji\n- Descrição curta (1 frase)\n- 3-4 passos acionáveis\n- Prioridade (Alta/Média/Baixa)\n\nFormate em Markdown. Seja direto e acionável.`,
+                    conversation_history: [],
+                },
+            });
+
+            if (fnError) throw fnError;
+
+            const answer = data?.answer || data?.error;
+            if (data?.error) {
+                throw new Error(data.error);
+            }
+
+            setAiResponse(answer);
+        } catch (err: any) {
+            console.error('Strategist error:', err);
+            const msg = err?.message || 'Erro desconhecido';
+
+            if (msg.includes('API Key') || msg.includes('Unauthorized') || msg.includes('not configured')) {
+                setError('⚠️ API Key não configurada. Peça ao admin para configurar OPENROUTER_API_KEY nos secrets do Supabase.');
+            } else {
+                setError(`Erro ao gerar estratégia: ${msg}`);
+            }
+            toast.error('Erro ao gerar estratégia. Veja detalhes no painel.');
+        } finally {
             setIsGenerating(false);
-        }, 2000);
-    };
-
-    const generateStrategicPaths = (brief: string): StrategyPath[] => {
-        // Rule-based strategy generation using keyword analysis
-        const lowerBrief = brief.toLowerCase();
-        const strategies: StrategyPath[] = [];
-
-        if (lowerBrief.includes('venda') || lowerBrief.includes('conversão') || lowerBrief.includes('fechar')) {
-            strategies.push({
-                title: '🎯 Caminho de Conversão Direta',
-                description: 'Foco em otimizar o funil de vendas com abordagem consultiva',
-                steps: [
-                    'Mapear objeções mais comuns do lead',
-                    'Preparar contra-argumentos específicos',
-                    'Agendar call de descoberta com framework SPIN',
-                    'Follow-up em 24h com proposta personalizada',
-                ],
-                priority: 'high',
-            });
         }
-
-        if (lowerBrief.includes('lead') || lowerBrief.includes('prospecção') || lowerBrief.includes('captação')) {
-            strategies.push({
-                title: '🌱 Caminho de Nutrição de Leads',
-                description: 'Estratégia de aquecimento gradual com conteúdo de valor',
-                steps: [
-                    'Segmentar base de leads por estágio',
-                    'Criar sequência de 5 conteúdos de valor',
-                    'Mensagens personalizadas no Instagram/WhatsApp',
-                    'Trigger de call quando lead atingir engagement score',
-                ],
-                priority: 'high',
-            });
-        }
-
-        if (lowerBrief.includes('script') || lowerBrief.includes('abordagem') || lowerBrief.includes('comunicação')) {
-            strategies.push({
-                title: '📝 Caminho de Otimização de Script',
-                description: 'Refinar a comunicação para aumentar engajamento',
-                steps: [
-                    'Auditar scripts atuais (gravar 5 calls)',
-                    'Identificar pontos de drop-off na conversa',
-                    'Reescrever gatilhos de abertura e fechamento',
-                    'Treinar equipe: roleplay com novo script',
-                ],
-                priority: 'medium',
-            });
-        }
-
-        // Always add a general strategy
-        strategies.push({
-            title: '🔄 Caminho de Diagnóstico Completo',
-            description: 'Análise 360° para identificar gargalos e oportunidades',
-            steps: [
-                `Analisar métricas atuais do cliente ${clientName}`,
-                'Benchmark contra melhores performers da carteira',
-                'Identificar 3 quick wins implementáveis esta semana',
-                'Propor plano de ação de 30 dias com KPIs claros',
-            ],
-            priority: 'medium',
-        });
-
-        return strategies;
-    };
-
-    const priorityColors = {
-        high: { bg: 'bg-red-500/5', border: 'border-red-500/20', text: 'text-red-500' },
-        medium: { bg: 'bg-yellow-500/5', border: 'border-yellow-500/20', text: 'text-yellow-500' },
-        low: { bg: 'bg-blue-500/5', border: 'border-blue-500/20', text: 'text-blue-500' },
     };
 
     return (
@@ -118,7 +89,7 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
                     Estrategista Yorik
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                    Humano {'>'} IA Estrategista — Gerar caminhos adaptados pro cliente
+                    IA Estrategista — Gerar caminhos adaptados pro cliente {clientName}
                 </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -144,7 +115,7 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
                     {isGenerating ? (
                         <>
                             <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                            Gerando caminhos...
+                            Gerando caminhos com IA...
                         </>
                     ) : (
                         <>
@@ -154,48 +125,34 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
                     )}
                 </Button>
 
-                {/* Generated Paths */}
-                {paths && (
+                {/* Error Display */}
+                {error && (
+                    <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>{error}</span>
+                    </div>
+                )}
+
+                {/* AI Response */}
+                {aiResponse && (
                     <div className="space-y-3 pt-4 border-t">
                         <h4 className="text-sm font-semibold flex items-center gap-2">
                             <Sparkles className="h-4 w-4 text-cyan-500" />
-                            COMO FAZER — Possíveis Caminhos Adaptados Pro Cliente
+                            COMO FAZER — Caminhos Estratégicos (IA)
                         </h4>
 
-                        {paths.map((path, idx) => {
-                            const colors = priorityColors[path.priority];
-                            return (
-                                <div
-                                    key={idx}
-                                    className={`p-4 rounded-lg border ${colors.bg} ${colors.border}`}
-                                >
-                                    <div className="flex items-start justify-between mb-2">
-                                        <h5 className="font-medium text-sm">{path.title}</h5>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}>
-                                            {path.priority === 'high' ? 'Alta' : path.priority === 'medium' ? 'Média' : 'Baixa'}
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mb-3">{path.description}</p>
-                                    <div className="space-y-1.5">
-                                        {path.steps.map((step, i) => (
-                                            <div key={i} className="flex items-start gap-2 text-xs">
-                                                <ArrowRight className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
-                                                <span>{step}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        <div className="p-4 rounded-lg bg-cyan-500/5 border border-cyan-500/20">
+                            <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed">
+                                {aiResponse}
+                            </pre>
+                        </div>
 
                         <Button
                             variant="outline"
                             className="w-full border-cyan-500/30 hover:bg-cyan-500/10"
                             onClick={() => {
-                                const strategyText = paths.map(p =>
-                                    `${p.title}\n${p.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`
-                                ).join('\n\n');
-                                onStrategySent?.(strategyText);
+                                onStrategySent?.(aiResponse);
+                                toast.success('Estratégia enviada ao cliente!');
                             }}
                         >
                             <Send className="h-4 w-4 mr-2" />

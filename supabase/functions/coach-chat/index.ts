@@ -38,19 +38,24 @@ async function buildSellerContext(supabase: any, sellerId: string): Promise<Sell
     const createdAt = seller?.created_at ? new Date(seller.created_at) : new Date()
     const tenureMonths = Math.max(1, Math.floor((Date.now() - createdAt.getTime()) / (30 * 24 * 60 * 60 * 1000)))
 
-    // Fetch recent analyses
-    const { data: recentAnalyses } = await supabase
-        .from('analyses')
-        .select('score, strengths, improvements, created_at')
-        .eq('submission_id', supabase
-            .from('daily_submissions')
-            .select('id')
-            .eq('seller_id', sellerId)
-            .order('submission_date', { ascending: false })
-            .limit(10)
-        )
-        .order('created_at', { ascending: false })
-        .limit(5)
+    // Fetch recent submission IDs first, then analyses
+    const { data: recentSubs } = await supabase
+        .from('daily_submissions')
+        .select('id')
+        .eq('seller_id', sellerId)
+        .order('submission_date', { ascending: false })
+        .limit(10)
+
+    const subIds = (recentSubs || []).map((s: any) => s.id)
+
+    const { data: recentAnalyses } = subIds.length > 0
+        ? await supabase
+            .from('analyses')
+            .select('score, strengths, improvements, created_at')
+            .in('submission_id', subIds)
+            .order('created_at', { ascending: false })
+            .limit(5)
+        : { data: [] }
 
     const scores = (recentAnalyses || []).map((a: any) => a.score).filter(Boolean)
     const allStrengths = (recentAnalyses || []).flatMap((a: any) => a.strengths || [])
@@ -134,7 +139,34 @@ async function buildSellerContext(supabase: any, sellerId: string): Promise<Sell
     }
 }
 
-function buildSystemPrompt(ctx: SellerContext): string {
+async function fetchRAGContext(supabase: any, sellerId: string): Promise<string> {
+    try {
+        const { data: clientData } = await supabase
+            .from('clients')
+            .select('id, name')
+            .or(`assigned_seller_id.eq.${sellerId},assigned_closer_id.eq.${sellerId}`)
+            .maybeSingle();
+
+        if (clientData) {
+            const { data: materials } = await supabase
+                .from('client_materials')
+                .select('title, description')
+                .eq('client_id', clientData.id)
+                .eq('is_rag_active', true);
+
+            if (materials && materials.length > 0) {
+                return "\n\n=== CONTEXTO DA BASE DE CONHECIMENTO DO CLIENTE (" + clientData.name + ") ===\n" +
+                    materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/REGRAS: ${m.description || 'Sem descrição'}`).join('\n\n') +
+                    "\n=======================================\n\nUse estritamente as informações acima para embasar sua resposta estratégica.";
+            }
+        }
+    } catch (e) {
+        console.warn('RAG fetch failed:', e);
+    }
+    return "";
+}
+
+function buildSystemPrompt(ctx: SellerContext, ragContext: string): string {
     const roleDescription = ctx.seller_type === 'closer'
         ? 'Seu foco é técnicas de fechamento, calls, contorno de objeções e taxa de conversão.'
         : 'Seu foco é prospecção, abordagem via social selling, follow-up e geração de oportunidades.'
@@ -178,7 +210,7 @@ CONTEXTO DO VENDEDOR:
 - Áreas de melhoria: ${ctx.weaknesses.length ? ctx.weaknesses.join(', ') : 'Ainda sem dados'}
 - Tempo de empresa: ${ctx.tenure_months} meses
 ${trendBadge ? `- ${trendBadge}` : ''}
-${metricsSection}${callSection}${strategySection}${activeSection}
+${metricsSection}${callSection}${strategySection}${activeSection}${ragContext}
 
 REGRAS:
 1. NUNCA recomende estratégias que já foram descartadas
@@ -247,7 +279,8 @@ Deno.serve(async (req) => {
 
         // Build rich context with real-time metrics
         const context = await buildSellerContext(supabase, effectiveSellerId)
-        const systemPrompt = buildSystemPrompt(context)
+        const ragContext = await fetchRAGContext(supabase, effectiveSellerId)
+        const systemPrompt = buildSystemPrompt(context, ragContext)
 
         const messages = [
             { role: 'system', content: systemPrompt },

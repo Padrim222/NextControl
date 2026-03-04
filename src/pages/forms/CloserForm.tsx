@@ -40,7 +40,6 @@ export default function CloserForm() {
     const [data, setData] = useState<CloserDailyData>({
         calls_made: 0,
         sales_closed: 0,
-        conversion_rate: 0,
         main_objection: '',
         avoidable_loss: false,
         avoidable_loss_reason: '',
@@ -154,22 +153,6 @@ export default function CloserForm() {
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <Label className="flex items-center gap-2">
-                                    <span className="text-xl">📈</span> Taxa de conversão do dia (%)
-                                </Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    step={0.1}
-                                    value={data.conversion_rate || ''}
-                                    onChange={(e) => updateData('conversion_rate', parseFloat(e.target.value) || 0)}
-                                    className="h-12 font-mono nc-input-glow"
-                                    placeholder="Ex: 33.3"
-                                />
-                            </div>
-
                             <div className="space-y-2">
                                 <Label>Principal objeção ou trava</Label>
                                 <Textarea
@@ -191,8 +174,8 @@ export default function CloserForm() {
                                     <Label
                                         htmlFor="loss-yes"
                                         className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${data.avoidable_loss
-                                                ? 'border-red-500/50 bg-red-500/10 text-red-400'
-                                                : 'border-border hover:border-primary/40'
+                                            ? 'border-red-500/50 bg-red-500/10 text-red-400'
+                                            : 'border-border hover:border-primary/40'
                                             }`}
                                     >
                                         <RadioGroupItem value="yes" id="loss-yes" />
@@ -201,8 +184,8 @@ export default function CloserForm() {
                                     <Label
                                         htmlFor="loss-no"
                                         className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${!data.avoidable_loss
-                                                ? 'border-green-500/50 bg-green-500/10 text-green-400'
-                                                : 'border-border hover:border-primary/40'
+                                            ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                                            : 'border-border hover:border-primary/40'
                                             }`}
                                     >
                                         <RadioGroupItem value="no" id="loss-no" />
@@ -331,10 +314,6 @@ export default function CloserForm() {
                                     <div className="p-3 rounded-lg bg-muted/30">
                                         <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Vendas</p>
                                         <p className="font-mono font-bold text-lg">{data.sales_closed}</p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-muted/30">
-                                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Conversão</p>
-                                        <p className="font-mono font-bold text-lg">{data.conversion_rate}%</p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">

@@ -188,10 +188,18 @@ export default function CSInbox() {
 
     const handleViewEvidence = (sub: DailySubmission) => {
         if (sub.conversation_prints?.length > 0) {
-            // Open first print
-            window.open(sub.conversation_prints[0], '_blank');
+            const url = sub.conversation_prints[0];
+            if (url.startsWith('http')) {
+                window.open(url, '_blank');
+            } else {
+                toast.warning('Print disponível apenas como referência (URL local).');
+            }
         } else if (sub.call_recording) {
-            window.open(sub.call_recording, '_blank');
+            if (sub.call_recording.startsWith('http')) {
+                window.open(sub.call_recording, '_blank');
+            } else {
+                toast.warning('Gravação disponível apenas como referência (URL local).');
+            }
         } else {
             toast.info('Sem evidências anexadas.');
         }

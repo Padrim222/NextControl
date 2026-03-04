@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import {
+    ArrowLeft,
     Calendar,
     Download,
     FileText,
@@ -55,6 +57,7 @@ const TREND_CONFIG = {
 
 export default function WeeklyReportPage() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [reports, setReports] = useState<WeeklyReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState<WeeklyReport | null>(null);
@@ -106,13 +109,23 @@ export default function WeeklyReportPage() {
         <div className="min-h-screen bg-background p-6">
             <div className="max-w-6xl mx-auto space-y-6">
                 {/* Header */}
-                <div>
-                    <h1 className="text-2xl font-bold">
-                        Relatório <span className="nc-gradient-text">Semanal</span> 📊
-                    </h1>
-                    <p className="text-muted-foreground text-sm mt-1">
-                        Análise consolidada de performance semanal da sua operação
-                    </p>
+                <div className="flex items-center gap-4">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate('/client')}
+                        className="shrink-0"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold">
+                            Relatório <span className="nc-gradient-text">Semanal</span> 📊
+                        </h1>
+                        <p className="text-muted-foreground text-sm mt-1">
+                            Análise consolidada de performance semanal da sua operação
+                        </p>
+                    </div>
                 </div>
 
                 {reports.length === 0 ? (
@@ -146,8 +159,8 @@ export default function WeeklyReportPage() {
                                         transition={{ delay: i * 0.05 }}
                                         onClick={() => setSelectedReport(report)}
                                         className={`w-full text-left p-3 rounded-xl border transition-all ${isSelected
-                                                ? 'border-primary bg-primary/5'
-                                                : 'border-border/50 bg-card hover:border-primary/30'
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-border/50 bg-card hover:border-primary/30'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
@@ -280,7 +293,7 @@ export default function WeeklyReportPage() {
                                                     {selectedReport.checklist_actions.map((action: any, i: number) => (
                                                         <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
                                                             <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${action.prioridade === 'alta' ? 'bg-red-400' :
-                                                                    action.prioridade === 'media' ? 'bg-amber-400' : 'bg-emerald-400'
+                                                                action.prioridade === 'media' ? 'bg-amber-400' : 'bg-emerald-400'
                                                                 }`} />
                                                             <div className="flex-1">
                                                                 <p className="text-sm">{action.acao}</p>
@@ -289,8 +302,8 @@ export default function WeeklyReportPage() {
                                                                         {action.categoria}
                                                                     </Badge>
                                                                     <Badge variant="outline" className={`text-[10px] ${action.prioridade === 'alta' ? 'text-red-400 border-red-500/30' :
-                                                                            action.prioridade === 'media' ? 'text-amber-400 border-amber-500/30' :
-                                                                                'text-emerald-400 border-emerald-500/30'
+                                                                        action.prioridade === 'media' ? 'text-amber-400 border-amber-500/30' :
+                                                                            'text-emerald-400 border-emerald-500/30'
                                                                         }`}>
                                                                         {action.prioridade}
                                                                     </Badge>

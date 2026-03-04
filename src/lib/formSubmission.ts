@@ -68,14 +68,29 @@ export async function uploadFormFiles(
 ): Promise<string[]> {
     if (!files.length) return [];
 
-    const formData = new FormData();
-    formData.append('type', type);
-    files.forEach((f) => formData.append('files', f));
+    const urls: string[] = [];
 
-    const { data, error } = await (supabase as any).functions.invoke('process-upload', {
-        body: formData,
-    });
+    for (const file of files) {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const filePath = `public-forms/${type}s/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-    if (error) throw error;
-    return data?.urls || [];
+        const { error: uploadError } = await (supabase as any).storage
+            .from('submissions')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Upload error:', uploadError);
+            continue; // Skip failed uploads instead of breaking
+        }
+
+        const { data } = (supabase as any).storage
+            .from('submissions')
+            .getPublicUrl(filePath);
+
+        if (data?.publicUrl) {
+            urls.push(data.publicUrl);
+        }
+    }
+
+    return urls;
 }

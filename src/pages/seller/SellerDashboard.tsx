@@ -24,6 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import { SubmissionTimeline } from '@/components/seller/SubmissionTimeline';
 import { DailyProgressCard } from '@/components/seller/DailyProgressCard';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
+import { SellerPlaybook } from '@/components/seller/SellerPlaybook';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { DailySubmission, Analysis } from '@/types';
@@ -269,6 +270,15 @@ export default function SellerDashboard() {
                             <DailyProgressCard submissions={submissions} />
                         </motion.div>
                     )}
+
+                    {/* Playbook: Scripts & Blacklist */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.38 }}
+                    >
+                        <SellerPlaybook />
+                    </motion.div>
 
                     {/* Daily Submission CTA */}
                     {!todaySubmitted && (
