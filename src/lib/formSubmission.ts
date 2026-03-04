@@ -52,6 +52,26 @@ export async function submitPublicForm({
         .single();
 
     if (error) throw error;
+
+    // Post-submission: Handle individual calls for Closer
+    if (formType === 'closer_daily' && userId) {
+        const closerData = data as any;
+        if (closerData.individual_calls && Array.isArray(closerData.individual_calls)) {
+            const logs = closerData.individual_calls.map((call: any) => ({
+                closer_id: userId,
+                client_id: clientId || null,
+                prospect_name: call.prospect_name,
+                call_date: new Date().toISOString().split('T')[0],
+                outcome: call.outcome,
+                notes: call.notes || null,
+            }));
+
+            if (logs.length > 0) {
+                await (supabase as any).from('call_logs').insert(logs);
+            }
+        }
+    }
+
     return inserted;
 }
 

@@ -211,21 +211,59 @@ export default function CSInbox() {
             const formData = new FormData();
             formData.append('file', blob, 'feedback.webm');
 
-            const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+            // Use direct fetch instead of supabase.functions.invoke to ensure
+            // multipart/form-data Content-Type is set correctly by the browser
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://mldbflihdejmddmapwnz.supabase.co';
+            const session = (await supabase.auth.getSession()).data.session;
+            const token = session?.access_token;
+
+            const response = await fetch(`${supabaseUrl}/functions/v1/transcribe-audio`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
                 body: formData,
             });
 
-            if (error) throw error;
+            const data = await response.json();
 
+            if (!response.ok || data?.error) {
+                throw new Error(data?.error || `HTTP ${response.status}`);
+            }
+
+            const transcription = data.text;
             toast.success('Áudio transcrito com sucesso!');
-            console.log('Transcription:', data.text);
+
+            // 1. Get current notes to avoid overwriting
+            const { data: sub } = await (supabase as any)
+                .from('daily_submissions')
+                .select('notes')
+                .eq('id', submissionId)
+                .single();
+
+            const existingNote = sub?.notes || '';
+            const newNote = `${existingNote}\n\n--- FEEDBACK CS ---\n${transcription}`.trim();
+
+            // 2. Update submission with the feedback
+            const { error: updateError } = await (supabase as any)
+                .from('daily_submissions')
+                .update({ notes: newNote })
+                .eq('id', submissionId);
+
+            if (updateError) throw updateError;
 
             setRecordingForId(null);
-            toast.info(`Feedback gerado: "${data.text.substring(0, 30)}..."`);
+            toast.success('Feedback salvo!');
+            fetchDashboardData();
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Transcription error:', error);
-            toast.error('Erro ao transcrever áudio.');
+            const msg = error?.message || '';
+            if (msg.includes('GROQ_API_KEY') || msg.includes('not configured')) {
+                toast.error('⚠️ A transcrição de áudio requer a GROQ_API_KEY. Peça ao admin para configurar nos Secrets do Supabase.', { duration: 8000 });
+            } else {
+                toast.error(`Erro ao transcrever áudio: ${msg || 'tente novamente.'}`);
+            }
         } finally {
             setIsTranscribing(false);
         }

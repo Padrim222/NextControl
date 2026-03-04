@@ -53,7 +53,7 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
             // Call coach-chat edge function with strategist context
             const { data, error: fnError } = await (supabase as any).functions.invoke('coach-chat', {
                 body: {
-                    message: `[MODO ESTRATEGISTA YORIK — Cliente: ${clientName}]\n\nBriefing do cliente/admin:\n${inputBriefing}${ragContext}\n\nCom base nesse briefing, gere 2–3 caminhos estratégicos adaptados para esse cliente. Para cada caminho, inclua:\n- Título com emoji\n- Descrição curta (1 frase)\n- 3-4 passos acionáveis\n- Prioridade (Alta/Média/Baixa)\n\nFormate em Markdown. Seja direto e acionável.`,
+                    message: `[MODO ESTRATEGISTA YORIK — CONSULTORIA DE ELITE]\n\nCLIENTE: ${clientName}\n\nDEMANDA DO ESTRATEGISTA:\n"${inputBriefing}"\n\n${ragContext}\n\nINSTRUÇÕES PARA YORIK:\n1. Analise a demanda comparando com as regras de negócio do RAG acima.\n2. Não responda com clichês. Seja tático e cirúrgico.\n3. Gere 2-3 "Rotas de Guerra" (caminhos estratégicos).\n\nFORMATO DE CADA ROTA:\n### [Emoji] Nome da Rota\n**Diagnóstico:** 1 frase sobre o porquê desta rota (use dados do RAG se possível).\n**Plano de Ataque:** 4 passos acionáveis passo-a-passo.\n**KPI de Sucesso:** O que monitorar para saber se funcionou.\n**Prioridade:** [Alta/Média/Baixa]\n\nResponda em Markdown. Use um tom de consultor sênior da Next Control.`,
                     conversation_history: [],
                 },
             });

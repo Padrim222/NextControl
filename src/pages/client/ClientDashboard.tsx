@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -385,43 +386,43 @@ export default function ClientDashboard() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="p-4 rounded-lg bg-muted/30 border border-border">
-                                <h4 className="font-semibold mb-2">📋 Resumo do Projeto</h4>
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                    {client.company
-                                        ? `Projeto focado em escalar as vendas e otimizar a operação de "${client.company}". Trabalhamos com aquisição perpétua — um modelo que cresce semana a semana, sem depender de campanhas pontuais.`
-                                        : 'Seu plano personalizado está sendo preparado. Em breve, você terá acesso completo à estratégia desenhada para o seu negócio.'
+                                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                                    <ClipboardList className="h-4 w-4 text-primary" />
+                                    Resumo do Projeto
+                                </h4>
+                                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                                    {client.project_summary || (client.company
+                                        ? `Projeto focado em escalar as vendas e otimizar a operação de "${client.company}". Nosso foco é a aquisição perpétua.`
+                                        : 'Seu plano personalizado está sendo preparado pelo time estratégico.')
                                     }
                                 </p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/20">
                                     <div className="flex items-center gap-2 mb-2">
                                         <CheckCircle className="h-4 w-4 text-green-500" />
                                         <span className="text-sm font-medium">Fase Atual</span>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">Diagnóstico e Configuração</p>
+                                    <p className="text-sm text-muted-foreground">{client.current_phase || 'Diagnóstico Inicial'}</p>
                                 </div>
                                 <div className="p-4 rounded-lg bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Clock className="h-4 w-4 text-blue-500" />
                                         <span className="text-sm font-medium">Próxima Etapa</span>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">Implementação da Máquina de Vendas</p>
+                                    <p className="text-sm text-muted-foreground">{client.next_step || 'Aguardando definição'}</p>
                                 </div>
-                                <div className="p-4 rounded-lg bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-amber-500/20">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <HelpCircle className="h-4 w-4 text-amber-500" />
-                                        <span className="text-sm font-medium">Dúvidas?</span>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        <button
-                                            onClick={() => setActiveTab('perguntas')}
-                                            className="text-primary hover:underline"
-                                        >
-                                            Envie uma pergunta →
-                                        </button>
-                                    </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="p-4 rounded-lg bg-card border border-border">
+                                    <h5 className="text-xs font-bold text-muted-foreground uppercase mb-2">Status do Time</h5>
+                                    <p className="text-sm">{client.team_status || 'Equipe em fase de alinhamento.'}</p>
+                                </div>
+                                <div className="p-4 rounded-lg bg-card border border-border">
+                                    <h5 className="text-xs font-bold text-muted-foreground uppercase mb-2">Processos Operacionais</h5>
+                                    <p className="text-sm">{client.operational_processes || 'Processos sendo mapeados.'}</p>
                                 </div>
                             </div>
 

@@ -37,6 +37,12 @@ export interface Client {
     company?: string;
     assigned_seller_id?: string;
     assigned_closer_id?: string;
+    status: string;
+    project_summary?: string;
+    current_phase?: string;
+    next_step?: string;
+    team_status?: string;
+    operational_processes?: string;
     created_at: string;
 }
 
@@ -171,6 +177,7 @@ export interface CallLog {
     id: string;
     closer_id: string;
     client_id: string;
+    prospect_name: string;
     call_date: string;
     transcription?: string;
     outcome: CallOutcome;

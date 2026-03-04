@@ -37,6 +37,12 @@ export interface SellerDailyData {
     crm_screenshots: string[];
 }
 
+export interface IndividualCallData {
+    prospect_name: string;
+    outcome: 'sale' | 'no_sale' | 'reschedule' | 'no_show';
+    notes?: string;
+}
+
 export interface CloserDailyData {
     calls_made: number;
     sales_closed: number;
@@ -45,6 +51,7 @@ export interface CloserDailyData {
     avoidable_loss_reason: string;
     self_score: number;
     call_recording_url: string;
+    individual_calls?: IndividualCallData[];
 }
 
 export type FormData = ExpertWeeklyData | SellerDailyData | CloserDailyData;

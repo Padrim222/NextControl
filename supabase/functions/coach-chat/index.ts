@@ -247,8 +247,16 @@ Deno.serve(async (req) => {
 
         const supabase = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
+
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+        const userRole = userData?.role || 'seller'
 
         const { seller_id, message, conversation_history = [] } = await req.json() as ChatRequest
 
@@ -257,30 +265,53 @@ Deno.serve(async (req) => {
         }
 
         const effectiveSellerId = seller_id || user.id
+        const isAdmin = userRole === 'admin'
 
-        // Rate limit
-        const today = new Date().toISOString().split('T')[0]
-        const { count } = await supabase
-            .from('coach_interactions')
-            .select('*', { count: 'exact', head: true })
-            .eq('seller_id', effectiveSellerId)
-            .gte('created_at', `${today}T00:00:00`)
+        // Rate limit (admins bypass)
+        if (!isAdmin) {
+            const today = new Date().toISOString().split('T')[0]
+            const { count } = await supabase
+                .from('coach_interactions')
+                .select('*', { count: 'exact', head: true })
+                .eq('seller_id', effectiveSellerId)
+                .gte('created_at', `${today}T00:00:00`)
 
-        if ((count || 0) >= 30) {
-            return new Response(
-                JSON.stringify({
-                    answer: '⏳ Limite diário de 30 mensagens atingido. Volte amanhã! Enquanto isso, revise suas análises no dashboard.',
-                    interaction_id: null,
-                    context_used: {},
-                }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            )
+            if ((count || 0) >= 30) {
+                return new Response(
+                    JSON.stringify({
+                        answer: '⏳ Limite diário de 30 mensagens atingido. Volte amanhã! Enquanto isso, revise suas análises no dashboard.',
+                        interaction_id: null,
+                        context_used: {},
+                    }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                )
+            }
         }
 
         // Build rich context with real-time metrics
         const context = await buildSellerContext(supabase, effectiveSellerId)
+
+        // If admin and no specific seller_id was provided, adjust context to be generic/strategic
+        if (isAdmin && !seller_id) {
+            context.seller_type = 'admin'
+        }
+
         const ragContext = await fetchRAGContext(supabase, effectiveSellerId)
-        const systemPrompt = buildSystemPrompt(context, ragContext)
+        let systemPrompt = buildSystemPrompt(context, ragContext)
+
+        if (isAdmin && !seller_id) {
+            systemPrompt = `Você é o Yorik, o Estrategista Head da Nextbase 360.
+Tom: Senior, direto, focado em escala e eficiência operacional.
+Idioma: Português BR.
+Você está conversando com um ADMINISTRADOR da plataforma.
+Seu objetivo é fornecer insights de alto nível sobre metodologias de vendas, gestão de equipes, otimização de processos e escala.
+Não tente citar métricas pessoais do administrador (pois ele não as possui), foque na estratégia do negócio do cliente.
+
+${ragContext}
+
+Baseie suas Roteiros de Guerra (estratégias) estritamente na base de conhecimento (RAG) acima se ela estiver disponível.
+Seja acionável e fundamentado em metodologias como Receita Previsível, Challenger Sale e Consultoria de Bolso.`
+        }
 
         const messages = [
             { role: 'system', content: systemPrompt },

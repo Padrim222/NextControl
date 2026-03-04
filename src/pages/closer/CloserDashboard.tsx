@@ -29,7 +29,8 @@ export default function CloserDashboard() {
     const [submissions, setSubmissions] = useState<DailySubmission[]>([]);
     const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null);
     const [todaySubmitted, setTodaySubmitted] = useState(false);
-    const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('week');
+    const [showConversion, setShowConversion] = useState(false);
+    const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'quarter'>('week');
 
     useEffect(() => {
         if (!user) return;
@@ -43,8 +44,10 @@ export default function CloserDashboard() {
             const dateLimit = new Date();
             if (timeFilter === 'week') {
                 dateLimit.setDate(dateLimit.getDate() - 7);
-            } else {
+            } else if (timeFilter === 'month') {
                 dateLimit.setDate(dateLimit.getDate() - 30);
+            } else {
+                dateLimit.setDate(dateLimit.getDate() - 90);
             }
             const isoLimit = dateLimit.toISOString();
 
@@ -88,26 +91,34 @@ export default function CloserDashboard() {
         return acc + (m?.sales_closed || 0);
     }, 0);
 
-
+    const conversionRate = totalCalls > 0 ? ((totalSales / totalCalls) * 100).toFixed(1) : '0';
 
     const stats = [
         {
-            label: 'Calls (7d)',
+            label: `Calls (${timeFilter === 'week' ? '7d' : timeFilter === 'month' ? '30d' : '90d'})`,
             value: totalCalls,
             icon: Phone,
             color: 'text-solar',
         },
         {
-            label: 'Propostas (7d)',
+            label: `Propostas (${timeFilter === 'week' ? '7d' : timeFilter === 'month' ? '30d' : '90d'})`,
             value: totalProposals,
             icon: Target,
             color: 'text-nc-info',
         },
         {
-            label: 'Vendas (7d)',
+            label: `Vendas (${timeFilter === 'week' ? '7d' : timeFilter === 'month' ? '30d' : '90d'})`,
             value: totalSales,
             icon: CheckCircle,
             color: 'text-nc-success',
+        },
+        {
+            label: 'Taxa Conv.',
+            value: showConversion ? `${conversionRate}%` : '***',
+            icon: Percent,
+            color: 'text-nc-accent',
+            onClick: () => setShowConversion(!showConversion),
+            isToggle: true,
         },
         {
             label: 'Status Hoje',
@@ -115,7 +126,6 @@ export default function CloserDashboard() {
             icon: todaySubmitted ? CheckCircle : Clock,
             color: todaySubmitted ? 'text-nc-success' : 'text-nc-warning',
         },
-
         {
             label: 'Último Score',
             value: latestAnalysis?.score ? `${latestAnalysis.score}/100` : '—',
@@ -126,6 +136,38 @@ export default function CloserDashboard() {
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
+            {/* AI Volume Insight */}
+            {submissions.length > 0 && timeFilter === 'week' && (totalCalls < 5 || totalProposals < 2) && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                >
+                    <Card className="nc-card-border border-nc-warning/30 bg-nc-warning/5 overflow-hidden">
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-nc-warning/20 flex items-center justify-center shrink-0 text-nc-warning">
+                                <AlertTriangle className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-sm font-semibold text-nc-warning">Atenção ao Volume Semanal</h4>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    {totalCalls < 5
+                                        ? `Abaixo da meta de volume: apenas ${totalCalls} calls realizadas.`
+                                        : `Baixa conversão em propostas: apenas ${totalProposals} enviadas.`}
+                                    Consulte o Coach para ajustar sua abordagem e aumentar o pipe!
+                                </p>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-nc-warning/30 hover:bg-nc-warning/10 text-xs"
+                                onClick={() => navigate('/training/coach')}
+                            >
+                                Consultar Coach
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
             {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -161,6 +203,14 @@ export default function CloserDashboard() {
                             className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
                         >
                             Mês
+                        </Button>
+                        <Button
+                            variant={timeFilter === 'quarter' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setTimeFilter('quarter')}
+                            className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+                        >
+                            Trimestre
                         </Button>
                     </div>
 

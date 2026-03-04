@@ -1,5 +1,5 @@
 # Tasklist NextControl — Backlog Completo
-> **Última atualização:** 2026-03-04 12h10 | **Origem:** Call de revisão da plataforma com time NEXTBASE
+> **Última atualização:** 2026-03-04 18h05 | **Origem:** Call de revisão da plataforma com time NEXTBASE
 
 ---
 
@@ -19,20 +19,20 @@
 ## 🟠 P1 — FEATURES DE ALTO IMPACTO
 
 ### 🧑 Seller
-- [ ] Melhorar painel de "Métricas do Dia" com insights proativos (ex: *"Esta semana está com baixo volume de pitchs — consulte o Coach!"*)
+- [x] Melhorar painel de "Métricas do Dia" com insights proativos (ex: *"Esta semana está com baixo volume de pitchs — consulte o Coach!"*) — ✅ Feito (Banner dinâmico IA)
 - [x] Ajustar estrutura do relatório diário: novos seguidores, conversas iniciadas, oportunidades, follow-ups, objeções, qualidade, anexos — ✅ Feito
 - [x] Implementar campo para prints do CRM e texto/prints de conversas no check-in diário — ✅ Feito
 - [x] Melhorar visual dos botões de adicionar/remover (muito pequenos — especialmente no Seller) — ✅ Feito
 - [x] Ajustar tempo estimado de preenchimento para 3 minutos — ✅ Feito
-- [ ] Criar **Blacklist de abordagens** que não funcionaram (para evitar repetição)
-- [ ] Criar **Acervo de Scripts** onde Seller salva manualmente o que está funcionando
+- [x] Criar **Blacklist de abordagens** que não funcionaram (para evitar repetição) — ✅ Feito (Check-in Sync)
+- [x] Criar **Acervo de Scripts** onde Seller salva manualmente o que está funcionando — ✅ Feito (Check-in Sync)
 - [x] Tirar a taxa de conversão do check-in do **Closer** para simplificar — ✅ Removido do Seller e Closer Forms
 
 ### 🔐 Admin
 - [x] Adicionar documentos na **Base RAG** para que o Estrategista Yorik responda com contexto do cliente — ✅ Feito
 - [x] Criar opção no Admin para enviar materiais (vídeos, áudios, documentos) diretamente ao cliente (substitui grupo de WhatsApp) — ✅ Feito (ClientMaterialsPanel)
 - [x] Implementar **campo de upload de materiais** na base de conhecimento do cliente (RAG embedado) — ✅ Feito
-- [ ] Integrar IA Gemini 2.0 na **Consultoria de Bolso** com contexto de métricas reais
+- [x] Integrar IA Gemini 2.0 na **Consultoria de Bolso** com contexto de métricas reais — ✅ Feito (Edge Function coach-chat)
 
 ### 👤 Cliente
 - [x] Na aba "Meu Plano", o cliente pode clicar e ver exatamente o que foi passado no onboarding com o Rafael (fase atual, próxima etapa, o que implementar) — ✅ Feito (via aba Meu Plano)

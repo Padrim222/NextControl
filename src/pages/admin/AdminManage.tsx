@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -41,6 +42,11 @@ interface ManagedClient {
     company: string | null;
     segment: string | null;
     status: string;
+    project_summary: string | null;
+    current_phase: string | null;
+    next_step: string | null;
+    team_status: string | null;
+    operational_processes: string | null;
     created_at: string;
 }
 
@@ -76,10 +82,22 @@ export default function AdminManage() {
     const [isCreatingUser, setIsCreatingUser] = useState(false);
     const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
 
-    // New client form
+    // Client form (create/edit)
     const [showClientForm, setShowClientForm] = useState(false);
-    const [newClient, setNewClient] = useState({ name: '', email: '', phone: '', company: '', segment: '' });
-    const [isCreatingClient, setIsCreatingClient] = useState(false);
+    const [editingClientId, setEditingClientId] = useState<string | null>(null);
+    const [clientForm, setClientForm] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        company: '',
+        segment: '',
+        project_summary: '',
+        current_phase: '',
+        next_step: '',
+        team_status: '',
+        operational_processes: ''
+    });
+    const [isSubmittingClient, setIsSubmittingClient] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -89,11 +107,6 @@ export default function AdminManage() {
         if (!supabase) return;
         setIsLoading(true);
         try {
-            const [_, __] = await Promise.all([
-                Promise.resolve(), // placeholder for future admin edge function
-                Promise.resolve(),
-            ]);
-
             // Use direct DB queries since they're simpler
             const { data: usersData } = await (supabase as any)
                 .from('users')
@@ -152,33 +165,73 @@ export default function AdminManage() {
         }
     };
 
-    const handleCreateClient = async () => {
-        if (!newClient.name.trim()) {
+    const handleSaveClient = async () => {
+        if (!clientForm.name.trim()) {
             toast.error('Nome é obrigatório');
             return;
         }
-        setIsCreatingClient(true);
+        setIsSubmittingClient(true);
         try {
-            const { error } = await (supabase as any).from('clients').insert({
-                name: newClient.name.trim(),
-                email: newClient.email.trim() || null,
-                phone: newClient.phone.trim() || null,
-                company: newClient.company.trim() || null,
-                segment: newClient.segment.trim() || null,
+            const payload = {
+                name: clientForm.name.trim(),
+                email: clientForm.email.trim() || null,
+                phone: clientForm.phone.trim() || null,
+                company: clientForm.company.trim() || null,
+                segment: clientForm.segment.trim() || null,
+                project_summary: clientForm.project_summary.trim() || null,
+                current_phase: clientForm.current_phase.trim() || null,
+                next_step: clientForm.next_step.trim() || null,
+                team_status: clientForm.team_status.trim() || null,
+                operational_processes: clientForm.operational_processes.trim() || null,
                 status: 'active',
+            };
+
+            if (editingClientId) {
+                const { error } = await (supabase as any)
+                    .from('clients')
+                    .update(payload)
+                    .eq('id', editingClientId);
+                if (error) throw error;
+                toast.success('Cliente atualizado!');
+            } else {
+                const { error } = await (supabase as any)
+                    .from('clients')
+                    .insert(payload);
+                if (error) throw error;
+                toast.success('Cliente criado!');
+            }
+
+            setClientForm({
+                name: '', email: '', phone: '', company: '', segment: '',
+                project_summary: '', current_phase: '', next_step: '',
+                team_status: '', operational_processes: ''
             });
-
-            if (error) throw error;
-
-            toast.success(`Cliente ${newClient.name} criado!`);
-            setNewClient({ name: '', email: '', phone: '', company: '', segment: '' });
+            setEditingClientId(null);
             setShowClientForm(false);
             fetchData();
         } catch (error: any) {
-            toast.error(error?.message || 'Erro ao criar cliente');
+            toast.error(error?.message || 'Erro ao processar cliente');
         } finally {
-            setIsCreatingClient(false);
+            setIsSubmittingClient(false);
         }
+    };
+
+    const handleEditClient = (c: ManagedClient) => {
+        setClientForm({
+            name: c.name || '',
+            email: c.email || '',
+            phone: c.phone || '',
+            company: c.company || '',
+            segment: c.segment || '',
+            project_summary: c.project_summary || '',
+            current_phase: c.current_phase || '',
+            next_step: c.next_step || '',
+            team_status: c.team_status || '',
+            operational_processes: c.operational_processes || ''
+        });
+        setEditingClientId(c.id);
+        setShowClientForm(true);
+        setActiveTab('clients');
     };
 
     const copyCredentials = () => {
@@ -378,31 +431,31 @@ export default function AdminManage() {
                         </Button>
                     </div>
 
-                    {/* New Client Form */}
+                    {/* New/Edit Client Form */}
                     {showClientForm && (
                         <Card className="nc-card-border border-primary/20">
                             <CardHeader className="pb-3">
                                 <CardTitle className="text-base flex items-center gap-2">
                                     <Building2 className="h-4 w-4 text-primary" />
-                                    Adicionar Cliente
+                                    {editingClientId ? 'Editar Cliente' : 'Adicionar Cliente'}
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-3">
+                            <CardContent className="space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <Label>Nome</Label>
                                         <Input
                                             placeholder="Nome do cliente"
-                                            value={newClient.name}
-                                            onChange={e => setNewClient(prev => ({ ...prev, name: e.target.value }))}
+                                            value={clientForm.name}
+                                            onChange={e => setClientForm(prev => ({ ...prev, name: e.target.value }))}
                                         />
                                     </div>
                                     <div>
                                         <Label>Empresa</Label>
                                         <Input
                                             placeholder="Nome da empresa"
-                                            value={newClient.company}
-                                            onChange={e => setNewClient(prev => ({ ...prev, company: e.target.value }))}
+                                            value={clientForm.company}
+                                            onChange={e => setClientForm(prev => ({ ...prev, company: e.target.value }))}
                                         />
                                     </div>
                                 </div>
@@ -412,32 +465,92 @@ export default function AdminManage() {
                                         <Input
                                             type="email"
                                             placeholder="email@cliente.com"
-                                            value={newClient.email}
-                                            onChange={e => setNewClient(prev => ({ ...prev, email: e.target.value }))}
+                                            value={clientForm.email}
+                                            onChange={e => setClientForm(prev => ({ ...prev, email: e.target.value }))}
                                         />
                                     </div>
                                     <div>
                                         <Label>Telefone</Label>
                                         <Input
                                             placeholder="(11) 99999-9999"
-                                            value={newClient.phone}
-                                            onChange={e => setNewClient(prev => ({ ...prev, phone: e.target.value }))}
+                                            value={clientForm.phone}
+                                            onChange={e => setClientForm(prev => ({ ...prev, phone: e.target.value }))}
                                         />
                                     </div>
                                     <div>
                                         <Label>Segmento</Label>
                                         <Input
                                             placeholder="Ex: Clínica, Advocacia"
-                                            value={newClient.segment}
-                                            onChange={e => setNewClient(prev => ({ ...prev, segment: e.target.value }))}
+                                            value={clientForm.segment}
+                                            onChange={e => setClientForm(prev => ({ ...prev, segment: e.target.value }))}
                                         />
                                     </div>
                                 </div>
-                                <div className="flex gap-2 pt-2">
-                                    <Button onClick={handleCreateClient} disabled={isCreatingClient}>
-                                        {isCreatingClient ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Criando...</> : 'Criar Cliente'}
+
+                                <div className="pt-2 border-t border-border/50">
+                                    <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 px-1">Estratégia & Painel do Cliente</h4>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <Label>Resumo do Projeto (Visível para o cliente)</Label>
+                                            <Textarea
+                                                placeholder="Descreva o foco do projeto..."
+                                                value={clientForm.project_summary}
+                                                onChange={e => setClientForm(prev => ({ ...prev, project_summary: e.target.value }))}
+                                                className="h-20 text-sm"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <Label>Fase Atual</Label>
+                                                <Input
+                                                    placeholder="Ex: Onboarding"
+                                                    value={clientForm.current_phase}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, current_phase: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Próxima Etapa</Label>
+                                                <Input
+                                                    placeholder="Ex: Máquina de Vendas"
+                                                    value={clientForm.next_step}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, next_step: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <Label>Status do Time</Label>
+                                                <Input
+                                                    placeholder="Ex: Treinando Closer"
+                                                    value={clientForm.team_status}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, team_status: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Processos Operacionais</Label>
+                                                <Input
+                                                    placeholder="Ex: CRM Configurado"
+                                                    value={clientForm.operational_processes}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, operational_processes: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 pt-4">
+                                    <Button onClick={handleSaveClient} disabled={isSubmittingClient}>
+                                        {isSubmittingClient ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Salvando...</> : 'Salvar Cliente'}
                                     </Button>
-                                    <Button variant="ghost" onClick={() => setShowClientForm(false)}>Cancelar</Button>
+                                    <Button variant="ghost" onClick={() => {
+                                        setShowClientForm(false);
+                                        setEditingClientId(null);
+                                        setClientForm({
+                                            name: '', email: '', phone: '', company: '', segment: '',
+                                            project_summary: '', current_phase: '', next_step: '',
+                                            team_status: '', operational_processes: ''
+                                        });
+                                    }}>Cancelar</Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -471,9 +584,9 @@ export default function AdminManage() {
                                                 {c.segment && (
                                                     <Badge variant="secondary" className="text-xs">{c.segment}</Badge>
                                                 )}
-                                                <Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                                                    {c.status === 'active' ? '✓ Ativo' : c.status}
-                                                </Badge>
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleEditClient(c)}>
+                                                    <Plus className="h-4 w-4 rotate-45" />
+                                                </Button>
                                             </div>
                                         </div>
                                     ))}

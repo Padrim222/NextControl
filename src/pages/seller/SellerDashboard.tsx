@@ -19,6 +19,7 @@ import {
     ChevronRight,
     LayoutDashboard,
     Users,
+    Sparkles,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SubmissionTimeline } from '@/components/seller/SubmissionTimeline';
@@ -236,29 +237,62 @@ export default function SellerDashboard() {
                 {/* TAB: Dashboard — metrics, progress, check-in, feedback */}
                 <TabsContent value="dashboard" className="space-y-6 mt-0">
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {stats.map((stat, i) => (
-                            <motion.div
-                                key={stat.label}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.1 }}
-                            >
-                                <Card className="nc-card-border nc-card-hover bg-card">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                                            <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
-                                        </div>
-                                        <p className={`text-lg sm:text-xl font-mono font-semibold ${stat.color}`}>
-                                            {stat.value}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        ))}
-                    </div>
+                    {/* AI Insights Banner */}
+                    {submissions.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.3 }}
+                        >
+                            {(() => {
+                                const weeklyConversations = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.conversations_started || 0), 0);
+                                const weeklyFollowups = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.followups_done || 0), 0);
+                                const weeklyOpps = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.conversations_to_opportunity || 0), 0);
+
+                                let insightTitle = "Insight da IA";
+                                let insightMessage = "Seu ritmo está bom! Mantenha a consistência nos follow-ups para garantir o fechamento da semana.";
+                                let isWarning = false;
+
+                                if (weeklyConversations < 15) {
+                                    insightTitle = "⚠️ Volume de Conversas Baixo";
+                                    insightMessage = `Apenas ${weeklyConversations} conversas iniciadas esta semana. Aumente o volume de abordagens para manter o funil saudável!`;
+                                    isWarning = true;
+                                } else if (weeklyFollowups < 10) {
+                                    insightTitle = "⚠️ Follow-ups Insuficientes";
+                                    insightMessage = `Somente ${weeklyFollowups} follow-ups feitos. Leads esfriam rápido — consulte o Coach para técnicas de reaquecimento!`;
+                                    isWarning = true;
+                                } else if (weeklyOpps < 5) {
+                                    insightTitle = "⚠️ Poucas Oportunidades Geradas";
+                                    insightMessage = `Apenas ${weeklyOpps} conversas converteram em oportunidade. Vamos ajustar seu pitch no Consultoria de Bolso?`;
+                                    isWarning = true;
+                                }
+
+                                return (
+                                    <Card className={`nc-card-border overflow-hidden ${isWarning ? 'border-nc-warning/30 bg-nc-warning/5' : 'border-solar/30 bg-solar/5'}`}>
+                                        <CardContent className="p-4 flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isWarning ? 'bg-nc-warning/20' : 'bg-solar/20'}`}>
+                                                <Sparkles className={`h-5 w-5 ${isWarning ? 'text-nc-warning' : 'text-solar'} animate-pulse`} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className={`text-sm font-semibold ${isWarning ? 'text-nc-warning' : 'text-solar'}`}>{insightTitle}</h4>
+                                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                                    {insightMessage}
+                                                </p>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className={`text-xs ${isWarning ? 'border-nc-warning/30 hover:bg-nc-warning/10' : 'border-solar/30 hover:bg-solar/10'}`}
+                                                onClick={() => navigate('/training/coach')}
+                                            >
+                                                Consultar Coach
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })()}
+                        </motion.div>
+                    )}
 
                     {/* Daily Progress vs. Yesterday */}
                     {submissions.length >= 2 && (

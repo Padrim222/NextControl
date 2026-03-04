@@ -20,6 +20,7 @@ import {
     Phone,
     Shield,
     BarChart3,
+    LayoutDashboard,
 } from 'lucide-react';
 import {
     Dialog,
@@ -52,6 +53,7 @@ export default function AdminDashboard() {
     const [analyses, setAnalyses] = useState<Analysis[]>([]);
     const [reports, setReports] = useState<Report[]>([]);
     const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+    const [formSubmissions, setFormSubmissions] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('week');
 
@@ -117,6 +119,14 @@ export default function AdminDashboard() {
                 .gte('created_at', isoDate)
                 .order('created_at', { ascending: false });
             if (callData) setCallLogs(callData as CallLog[]);
+
+            // Fetch generic form submissions for pending count
+            const { data: formSubsData } = await (supabase as any)
+                .from('form_submissions')
+                .select('*')
+                .or('ai_status.eq.pending,ai_status.is.null')
+                .gte('created_at', isoDate);
+            if (formSubsData) setFormSubmissions(formSubsData);
         } catch (error) {
             console.error('Error fetching admin data:', error);
             toast.error('Erro ao carregar dados');
@@ -138,7 +148,8 @@ export default function AdminDashboard() {
     };
 
     // Submissions that have no analysis yet (pending review)
-    const pendingSubmissions = submissions.filter(s => !getAnalysisForSubmission(s.id));
+    const pendingSubmissionsCount = submissions.filter(s => !getAnalysisForSubmission(s.id)).length + formSubmissions.length;
+    const pendingDailySubmissions = submissions.filter(s => !getAnalysisForSubmission(s.id));
     const analyzedSubmissions = submissions.filter(s => !!getAnalysisForSubmission(s.id));
 
     const handleAnalyze = async (submission: SubmissionWithSeller) => {
@@ -295,7 +306,7 @@ export default function AdminDashboard() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Aguardando Análise</p>
-                                    <p className="text-2xl font-bold text-nc-warning">{pendingSubmissions.length}</p>
+                                    <p className="text-2xl font-bold text-nc-warning">{pendingSubmissionsCount}</p>
                                 </div>
                                 <Clock className="h-8 w-8 text-nc-warning opacity-80" />
                             </div>
@@ -387,14 +398,23 @@ export default function AdminDashboard() {
                             <CardDescription>Submissões aguardando análise IA</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {pendingSubmissions.length === 0 ? (
+                            {pendingDailySubmissions.length === 0 && formSubmissions.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
                                     <p>Nenhuma submissão pendente</p>
                                 </div>
                             ) : (
                                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                                    {pendingSubmissions.map((sub) => (
+                                    {/* Link for direct navigation to form submissions panel */}
+                                    {formSubmissions.length > 0 && (
+                                        <div className="p-2 mb-2 bg-nc-warning/10 border border-nc-warning/20 rounded-lg text-xs flex items-center justify-between">
+                                            <span>Existem {formSubmissions.length} novos formulários aguardando.</span>
+                                            <Button variant="link" size="sm" className="h-auto p-0 text-nc-warning" onClick={() => document.getElementById('public-forms-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                                                Ver Abaixo
+                                            </Button>
+                                        </div>
+                                    )}
+                                    {pendingDailySubmissions.map((sub) => (
                                         <div
                                             key={sub.id}
                                             className="flex items-center justify-between p-3 bg-card rounded-lg border hover:border-solar/50 transition-colors"
@@ -454,7 +474,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Public Forms Panel */}
-                <div className="mb-8">
+                <div id="public-forms-section" className="mb-8">
                     <AdminFormPanel />
                 </div>
 
@@ -562,22 +582,28 @@ export default function AdminDashboard() {
                                         </h3>
                                         <div className="grid grid-cols-3 gap-2">
                                             {selectedSubmission.conversation_prints.map((url, i) => {
-                                                const isValidUrl = typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'));
-                                                // If it looks like a relative path from our own storage
-                                                const finalUrl = (typeof url === 'string' && !url.startsWith('http') && url.includes('/'))
-                                                    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/submissions/${url}`
-                                                    : url;
+                                                const isFullUrl = typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'));
+                                                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+                                                // If it's not a full URL, it's a storage path (e.g. "uuid/file.png")
+                                                // Default Supabase URL as fallback if env is missing
+                                                const supabaseBase = supabaseUrl || 'https://mldbflihdejmddmapwnz.supabase.co';
+
+                                                const finalUrl = isFullUrl
+                                                    ? url
+                                                    : (typeof url === 'string' && url.trim() !== '')
+                                                        ? `${supabaseBase}/storage/v1/object/public/submissions/${url}`
+                                                        : '#';
 
                                                 return (
                                                     <a
                                                         key={i}
-                                                        href={isValidUrl || finalUrl ? finalUrl : '#'}
-                                                        onClick={(e) => (!isValidUrl && !finalUrl) && e.preventDefault()}
+                                                        href={finalUrl}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className={`aspect-square bg-muted rounded-lg overflow-hidden border transition-colors ${(isValidUrl || finalUrl) ? 'hover:border-solar cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                                                        className={`aspect-square bg-muted rounded-lg overflow-hidden border transition-colors ${finalUrl !== '#' ? 'hover:border-solar cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
                                                     >
-                                                        {(isValidUrl || finalUrl) ? (
+                                                        {finalUrl !== '#' ? (
                                                             <img src={finalUrl} alt={`Print ${i + 1}`} className="w-full h-full object-cover" />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground p-2 text-center">Print Indisponível</div>

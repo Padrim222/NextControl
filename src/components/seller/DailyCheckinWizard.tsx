@@ -28,6 +28,7 @@ import {
     Image as ImageIcon,
     Minus,
     Plus,
+    BookOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -211,6 +212,10 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
     const [callFile, setCallFile] = useState<File | null>(null);
     const [evidenceTab, setEvidenceTab] = useState<string>('paste');
 
+    // Playbook Sync
+    const [winningScript, setWinningScript] = useState('');
+    const [blacklistApproach, setBlacklistApproach] = useState('');
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const metricsFields = sellerType === 'seller' ? SELLER_METRICS_FIELDS : CLOSER_METRICS_FIELDS;
@@ -317,6 +322,25 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                 const { data: inserted, error } = await (supabase as any).from('daily_submissions').insert(submission).select('id').single();
                 if (error) throw error;
                 submissionId = inserted?.id;
+            }
+
+            // 4.1 Playbook Sync (Optional)
+            if (winningScript.trim() && supabase) {
+                await (supabase as any).from('seller_playbooks').insert({
+                    user_id: user.id,
+                    type: 'script',
+                    title: `Script do Dia - ${new Date().toLocaleDateString('pt-BR')}`,
+                    content: winningScript.trim()
+                });
+            }
+
+            if (blacklistApproach.trim() && supabase) {
+                await (supabase as any).from('seller_playbooks').insert({
+                    user_id: user.id,
+                    type: 'blacklist',
+                    title: `Evitar (Blacklist) - ${new Date().toLocaleDateString('pt-BR')}`,
+                    content: blacklistApproach.trim()
+                });
             }
 
             toast.success('Submissão enviada com sucesso! 🚀');
@@ -628,6 +652,35 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                         placeholder="Destaques do dia, dificuldades, insights..."
                                         className="min-h-[120px] resize-none nc-input-glow"
                                     />
+
+                                    <div className="pt-4 border-t border-border/50 space-y-4">
+                                        <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                                            <BookOpen className="w-4 h-4" />
+                                            Sincronizar com Playbook
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Teve algum script que funcionou muito bem hoje?</Label>
+                                                <Textarea
+                                                    value={winningScript}
+                                                    onChange={e => setWinningScript(e.target.value)}
+                                                    placeholder="Envie para o seu Acervo de Scripts..."
+                                                    className="bg-solar/5 border-solar/20 min-h-[80px]"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Algo que você testou e NÃO funcionou? (Blacklist)</Label>
+                                                <Textarea
+                                                    value={blacklistApproach}
+                                                    onChange={e => setBlacklistApproach(e.target.value)}
+                                                    placeholder="Mande para a Blacklist para não repetir o erro..."
+                                                    className="bg-red-500/5 border-red-500/20 min-h-[80px]"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
 
                                     {/* Summary Card */}
                                     <div className="bg-muted/30 p-4 rounded-xl text-sm space-y-3 border border-border/50">

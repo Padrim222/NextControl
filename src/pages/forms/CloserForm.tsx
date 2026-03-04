@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { submitPublicForm, triggerFormAnalysis, uploadFormFiles } from '@/lib/formSubmission';
 import type { CloserDailyData } from '@/types/forms';
-import { Phone, Upload, CheckCircle, X as XIcon } from 'lucide-react';
+import { Phone, Upload, CheckCircle, X as XIcon, Plus, Trash2, UserPlus } from 'lucide-react';
 
 const STEPS = [
     { id: 'identify', title: 'Identificação', emoji: '👤' },
@@ -45,6 +45,7 @@ export default function CloserForm() {
         avoidable_loss_reason: '',
         self_score: 5,
         call_recording_url: '',
+        individual_calls: [],
     });
 
     const updateData = <K extends keyof CloserDailyData>(key: K, value: CloserDailyData[K]) => {
@@ -224,6 +225,111 @@ export default function CloserForm() {
                                     <span>Excelente</span>
                                 </div>
                             </div>
+
+                            {/* Individual Call Logs */}
+                            <div className="pt-6 border-t border-border/50 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-base font-bold flex items-center gap-2">
+                                        <UserPlus className="h-5 w-5 text-nc-info" />
+                                        Detalhamento das Calls
+                                    </Label>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {(data.individual_calls || []).map((call, idx) => (
+                                        <div key={idx} className="p-3 rounded-xl bg-muted/30 border border-border space-y-3 relative group transition-all hover:bg-muted/50">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[10px] uppercase font-bold text-nc-info px-2 py-0.5 rounded-full bg-nc-info/10">Call #{idx + 1}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const current = data.individual_calls || [];
+                                                        updateData('individual_calls', current.filter((_, i) => i !== idx));
+                                                    }}
+                                                    className="p-1 px-2 text-xs text-muted-foreground hover:text-white hover:bg-red-500/80 rounded-md transition-all flex items-center gap-1"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" /> Remover
+                                                </button>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] uppercase text-muted-foreground">Nome do Prospect</Label>
+                                                    <Input
+                                                        placeholder="Ex: João Silva"
+                                                        value={call.prospect_name}
+                                                        onChange={(e) => {
+                                                            const current = [...(data.individual_calls || [])];
+                                                            current[idx].prospect_name = e.target.value;
+                                                            updateData('individual_calls', current);
+                                                        }}
+                                                        className="h-9 text-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] uppercase text-muted-foreground">Resultado</Label>
+                                                    <RadioGroup
+                                                        value={call.outcome}
+                                                        onValueChange={(v: any) => {
+                                                            const current = [...(data.individual_calls || [])];
+                                                            current[idx].outcome = v;
+                                                            updateData('individual_calls', current);
+                                                        }}
+                                                        className="flex flex-wrap gap-2"
+                                                    >
+                                                        {[
+                                                            { v: 'sale', l: '🛒 Venda' },
+                                                            { v: 'no_sale', l: '❌ Não' },
+                                                            { v: 'reschedule', l: '📅 Reag.' },
+                                                            { v: 'no_show', l: '👻 No-Show' }
+                                                        ].map(opt => (
+                                                            <div key={opt.v} className="flex items-center gap-1.5">
+                                                                <RadioGroupItem value={opt.v} id={`call-${idx}-${opt.v}`} className="sr-only" />
+                                                                <Label
+                                                                    htmlFor={`call-${idx}-${opt.v}`}
+                                                                    className={`px-2 py-1 rounded text-[10px] cursor-pointer border transition-all ${call.outcome === opt.v
+                                                                        ? 'bg-primary text-white border-primary'
+                                                                        : 'bg-background border-border hover:border-primary/50'
+                                                                        }`}
+                                                                >
+                                                                    {opt.l}
+                                                                </Label>
+                                                            </div>
+                                                        ))}
+                                                    </RadioGroup>
+                                                </div>
+                                            </div>
+                                            <Input
+                                                placeholder="Notas rápidas (motivo do não, temperatura...)"
+                                                value={call.notes}
+                                                onChange={(e) => {
+                                                    const current = [...(data.individual_calls || [])];
+                                                    current[idx].notes = e.target.value;
+                                                    updateData('individual_calls', current);
+                                                }}
+                                                className="h-8 text-[11px] bg-background/50"
+                                            />
+                                        </div>
+                                    ))}
+                                    {(data.individual_calls || []).length === 0 && (
+                                        <p className="text-center text-xs text-muted-foreground italic py-4">
+                                            Nenhum prospect listado. Clique abaixo para registrar calls individuais.
+                                        </p>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full h-11 border-dashed border-nc-info/30 text-nc-info hover:bg-nc-info/5 flex items-center justify-center gap-2"
+                                        onClick={() => {
+                                            const current = data.individual_calls || [];
+                                            updateData('individual_calls', [...current, { prospect_name: '', outcome: 'no_sale', notes: '' }]);
+                                        }}
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Adicionar Lead / Call Individual
+                                    </Button>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 )}
@@ -314,6 +420,10 @@ export default function CloserForm() {
                                     <div className="p-3 rounded-lg bg-muted/30">
                                         <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Vendas</p>
                                         <p className="font-mono font-bold text-lg">{data.sales_closed}</p>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-muted/30">
+                                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Leads Logged</p>
+                                        <p className="font-mono font-bold text-lg">{data.individual_calls?.length || 0}</p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">

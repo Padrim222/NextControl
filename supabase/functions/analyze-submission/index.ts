@@ -117,27 +117,43 @@ Deno.serve(async (req) => {
             throw new Error('Submission not found')
         }
 
-        // Two-step query: first get today's submission IDs, then count analyses
-        const { data: todaySubs } = await supabase
-            .from('daily_submissions')
-            .select('id')
-            .eq('seller_id', submission.seller_id)
-            .gte('submission_date', today)
+        // Fetch user info to check role
+        const { data: currentUser } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single()
 
-        const todaySubIds = (todaySubs || []).map((s: any) => s.id)
+        const isAdmin = currentUser?.role === 'admin'
 
-        const { count: analysisCount } = todaySubIds.length > 0
-            ? await supabase
-                .from('analyses')
-                .select('*', { count: 'exact', head: true })
-                .in('submission_id', todaySubIds)
-            : { count: 0 }
+        if (!isAdmin) {
+            // Rate limit: max 3 analyses per day per seller
+            const today = new Date().toISOString().split('T')[0]
 
-        if ((analysisCount || 0) >= 3) {
-            return new Response(
-                JSON.stringify({ error: 'Daily analysis limit reached (max 3)' }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
-            )
+            // Two-step query: first get today's submission IDs, then count analyses
+            const { data: todaySubs } = await supabase
+                .from('daily_submissions')
+                .select('id')
+                .eq('seller_id', submission.seller_id)
+                .gte('submission_date', today)
+
+            const todaySubIds = (todaySubs || []).map((s: any) => s.id)
+
+            const { count: analysisCount } = todaySubIds.length > 0
+                ? await supabase
+                    .from('analyses')
+                    .select('*', { count: 'exact', head: true })
+                    .in('submission_id', todaySubIds)
+                : { count: 0 }
+
+            if ((analysisCount || 0) >= 3) {
+                return new Response(
+                    JSON.stringify({ error: 'Daily analysis limit reached (max 3)' }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+                )
+            }
+        } else {
+            console.log(`Admin ${user.id} bypassing analysis limits for seller ${submission.seller_id}`)
         }
 
         // Fetch seller info
