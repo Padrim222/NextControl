@@ -59,8 +59,8 @@
 - [x] Materiais de Treinamento devem se **retroalimentar** — ✅ Edge function `auto-training-materials` v1 deployada. Agrupa Q&A por tema e gera materiais automáticos.
 
 ### Design e Front-end
-- [ ] Finalizar **melhorias visuais** do front-end antes de produzir conteúdo e gerar demanda
-- [ ] Revisão geral de **dinamismo e qualidade visual** do site público
+- [x] Finalizar **melhorias visuais** do front-end — ✅ Sprint 8: micro-animações, fade-in, scale-in, nc-glass, nc-pulse, nc-stagger-children, nc-progress-bar + prefers-reduced-motion
+- [x] Revisão geral de **dinamismo e qualidade visual** — ✅ 10+ utility classes adicionadas ao design system
 
 ---
 
