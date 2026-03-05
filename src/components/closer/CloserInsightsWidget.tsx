@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Bell, Calendar, ChevronRight, UserCheck } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 
 interface FollowupItem {
     id: string;
@@ -17,6 +18,7 @@ interface FollowupItem {
 
 export function CloserInsightsWidget() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [followups, setFollowups] = useState<FollowupItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -26,17 +28,15 @@ export function CloserInsightsWidget() {
 
     const fetchFollowups = async () => {
         setIsLoading(true);
-        // We look for calls with 'reschedule' or specific follow-up mentions in notes for this closer
         const { data, error } = await (supabase as any)
             .from('call_logs')
             .select('id, prospect_name, call_date, outcome, notes')
             .eq('closer_id', user?.id)
-            .in('outcome', ['reschedule', 'no_sale']) // 'no_sale' often needs FUP
+            .in('outcome', ['reschedule', 'no_sale'])
             .order('call_date', { ascending: false })
             .limit(5);
 
         if (!error && data) {
-            // Filter ones that are older than 2 days but less than 15 (typical FUP window)
             const today = new Date();
             const filtered = data.filter((call: any) => {
                 const days = differenceInDays(today, new Date(call.call_date));
@@ -59,32 +59,36 @@ export function CloserInsightsWidget() {
             </CardHeader>
             <CardContent className="p-0">
                 <div className="divide-y divide-solar/10">
-                    {followups.map((item) => (
-                        <div key={item.id} className="p-4 flex items-center justify-between group hover:bg-black/20 transition-colors">
-                            <div className="flex gap-3 items-start">
-                                <div className="p-2 rounded-lg bg-black/40 text-solar">
-                                    <UserCheck className="h-4 w-4" />
+                    {followups.map((item) => {
+                        const daysAgo = differenceInDays(new Date(), new Date(item.call_date));
+                        return (
+                            <div key={item.id} className="p-4 flex items-center justify-between group hover:bg-black/20 transition-colors">
+                                <div className="flex gap-3 items-start">
+                                    <div className="p-2 rounded-lg bg-black/40 text-solar">
+                                        <UserCheck className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold">
+                                            Hora de FUP: <span className="text-solar">{item.prospect_name}</span>
+                                        </p>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                            <Calendar className="h-3 w-3" />
+                                            Conversa em {format(new Date(item.call_date), "dd 'de' MMMM", { locale: ptBR })}
+                                            <span className="text-[10px] ml-1 opacity-70">({daysAgo}d atrás)</span>
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-semibold">
-                                        Hora de FUP: <span className="text-solar">{item.prospect_name}</span>
-                                    </p>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                        <Calendar className="h-3 w-3" />
-                                        Conversa em {format(new Date(item.call_date), "dd 'de' MMMM", { locale: ptBR })}
-                                    </p>
-                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 text-xs border border-solar/20 hover:bg-solar hover:text-deep-space"
+                                    onClick={() => navigate(`/closer/report?followup=${encodeURIComponent(item.prospect_name)}`)}
+                                >
+                                    Agendar <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                                </Button>
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 px-2 text-xs border border-solar/20 hover:bg-solar hover:text-deep-space"
-                                onClick={() => {/* Navigate to details or log action */ }}
-                            >
-                                Agendar <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                            </Button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </CardContent>
         </Card>
