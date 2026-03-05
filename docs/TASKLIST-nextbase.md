@@ -54,8 +54,8 @@
 - [x] Configurar **webhook do Respondi** — ✅ Edge function `sync-respondi` v1 deployada (verify_jwt: false). **⚠️ AÇÃO MANUAL:** Configurar URL no Respondi.co
 
 ### Automação e Inteligência
-- [ ] Sistema para analisar **taxa de passagem** e identificar modelos de abordagem mais eficazes (A vs B)
-- [ ] Atualização da base de conhecimento a **cada 15 dias** automaticamente com documentos acumulados
+- [x] Sistema para analisar **taxa de passagem** — ✅ Widget `StrategyAnalytics.tsx` no SellerDashboard. Compara impacto e taxa de resposta das abordagens.
+- [x] Atualização da base de conhecimento a **cada 15 dias** — ✅ Edge function `rag-auto-update` v1 deployada + `pg_cron` habilitado.
 - [x] Materiais de Treinamento devem se **retroalimentar** — ✅ Edge function `auto-training-materials` v1 deployada. Agrupa Q&A por tema e gera materiais automáticos.
 
 ### Design e Front-end
