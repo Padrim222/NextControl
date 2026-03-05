@@ -247,12 +247,34 @@ export default function CallsPipeline() {
 
     const handleRewriteWithAI = async () => {
         if (!selectedCall?.transcription_text) return;
-        toast.info('Reescrevendo com IA...');
-        // Placeholder for AI rewrite — will use coach-chat or similar
-        setTimeout(() => {
-            setAdminNotes(prev => prev + '\n\n[IA]: Análise reescrita com base no contexto...');
-            toast.success('Reescrita aplicada');
-        }, 1500);
+        setIsProcessing(true);
+        try {
+            const session = (await supabase.auth.getSession()).data.session;
+            const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/coach-chat`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session?.access_token}`,
+                    },
+                    body: JSON.stringify({
+                        message: `Reescreva as anotações do admin de forma profissional e construtiva, baseado na transcrição da call. Transcrição: ${selectedCall.transcription_text.substring(0, 2000)}. Notas atuais: ${adminNotes || 'sem notas'}`,
+                        seller_type: 'closer',
+                    }),
+                }
+            );
+
+            if (!response.ok) throw new Error('Rewrite failed');
+            const data = await response.json();
+            setAdminNotes(data.response || data.message || adminNotes);
+            toast.success('Reescrita aplicada com IA');
+        } catch (err) {
+            console.error('Rewrite error:', err);
+            toast.error('Erro ao reescrever com IA');
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     if (isLoading) {

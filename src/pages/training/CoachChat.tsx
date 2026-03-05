@@ -374,30 +374,3 @@ export default function CoachChat() {
         </div>
     );
 }
-
-// MVP Mock response generator — will be replaced by OpenAI Edge Function
-function generateMockResponse(question: string, sellerType: string): string {
-    const q = question.toLowerCase();
-
-    if (q.includes('abord') || q.includes('prospec')) {
-        return '💡 Para abordagens eficazes:\n\n1. **Personalização** — Pesquise o perfil antes de abordar. Mencione algo específico (post recente, empresa, cargo).\n2. **Value-first** — Ofereça algo de valor antes de pedir algo. Compartilhe um insight ou dado relevante.\n3. **Pergunta aberta** — Evite "tem interesse?" e use "como vocês estão lidando com [problema]?".\n4. **Timing** — Terças e quartas, 9-11h são os melhores horários.\n\nQuer que eu elabore algum desses pontos?';
-    }
-
-    if (q.includes('follow') || q.includes('acompanham')) {
-        return '🔄 Estratégia de Follow-up:\n\n1. **Regra 2-5-12** — 2 dias após primeiro contato, 5 dias se não responder, 12 dias último follow-up.\n2. **Nunca diga "só passando pra ver"** — Sempre traga algo novo: artigo, caso de sucesso, dado.\n3. **Multicanal** — Alterne entre LinkedIn, email e WhatsApp.\n4. **Break-up email** — No último follow-up, seja direto: "Entendo que o timing pode não ser ideal. Posso retomar em [período]?".\n\nQuer um template de follow-up?';
-    }
-
-    if (q.includes('obje') || q.includes('caro') || q.includes('preço')) {
-        return '🛡️ Contornando "Tá caro":\n\n1. **Nunca desconte direto** — Isso posiciona seu produto como sobrevalorizado.\n2. **Isole a objeção** — "Além do preço, existe alguma outra preocupação?"\n3. **Reframe para ROI** — "Se este investimento te gerasse 3x de retorno em 90 dias, faria sentido?"\n4. **Parcele** — Divida o valor por dia/semana para diminuir a percepção.\n5. **Social proof** — "O [cliente X] teve a mesma preocupação e em 60 dias já tinha pago o investimento."\n\nQuer praticar um roleplay?';
-    }
-
-    if (q.includes('rapport') || q.includes('conex')) {
-        return '🤝 Construindo Rapport:\n\n1. **Espelhamento** — Adapte seu tom, velocidade e energia ao prospect.\n2. **Interesses comuns** — LinkedIn é seu melhor amigo pra pesquisar.\n3. **Escuta ativa** — Repita o que ouviu: "Se entendi bem, seu maior desafio é...".\n4. **Vulnerabilidade calculada** — Admita limitações genuínas do seu produto. Gera confiança.\n\nRapport não é técnica, é intenção genuína. O prospect sente quando é forçado.';
-    }
-
-    if (q.includes('script') || q.includes('roteiro') || q.includes('call')) {
-        return '📞 Roteiro de Call Vencedora:\n\n1. **Abertura (30s)** — Nome, empresa, motivo claro. "Estou ligando porque notei que..."\n2. **Qualificação (2min)** — 3 perguntas SPIN: Situação, Problema, Implicação.\n3. **Apresentação (3min)** — Conecte a solução ao problema que ELE descreveu.\n4. **Objeções (2min)** — "Faz sentido? O que te preocupa?"\n5. **Fechamento (1min)** — "Baseado no que conversamos, faz sentido avançarmos com [próximo passo]?"\n\nDica: Grave suas calls e reveja 1 por semana. Você vai evoluir 10x.';
-    }
-
-    return `🤖 Boa pergunta! Como ${sellerType === 'closer' ? 'closer' : 'vendedor'}, isso é super relevante.\n\nVou analisar suas últimas submissões para personalizar minha resposta. Por enquanto, aqui vai uma dica rápida:\n\n**Foco no processo, não só no resultado.** Se você está fazendo as atividades certas, os números vêm naturalmente.\n\nQuer que eu aprofunde em alguma área específica?`;
-}
