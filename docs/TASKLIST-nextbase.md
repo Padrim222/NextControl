@@ -40,8 +40,8 @@
 - [x] Seção de **Materiais de Treinamento** completa: materiais de onboarding enviados pelo Admin exibidos ali — ✅ Feito
 
 ### 🔗 Closer
-- [ ] Widget de insights de **Follow-up** (ex: *"Você conversou com Fulano em XX/XX — hora do FUP!"*)
-- [ ] Filtros de feedback por **mês** (além do semanal atual) — rampagem de Closer = 3-6 semanas
+- [x] Widget de insights de **Follow-up** (ex: *"Você conversou com Fulano em XX/XX — hora do FUP!"*) — ✅ CloserInsightsWidget ativado com botão "Agendar" funcional
+- [x] Filtros de feedback por **mês** (além do semanal atual) — ✅ Filtro de tempo já aplicava a análises via chain de submission_id. Confirmado.
 
 ---
 
@@ -51,12 +51,12 @@
 - [ ] Atualizar modelo e formulário do cliente para incluir todas as seções (Fórmula X, Fase-Empresa, Bloco 1, Bloco 2, Bloco 3)
 - [ ] Bloco 3 (Posicionamento e Decisão Estratégica) deve corresponder ao modelo do Curso
 - [ ] Transformar formulário atual no **documento de onboarding completo** (19 páginas do Rafael)
-- [ ] Configurar **webhook do Respondi** para sincronizar respostas parciais do formulário de onboarding
+- [x] Configurar **webhook do Respondi** — ✅ Edge function `sync-respondi` v1 deployada (verify_jwt: false). **⚠️ AÇÃO MANUAL:** Configurar URL no Respondi.co
 
 ### Automação e Inteligência
 - [ ] Sistema para analisar **taxa de passagem** e identificar modelos de abordagem mais eficazes (A vs B)
 - [ ] Atualização da base de conhecimento a **cada 15 dias** automaticamente com documentos acumulados
-- [ ] Materiais de Treinamento devem se **retroalimentar** (questões frequentes de vários usuários → respostas padrão)
+- [x] Materiais de Treinamento devem se **retroalimentar** — ✅ Edge function `auto-training-materials` v1 deployada. Agrupa Q&A por tema e gera materiais automáticos.
 
 ### Design e Front-end
 - [ ] Finalizar **melhorias visuais** do front-end antes de produzir conteúdo e gerar demanda

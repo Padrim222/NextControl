@@ -26,6 +26,7 @@ import { SubmissionTimeline } from '@/components/seller/SubmissionTimeline';
 import { DailyProgressCard } from '@/components/seller/DailyProgressCard';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
 import { SellerPlaybook } from '@/components/seller/SellerPlaybook';
+import { StrategyAnalytics } from '@/components/seller/StrategyAnalytics';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { DailySubmission, Analysis } from '@/types';
@@ -293,6 +294,9 @@ export default function SellerDashboard() {
                             })()}
                         </motion.div>
                     )}
+
+                    {/* Strategy A vs B Analytics */}
+                    <StrategyAnalytics />
 
                     {/* Daily Progress vs. Yesterday */}
                     {submissions.length >= 2 && (
