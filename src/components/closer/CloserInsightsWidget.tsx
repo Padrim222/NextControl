@@ -82,7 +82,7 @@ export function CloserInsightsWidget() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 px-2 text-xs border border-solar/20 hover:bg-solar hover:text-deep-space"
-                                    onClick={() => navigate(`/closer/report?followup=${encodeURIComponent(item.prospect_name)}`)}
+                                    onClick={() => navigate(`/seller/report?followup=${encodeURIComponent(item.prospect_name)}`)}
                                 >
                                     Agendar <ChevronRight className="h-3.5 w-3.5 ml-1" />
                                 </Button>
