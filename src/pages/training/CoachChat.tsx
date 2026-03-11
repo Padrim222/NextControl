@@ -20,6 +20,12 @@ import {
     ChevronDown,
     ChevronUp,
     Zap,
+    Paperclip,
+    X,
+    Instagram,
+    MessageCircle,
+    Linkedin,
+    Image as ImageIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { CoachInteraction } from '@/types';
@@ -28,6 +34,7 @@ interface ChatMessage {
     id: string;
     role: 'user' | 'assistant';
     content: string;
+    image_url?: string;
     timestamp: Date;
 }
 
@@ -58,8 +65,11 @@ export default function CoachChat() {
     const [isLoading, setIsLoading] = useState(false);
     const [showContext, setShowContext] = useState(false);
     const [aiContext, setAiContext] = useState<Record<string, any> | null>(null);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [selectedChannel, setSelectedChannel] = useState<'instagram' | 'whatsapp' | 'linkedin'>('whatsapp');
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const sellerType = user?.seller_type || 'seller';
 
@@ -103,16 +113,19 @@ export default function CoachChat() {
     };
 
     const sendMessage = async (text: string) => {
-        if (!text.trim() || !user) return;
+        if ((!text.trim() && !selectedImage) || !user) return;
 
+        const currentImage = selectedImage;
         const userMsg: ChatMessage = {
             id: `u-${Date.now()}`,
             role: 'user',
             content: text.trim(),
+            ...(currentImage ? { image_url: currentImage } : {}),
             timestamp: new Date(),
         };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
+        setSelectedImage(null);
         setIsLoading(true);
 
         try {
@@ -128,6 +141,8 @@ export default function CoachChat() {
                 body: {
                     seller_id: user.id,
                     message: text.trim(),
+                    channel: selectedChannel,
+                    ...(currentImage ? { image_base64: currentImage } : {}),
                     conversation_history: conversationHistory.slice(-10),
                 },
             });
@@ -183,6 +198,28 @@ export default function CoachChat() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         sendMessage(input);
+    };
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('A imagem deve ter no máximo 5MB.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64String = reader.result as string;
+            setSelectedImage(base64String);
+        };
+        reader.readAsDataURL(file);
+        
+        // Reset input value to allow selecting the same file again
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     return (
@@ -302,11 +339,22 @@ export default function CoachChat() {
                             </div>
 
                             {/* Bubble */}
-                            <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'assistant'
-                                ? 'bg-card nc-card-border text-foreground rounded-tl-md'
-                                : 'nc-gradient text-deep-space rounded-tr-md'
-                                }`}>
-                                {msg.content}
+                            <div className={`max-w-[80%] flex flex-col gap-2 ${
+                                msg.role === 'assistant' ? 'items-start' : 'items-end'
+                            }`}>
+                                {msg.image_url && (
+                                    <div className="rounded-lg overflow-hidden border border-border/50 max-w-[250px] sm:max-w-sm">
+                                        <img src={msg.image_url} alt="Anexo do usuário" className="w-full h-auto object-contain" />
+                                    </div>
+                                )}
+                                {msg.content && (
+                                    <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'assistant'
+                                        ? 'bg-card nc-card-border text-foreground rounded-tl-md'
+                                        : 'nc-gradient text-deep-space rounded-tr-md'
+                                        }`}>
+                                        {msg.content}
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     ))}
@@ -351,26 +399,113 @@ export default function CoachChat() {
                 </div>
             )}
 
-            {/* Input */}
-            <form onSubmit={handleSubmit} className="p-3 border-t border-border">
-                <div className="flex gap-2">
+            {/* Input Area */}
+            <div className="border-t border-border bg-background p-3 flex flex-col gap-2">
+                
+                {/* Channel Selector */}
+                <div className="flex gap-2 items-center px-1 mb-1">
+                    <span className="text-xs text-muted-foreground mr-1">Canal:</span>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedChannel('whatsapp')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            selectedChannel === 'whatsapp' 
+                            ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30' 
+                            : 'bg-muted/50 text-muted-foreground hover:bg-muted border border-transparent'
+                        }`}
+                    >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        WhatsApp
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedChannel('instagram')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            selectedChannel === 'instagram' 
+                            ? 'bg-pink-500/15 text-pink-500 border border-pink-500/30' 
+                            : 'bg-muted/50 text-muted-foreground hover:bg-muted border border-transparent'
+                        }`}
+                    >
+                        <Instagram className="w-3.5 h-3.5" />
+                        Instagram
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedChannel('linkedin')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            selectedChannel === 'linkedin' 
+                            ? 'bg-blue-500/15 text-blue-500 border border-blue-500/30' 
+                            : 'bg-muted/50 text-muted-foreground hover:bg-muted border border-transparent'
+                        }`}
+                    >
+                        <Linkedin className="w-3.5 h-3.5" />
+                        LinkedIn
+                    </button>
+                </div>
+
+                {/* Image Preview */}
+                <AnimatePresence>
+                    {selectedImage && (
+                        <motion.div 
+                            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                            animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
+                            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                            className="relative self-start"
+                        >
+                            <div className="relative group rounded-lg overflow-hidden border border-border bg-muted/30 w-24 h-24">
+                                <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        className="h-6 w-6 rounded-full"
+                                        onClick={() => setSelectedImage(null)}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+                    <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleImageSelect}
+                    />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 h-10 w-10 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isLoading}
+                        title="Anexar print da conversa"
+                    >
+                        <Paperclip className="h-5 w-5" />
+                    </Button>
                     <Input
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Pergunte ao seu treinador..."
+                        placeholder="Pergunte ao seu treinador ou cole um print..."
                         className="flex-1 nc-input-glow"
                         disabled={isLoading}
                     />
                     <Button
                         type="submit"
-                        disabled={!input.trim() || isLoading}
-                        className="nc-btn-primary px-4"
+                        disabled={(!input.trim() && !selectedImage) || isLoading}
+                        className="nc-btn-primary px-4 shrink-0"
                     >
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </Button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     );
 }

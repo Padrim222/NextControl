@@ -9,7 +9,9 @@ const corsHeaders = {
 interface ChatRequest {
     seller_id: string
     message: string
-    conversation_history?: { role: string; content: string }[]
+    image_base64?: string
+    channel?: 'instagram' | 'whatsapp' | 'linkedin'
+    conversation_history?: { role: string; content: string | any[] }[]
 }
 
 interface SellerContext {
@@ -138,38 +140,66 @@ async function buildSellerContext(supabase: any, sellerId: string): Promise<Sell
         weekly_trend: weeklyTrend,
     }
 }
+async function fetchRAGContext(supabase: any, sellerId: string, message: string): Promise<string> {
+    if (!message || message.trim() === '') return '';
 
-async function fetchRAGContext(supabase: any, sellerId: string): Promise<string> {
     try {
-        const { data: clientData } = await supabase
-            .from('clients')
-            .select('id, name')
-            .or(`assigned_seller_id.eq.${sellerId},assigned_closer_id.eq.${sellerId}`)
-            .maybeSingle();
+        const openaiKey = Deno.env.get('OPENAI_API_KEY');
+        if (!openaiKey) return ''; // fallback silencioso se não tiver chave configurada no Deno
 
-        if (clientData) {
-            const { data: materials } = await supabase
-                .from('client_materials')
-                .select('title, description')
-                .eq('client_id', clientData.id)
-                .eq('is_rag_active', true);
+        // 1. Gerar embedding do input do usuário para Similaridade Semântica
+        const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${openaiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                input: message,
+                model: 'text-embedding-3-small',
+            })
+        });
 
-            if (materials && materials.length > 0) {
-                return "\n\n=== CONTEXTO DA BASE DE CONHECIMENTO DO CLIENTE (" + clientData.name + ") ===\n" +
-                    materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/REGRAS: ${m.description || 'Sem descrição'}`).join('\n\n') +
-                    "\n=======================================\n\nUse estritamente as informações acima para embasar sua resposta estratégica.";
-            }
-        }
+        if (!embeddingResponse.ok) return '';
+        
+        const embeddingData = await embeddingResponse.json();
+        const queryEmbedding = embeddingData.data[0].embedding;
+
+        // 2. Buscar no Vector DB via pgvector
+        const { data: chunks, error } = await supabase.rpc('match_materials', {
+            query_embedding: queryEmbedding,
+            match_threshold: 0.5,
+            match_count: 5,
+            p_seller_id: sellerId
+        });
+
+        if (error || !chunks || chunks.length === 0) return '';
+
+        // Prioriza as regras NPQC (Metodologia Master) no topo do contexto
+        chunks.sort((a: any, b: any) => a.material_type === 'metodologia_master' ? -1 : 1);
+
+        const contextText = chunks.map((c: any) => 
+            `* TIPO DE DOC: ${c.material_type === 'metodologia_master' ? 'REGRA MESTRE NPQC' : 'INFO/PRODUTO CLIENTE'}\n* FRAGMENTO: ${c.content}`
+        ).join('\n\n---\n\n');
+
+        return `\n\n=== CONTEXTO DA BASE DE CONHECIMENTO RETORNADO PELO RAG VECTOR ===\n${contextText}\n=======================================\n\nUse estritamente as diretrizes textuais acima para embasar sua estratégia de direcionar e analisar a conversa da venda, dando prioridade para as Regras Mestres.`;
+
     } catch (e) {
-        console.warn('RAG fetch failed:', e);
+        console.error('Vector DB Fetch Error:', e);
     }
-    return "";
+    return '';
 }
 
-function buildSystemPrompt(ctx: SellerContext, ragContext: string): string {
+function buildSystemPrompt(ctx: SellerContext, ragContext: string, channel?: string): string {
     const roleDescription = ctx.seller_type === 'closer'
-        ? 'Seu foco é técnicas de fechamento, calls, contorno de objeções e taxa de conversão.'
-        : 'Seu foco é prospecção, abordagem via social selling, follow-up e geração de oportunidades.'
+        ? 'Seu foco é diagnosticar na profundeza, aplicar técnicas de fechamento em CRM, contorno de objeções severas e aumentar a conversão.'
+        : 'Seu foco é prospecção agressiva em out/inbound, abordagem via social selling, instigar dor inicial e gerar oportunidades/agendamentos.'
+
+    const channelTone = channel === 'instagram' 
+        ? 'Tom do Canal (Instagram): Direto, alta energia (vibe), visual, poucas palavras, uso pontual de emoções/conexão.'
+        : channel === 'linkedin' 
+        ? 'Tom do Canal (LinkedIn): Business, consultivo, executivo, focado em networking de alto nível e dor de negócio.'
+        : 'Tom do Canal (WhatsApp): Proximidade, cadência rítmica, familiaridade, foco em parceria rápida.'
 
     const metricsSection = Object.keys(ctx.today_metrics).length > 0
         ? `\nMÉTRICAS DE HOJE:\n${Object.entries(ctx.today_metrics).map(([k, v]) => {
@@ -198,13 +228,26 @@ function buildSystemPrompt(ctx: SellerContext, ragContext: string): string {
         unknown: '',
     }[ctx.weekly_trend]
 
-    return `Você é o Treinador de Bolso, um coach de vendas IA da Nextbase 360.
-Tom: informal mas profissional, como um mentor de vendas experiente.
-Idioma: Português BR.
+    return `Você é o Treinador de Bolso, o estrategista sênior IA da Nextbase 360, baseado nos frameworks avançados de vendas.
+Tom: Mentor rigoroso mas parceiro. NUNCA clichê. ${channel ? channelTone : ''}
+Idiomas: Português BR.
 ${roleDescription}
 
-CONTEXTO DO VENDEDOR:
-- Tipo: ${ctx.seller_type}
+<<< CADEIA DE PENSAMENTO OBRIGATÓRIA (NPQC) >>>
+Antes de responder ao vendedor, você DEVE rodar este processo mental silencioso (ou escreva rapidamente sua análise interna antes de dar o script final):
+1. PENSAMENTO: Em qual etapa do funil/NPQC este lead se encontra? (Estrela Norte, Situação Atual, Objeção, Fechamento).
+2. TÁTICA SS: Se a role for SS, o foco é cavar a "Estrela Norte" (o real desejo do lead) e fazer a transição para a call.
+3. TÁTICA CLOSER: Se a role for Closer, o foco é construir a "Situação Atual" cavando a dor e a implicação financeira antes de mostrar a solução.
+
+⛔ REGRA INQUEBRÁVEL DE CONDUTA (CHICOTE): 
+É ESTRITAMENTE PROIBIDO sugerir pitches extensos, envio de links de pagamento ou fechamento se não tivermos certeza que a fase de "Situação Atual" (a real dor do cliente) foi mapeada na conversa. Se o cliente perguntar "quanto custa?", você DEVE orientar o vendedor a devolver com uma pergunta de diagnóstico baseada nos arquivos PDF/RAG.
+
+INSTRUÇÕES PARA ANÁLISE DE IMAGENS (PRINTS):
+- Se receber uma imagem de uma conversa (WhatsApp/Instagram), avalie o script, o tom, se a abordagem foi boa e o que o vendedor poderia ter respondido para quebrar objeções. Seja direto nos exemplos do que dizer adaptando ao Canal (Insta/Wpp/In).
+- Se receber a imagem de perfil de um lead, crie uma recomendação de "Quebra-Gelo" e apresentação do produto conectando com os RAGs fornecidos.
+
+CONTEXTO DO VENDEDOR ATUAL:
+- Tipo / Role: ${ctx.seller_type}
 - Scores recentes: ${ctx.recent_scores.length ? ctx.recent_scores.join(', ') : 'Ainda sem avaliações'}
 - Pontos fortes: ${ctx.strengths.length ? ctx.strengths.join(', ') : 'Ainda sem dados'}
 - Áreas de melhoria: ${ctx.weaknesses.length ? ctx.weaknesses.join(', ') : 'Ainda sem dados'}
@@ -213,14 +256,12 @@ ${trendBadge ? `- ${trendBadge}` : ''}
 ${metricsSection}${callSection}${strategySection}${activeSection}${ragContext}
 
 REGRAS:
-1. NUNCA recomende estratégias que já foram descartadas
-2. Cite métricas REAIS do vendedor — números do dia, deltas, scores de calls
-3. Se o vendedor tem tendência de queda, priorize diagnóstico antes de novas estratégias
-4. Quando sugerir nova estratégia, pergunte se quer registrar no strategy log
-5. Máximo 300 palavras por resposta
-6. Seja acionável: passos concretos, não teoria genérica
-7. Use emojis com moderação
-8. Sempre termine com pergunta ou próximo passo`
+1. Respeite as Diretrizes acima ("Regras e Pitches MESTRES" fornecidos no banco de conhecimento (RAG) têm precedência absoluta).
+2. NUNCA recomende estratégias que já foram descartadas.
+3. Se for uma análise de conversa de prospecção, foque no gancho (hook) para reter atenção.
+4. Máximo 400 palavras.
+5. Seja puramente acionável: escreva O QUE ELE DEVE DIGITAR pro lead.
+6. Sempre termine a avaliação com uma pergunta instigante ou próximo passo óbvio pro vendedor seguir.`
 }
 
 Deno.serve(async (req) => {
@@ -258,10 +299,10 @@ Deno.serve(async (req) => {
 
         const userRole = userData?.role || 'seller'
 
-        const { seller_id, message, conversation_history = [] } = await req.json() as ChatRequest
+        const { seller_id, message, image_base64, channel, conversation_history = [] } = await req.json() as ChatRequest
 
-        if (!message?.trim()) {
-            throw new Error('Message is required')
+        if (!message?.trim() && !image_base64) {
+            throw new Error('Message or image is required')
         }
 
         const effectiveSellerId = seller_id || user.id
@@ -296,8 +337,9 @@ Deno.serve(async (req) => {
             context.seller_type = 'admin'
         }
 
-        const ragContext = await fetchRAGContext(supabase, effectiveSellerId)
-        let systemPrompt = buildSystemPrompt(context, ragContext)
+        const queryText = message.trim() || 'estratégia de vendas abordagem objeções';
+        const ragContext = await fetchRAGContext(supabase, effectiveSellerId, queryText)
+        let systemPrompt = buildSystemPrompt(context, ragContext, channel)
 
         if (isAdmin && !seller_id) {
             systemPrompt = `Você é o Yorik, o Estrategista Head da Nextbase 360.
@@ -316,8 +358,19 @@ Seja acionável e fundamentado em metodologias como Receita Previsível, Challen
         const messages = [
             { role: 'system', content: systemPrompt },
             ...conversation_history.slice(-10),
-            { role: 'user', content: message.trim() },
         ]
+
+        if (image_base64) {
+            messages.push({
+                role: 'user',
+                content: [
+                    { type: 'text', text: message.trim() || 'Analise a imagem em anexo com base no seu contexto.' },
+                    { type: 'image_url', image_url: { url: image_base64 } }
+                ]
+            })
+        } else {
+            messages.push({ role: 'user', content: message.trim() })
+        }
 
         const apiKey = Deno.env.get('OPENROUTER_API_KEY')
         if (!apiKey) {

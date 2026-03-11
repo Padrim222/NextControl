@@ -22,6 +22,7 @@ import CSInbox from "@/pages/cs/CSInbox";
 import TrainingHub from "@/pages/training/TrainingHub";
 import CoachChat from "@/pages/training/CoachChat";
 import RagManager from "@/pages/admin/RagManager";
+import IntelligenceHub from "@/pages/admin/IntelligenceHub";
 import CallsPipeline from "@/pages/admin/CallsPipeline";
 import BetaManagement from "@/pages/admin/BetaManagement";
 import WeeklyReportPage from "@/pages/client/WeeklyReportPage";
@@ -145,6 +146,16 @@ const App = () => (
                 <RoleGuard allowedRoles={['admin']}>
                   <DashboardLayout>
                     <RagManager />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/admin/hub"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <IntelligenceHub />
                   </DashboardLayout>
                 </RoleGuard>
               }
