@@ -33,8 +33,8 @@ const AppSidebar = () => {
       {/* Brand */}
       <div className="p-6 border-b border-[#E5E7EB]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#1B2B4A] flex items-center justify-center shadow-sm">
-            <Sparkles size={20} color="#E6B84D" />
+          <div className="w-10 h-10 rounded-xl bg-[#E6B84D] flex items-center justify-center shadow-sm">
+            <Sparkles size={20} color="#1B2B4A" />
           </div>
           <div>
             <h1 className="font-display text-lg font-bold text-[#1B2B4A] tracking-tight">Level Up</h1>
@@ -44,7 +44,7 @@ const AppSidebar = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         <p className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
           Principal
         </p>

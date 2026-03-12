@@ -90,6 +90,9 @@ export const Loader2 = createIcon(HeroIcons.ArrowPathIcon);
 export const EyeOff = createIcon(HeroIcons.EyeSlashIcon);
 export const Copy = createIcon(HeroIcons.DocumentDuplicateIcon);
 
+export const GraduationCap = createIcon(HeroIcons.AcademicCapIcon);
+export const Sparkles = createIcon(HeroIcons.SparklesIcon);
+
 export const Rocket = createIcon(HeroIcons.RocketLaunchIcon);
 export const ShieldCheck = createIcon(HeroIconsSolid.ShieldCheckIcon);
 export const StarSolid = createIcon(HeroIconsSolid.StarIcon);

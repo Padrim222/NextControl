@@ -24,9 +24,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 39% 11%;
     
-    /* Navy (#1B2B4A) primary */
-    --primary: 219 47% 20%;
-    --primary-foreground: 0 0% 100%;
+    /* Solar Gold (#E6B84D) primary */
+    --primary: 42 75% 60%;
+    --primary-foreground: 219 47% 20%;
     
     /* Secondary surface */
     --secondary: 210 40% 96.1%;
@@ -36,9 +36,9 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     
-    /* Accent (Solar Gold) */
-    --accent: 42 75% 60%;
-    --accent-foreground: 219 47% 20%;
+    /* Accent (Navy) */
+    --accent: 219 47% 20%;
+    --accent-foreground: 0 0% 100%;
     
     /* Destructive */
     --destructive: 0 84.2% 60.2%;
@@ -93,9 +93,9 @@
      ============================ */
 
   /* Legacy aliases to prevent crashes */
-  .sf-gradient { background: #1B2B4A; color: white; }
-  .sf-gradient-text { color: #1B2B4A; }
-  .nc-gradient-text { color: #1B2B4A; }
+  .sf-gradient { background: #E6B84D; color: #1B2B4A; font-weight: 600; border: none; }
+  .sf-gradient-text { color: #E6B84D; font-weight: 700; }
+  .nc-gradient-text { color: #E6B84D; font-weight: 700; }
 
   /* Cards */
   .nc-card {
@@ -113,18 +113,18 @@
 
   /* Buttons */
   .nc-btn-primary {
-    background: #1B2B4A;
-    color: #FFFFFF;
+    background: #E6B84D;
+    color: #1B2B4A;
     border-radius: 8px;
-    font-weight: 600;
+    font-weight: 700;
     transition: all 200ms ease;
-    box-shadow: 0 1px 2px rgba(27, 43, 74, 0.1);
+    box-shadow: 0 1px 2px rgba(230, 184, 77, 0.3);
   }
 
   .nc-btn-primary:hover {
-    background: #15223A;
+    background: #F0D878; /* lighter gold hover */
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(27, 43, 74, 0.15);
+    box-shadow: 0 4px 6px rgba(230, 184, 77, 0.4);
   }
 
   .nc-btn-primary:active {
@@ -133,8 +133,8 @@
 
   /* Inputs */
   .nc-input-glow:focus {
-    border-color: #1B2B4A;
-    box-shadow: 0 0 0 3px rgba(27, 43, 74, 0.08);
+    border-color: #E6B84D;
+    box-shadow: 0 0 0 3px rgba(230, 184, 77, 0.2);
     outline: none;
   }
 
@@ -183,9 +183,10 @@
 
   /* Active Sidebar Item */
   .nc-sidebar-active {
-    background: #F3F4F6; /* Gray 100 */
+    background: #FFFBEB; /* Soft Yellow background */
     color: #1B2B4A;
     font-weight: 600;
+    border-left: 3px solid #E6B84D;
   }
 
   .nc-sidebar-active svg {
