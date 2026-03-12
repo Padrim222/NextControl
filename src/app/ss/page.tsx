@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AgentChat, AgentChatMessage } from '../../components/chat/AgentChat';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 export default function SSAgentPage() {
   const [messages, setMessages] = useState<AgentChatMessage[]>([
@@ -23,7 +25,11 @@ export default function SSAgentPage() {
   };
 
   const handleSendMessage = async (text: string, imageFile?: File) => {
-    // Helper to push msg
+    if (!supabase) {
+      toast.error('Supabase não conectado');
+      return;
+    }
+
     const pushMsg = (msg: AgentChatMessage) => setMessages(prev => [...prev, msg]);
 
     let base64Image = '';
@@ -41,36 +47,33 @@ export default function SSAgentPage() {
     setIsLoading(true);
 
     try {
-      // Logic for automatic capability detection
       let activeCapability = capability;
       const lowerText = text.toLowerCase();
       if (imageFile && lowerText.includes('objeção')) activeCapability = 'break-objection';
       else if (lowerText.includes('objeção') || lowerText.includes('caro ') || lowerText.includes('não tenho ')) activeCapability = 'break-objection';
       else if (lowerText.includes('disparo')) activeCapability = 'post-dispatch';
 
-      const payload = {
-        capability: activeCapability,
-        channel: channel,
-        input_type: imageFile ? 'image' : 'text',
-        input_data: imageFile ? base64Image : text,
-      };
+      const { data, error } = await (supabase as any).functions.invoke('ss-agent', {
+        body: {
+          capability: activeCapability,
+          channel,
+          input_type: imageFile ? 'image' : 'text',
+          input_data: imageFile ? base64Image : text,
+        }
+      });
 
-      // Mock/Edge Function call simulation
-      // const res = await fetch(\`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ss-agent\`, {...})
-      // const data = await res.json();
-      
-      setTimeout(() => {
-        pushMsg({
-          id: Math.random().toString(36).substring(7),
-          role: 'assistant',
-          content: \`**[Simulação SS Action: \${activeCapability} via \${channel}]**\\n\\nAqui estão as 3 abordagens curtas validadas pela metodologia.\\n\\n1. [Opção A]\\n2. [Opção B]\\n3. [Opção C]\`,
-        });
-        setIsLoading(false);
-      }, 1500);
+      if (error) throw error;
 
-    } catch (e) {
-      console.error(e);
-      pushMsg({ id: 'error', role: 'assistant', content: 'Erro ao processar', isWarning: true});
+      pushMsg({
+        id: Math.random().toString(36).substring(7),
+        role: 'assistant',
+        content: data.answer,
+        isWarning: data.warning || false,
+      });
+    } catch (e: any) {
+      console.error('SS Agent Error:', e);
+      pushMsg({ id: 'error', role: 'assistant', content: `Erro ao processar: ${e.message || 'Tente novamente.'}`, isWarning: true });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -83,11 +86,11 @@ export default function SSAgentPage() {
         <div className="space-y-2">
           <label className="text-sm font-semibold text-slate-600 block">Canal Base:</label>
           <div className="flex gap-2">
-            {['whatsapp', 'instagram', 'linkedin'].map(c => (
+            {(['whatsapp', 'instagram', 'linkedin'] as const).map(c => (
               <button
                 key={c}
-                onClick={() => setChannel(c as any)}
-                className={\`px-3 py-1 rounded-full text-xs font-semibold \${channel === c ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}\`}
+                onClick={() => setChannel(c)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${channel === c ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
               >
                 {c.toUpperCase()}
               </button>

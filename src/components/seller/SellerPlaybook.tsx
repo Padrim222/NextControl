@@ -30,7 +30,7 @@ export function SellerPlaybook() {
     const fetchPlaybook = async () => {
         setIsLoading(true);
         const { data, error } = await (supabase as any)
-            .from('seller_playbooks')
+            .from('seller_scripts')
             .select('*')
             .eq('user_id', user?.id)
             .order('created_at', { ascending: false });
@@ -45,7 +45,7 @@ export function SellerPlaybook() {
         e.preventDefault();
         if (!user) return;
 
-        const { error } = await (supabase as any).from('seller_playbooks').insert({
+        const { error } = await (supabase as any).from('seller_scripts').insert({
             user_id: user.id,
             type: newType,
             title: newTitle,
@@ -65,7 +65,7 @@ export function SellerPlaybook() {
 
     const handleDelete = async (id: string) => {
         const { error } = await (supabase as any)
-            .from('seller_playbooks')
+            .from('seller_scripts')
             .delete()
             .eq('id', id);
 

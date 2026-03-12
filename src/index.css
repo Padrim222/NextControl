@@ -1,112 +1,65 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================
-   NEXTBASE 360 — ELEVATION SYSTEM
-   Design: Jean-Pierre Ponaroff
-   
+   NEXTBASE 360 — LIGHT MODE DESIGN SYSTEM
    Palette:
-   Solar Dust    #E6B84D  (primary gold)
-   Amber Shadow  #B8941D  (hover/dark accent)
-   Amber Glow    rgba(230,184,77,0.15)
-   Deep Space    #0A0B0D  (background)
-   Graphite Soft #1C1D21  (card surface)
-   Platinum Mist #F0F0F2  (primary text)
-   Silver Chalice #8B8C91 (secondary text)
+   Navy Primary    #1B2B4A
+   Solar Gold      #E6B84D
+   Background      #FAFAFA
+   Card Surface    #FFFFFF
+   Text Primary    #111827
+   Text Secondary  #4B5563
    ============================================ */
 
 @layer base {
   :root {
-    /* Light mode (secondary) — Warm professional */
-    --background: 40 10% 97%;
-    --foreground: 40 10% 8%;
-    --card: 0 0% 100%;
-    --card-foreground: 40 10% 8%;
+    --background: 0 0% 98%; /* #FAFAFA */
+    --foreground: 220 39% 11%; /* #111827 */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 220 39% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 40 10% 8%;
-    --primary: 42 75% 55%;
-    --primary-foreground: 0 0% 6%;
-    --secondary: 40 8% 92%;
-    --secondary-foreground: 40 10% 8%;
-    --muted: 40 8% 92%;
-    --muted-foreground: 40 5% 45%;
-    --accent: 42 75% 55%;
-    --accent-foreground: 0 0% 6%;
-    --destructive: 0 45% 38%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 40 8% 88%;
-    --input: 40 8% 88%;
-    --ring: 42 75% 55%;
-    --radius: 0.5rem;
+    --popover-foreground: 220 39% 11%;
+    
+    /* Navy (#1B2B4A) primary */
+    --primary: 219 47% 20%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary surface */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    
+    /* Muted */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    /* Accent (Solar Gold) */
+    --accent: 42 75% 60%;
+    --accent-foreground: 219 47% 20%;
+    
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Border & Inputs */
+    --border: 214.3 31.8% 91.4%; /* #E5E7EB */
+    --input: 214.3 31.8% 91.4%;
+    --ring: 219 47% 20%; /* Navy */
+    
+    --radius: 0.75rem; /* 12px for cards */
 
     /* Sidebar */
-    --sidebar-background: 40 10% 97%;
-    --sidebar-foreground: 40 5% 40%;
-    --sidebar-primary: 42 75% 55%;
-    --sidebar-primary-foreground: 0 0% 6%;
-    --sidebar-accent: 42 60% 90%;
-    --sidebar-accent-foreground: 42 75% 25%;
-    --sidebar-border: 40 8% 88%;
-    --sidebar-ring: 42 75% 55%;
-
-    /* Next Control semantic */
-    --nc-success: 142 50% 35%;
-    --nc-warning: 38 80% 50%;
-    --nc-info: 200 70% 40%;
-    --nc-error: 0 45% 38%;
-    --nc-glow: 42 75% 55%;
-  }
-
-  .dark {
-    /* DARK MODE — Jean-Pierre Ponaroff Spec */
-    /* Deep Space background: #0A0B0D → hsl(225, 16%, 4%) */
-    --background: 225 16% 4%;
-    /* Platinum Mist text: #F0F0F2 → hsl(240, 7%, 95%) */
-    --foreground: 240 7% 95%;
-    /* Graphite Soft cards: #1C1D21 → hsl(225, 10%, 12%) */
-    --card: 225 10% 12%;
-    --card-foreground: 240 7% 95%;
-    --popover: 225 10% 12%;
-    --popover-foreground: 240 7% 95%;
-    /* Solar Dust primary: #E6B84D → hsl(42, 75%, 60%) */
-    --primary: 42 75% 60%;
-    /* Deep Space foreground on primary buttons */
-    --primary-foreground: 225 16% 4%;
-    /* Secondary surface */
-    --secondary: 225 12% 15%;
-    --secondary-foreground: 240 7% 90%;
-    --muted: 225 12% 15%;
-    /* Silver Chalice: #8B8C91 → hsl(230, 2%, 55%) */
-    --muted-foreground: 230 2% 55%;
-    --accent: 42 75% 60%;
-    --accent-foreground: 225 16% 4%;
-    /* Earthy red: #8B3A3A */
-    --destructive: 0 45% 38%;
-    --destructive-foreground: 240 7% 95%;
-    /* Border: subtle white */
-    --border: 225 10% 16%;
-    --input: 225 10% 16%;
-    --ring: 42 75% 60%;
-
-    /* Sidebar — Jean-Pierre spec: Dark sidebar */
-    --sidebar-background: 225 16% 5%;
-    --sidebar-foreground: 230 2% 55%;
-    --sidebar-primary: 42 75% 60%;
-    --sidebar-primary-foreground: 225 16% 4%;
-    --sidebar-accent: 42 20% 16%;
-    --sidebar-accent-foreground: 42 75% 85%;
-    --sidebar-border: 225 10% 14%;
-    --sidebar-ring: 42 75% 60%;
-
-    /* Next Control semantic */
-    --nc-success: 142 50% 40%;
-    --nc-warning: 38 80% 50%;
-    --nc-info: 200 70% 50%;
-    --nc-error: 0 55% 45%;
-    --nc-glow: 42 75% 60%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215.4 16.3% 46.9%;
+    --sidebar-primary: 219 47% 20%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 219 47% 20%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 219 47% 20%;
   }
 }
 
@@ -119,32 +72,18 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 
-  /* Force dark mode as Nextbase 360 default */
-  html {
-    @apply dark;
-  }
-
-  /* Typography refinements — Jean-Pierre spec */
-  h1,
-  h2 {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     letter-spacing: -0.02em;
+    font-weight: 700;
   }
 
-  h3,
-  h4,
-  h5,
-  h6,
-  p,
-  span,
-  div {
-    letter-spacing: 0.01em;
+  p, span, div, label, input, button {
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 
-  /* Monospace for data/metrics */
   .font-mono {
     font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-    font-weight: 500;
   }
 }
 
@@ -153,367 +92,152 @@
      NEXTBASE 360 UTILITY CLASSES
      ============================ */
 
-  /* Primary gradient — Solar Dust to Amber Shadow (135deg) */
-  .nc-gradient {
-    background: linear-gradient(135deg, #E6B84D 0%, #B8941D 100%);
-    color: #0A0B0D;
-  }
+  /* Legacy aliases to prevent crashes */
+  .sf-gradient { background: #1B2B4A; color: white; }
+  .sf-gradient-text { color: #1B2B4A; }
+  .nc-gradient-text { color: #1B2B4A; }
 
-  /* Gradient text */
-  .nc-gradient-text {
-    background: linear-gradient(135deg, #E6B84D 0%, #C99E2C 50%, #F0D878 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Card glow — subtle Solar Dust halo */
-  .nc-card-glow {
-    box-shadow: 0 0 20px -5px hsl(var(--nc-glow) / 0.12);
-  }
-
-  /* Card hover — Jean-Pierre physics: translateY(-2px) + glow */
-  .nc-card-hover {
-    @apply transition-all duration-300;
+  /* Cards */
+  .nc-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: all 200ms ease;
   }
 
   .nc-card-hover:hover {
-    box-shadow: 0 8px 24px -6px hsl(var(--nc-glow) / 0.2);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   }
 
-  .nc-card-hover:active {
-    transform: scale(0.98);
-    transition-duration: 100ms;
-  }
-
-  /* Card border glow on hover — the "fio de cabelo" effect */
-  .nc-card-border {
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
-  }
-
-  .nc-card-border:hover {
-    border-color: rgba(230, 184, 77, 0.4);
-    box-shadow: 0 0 16px -4px rgba(230, 184, 77, 0.15);
-  }
-
-  /* Input focus glow — Solar Dust wake-up */
-  .nc-input-glow:focus {
-    border-color: #E6B84D;
-    box-shadow: 0 0 0 3px rgba(230, 184, 77, 0.15);
-    outline: none;
-  }
-
-  /* Button primary — Jean-Pierre spec: gradient + shadow + physics */
+  /* Buttons */
   .nc-btn-primary {
-    background: linear-gradient(135deg, #E6B84D 0%, #C99E2C 100%);
-    color: #0A0B0D;
+    background: #1B2B4A;
+    color: #FFFFFF;
+    border-radius: 8px;
     font-weight: 600;
-    box-shadow: 0 4px 12px rgba(230, 184, 77, 0.25);
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 200ms ease;
+    box-shadow: 0 1px 2px rgba(27, 43, 74, 0.1);
   }
 
   .nc-btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(230, 184, 77, 0.4);
+    background: #15223A;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(27, 43, 74, 0.15);
   }
 
   .nc-btn-primary:active {
     transform: scale(0.98);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  /* Ghost button — Jean-Pierre spec */
-  .nc-btn-ghost {
-    background: transparent;
-    border: 1px solid rgba(230, 184, 77, 0.5);
-    color: #E6B84D;
-    transition: all 200ms ease-out;
+  /* Inputs */
+  .nc-input-glow:focus {
+    border-color: #1B2B4A;
+    box-shadow: 0 0 0 3px rgba(27, 43, 74, 0.08);
+    outline: none;
   }
 
-  .nc-btn-ghost:hover {
-    background: rgba(230, 184, 77, 0.15);
+  /* Labels */
+  .nc-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4B5563;
+    margin-bottom: 0.25rem;
+    display: block;
   }
 
-  /* Badge pill — Solar Dust status */
-  .nc-badge {
-    font-size: 12px;
+  /* Badges */
+  .nc-badge-success {
+    background: #ECFDF5;
+    color: #059669;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    background: rgba(230, 184, 77, 0.15);
-    color: #E6B84D;
-    padding: 2px 10px;
-    border-radius: 999px;
   }
 
-  /* Shimmer loading — Jean-Pierre spec */
-  .nc-shimmer {
-    background: linear-gradient(110deg,
-        #1C1D21 0%,
-        #25262A 40%,
-        #1C1D21 60%);
-    background-size: 200% 100%;
-    animation: nc-shimmer 1.5s ease-in-out infinite;
+  .nc-badge-error {
+    background: #FEF2F2;
+    color: #DC2626;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
-  /* Active sidebar item — 3px Solar Dust left border */
+  .nc-badge-warning {
+    background: #FFFBEB;
+    color: #D97706;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Active Sidebar Item */
   .nc-sidebar-active {
-    background: #1C1D21;
-    border-left: 3px solid #E6B84D;
+    background: #F3F4F6; /* Gray 100 */
+    color: #1B2B4A;
+    font-weight: 600;
   }
 
-  /* Sidebar hover — ghost background */
+  .nc-sidebar-active svg {
+    color: #E6B84D; /* Gold icon when active */
+  }
+
   .nc-sidebar-hover:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: #F9FAFB;
   }
 
-  /* Stagger animation for card entrance */
+  /* Animations */
   .nc-stagger {
     animation: nc-fade-slide-up 400ms cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
-  /* Score/metric display */
+  .nc-stagger-children > * {
+    animation: nc-fade-slide-up 400ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .nc-stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .nc-stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+  .nc-stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+  .nc-stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+  .nc-stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+
+  .fade-in { animation: nc-fade-in 300ms ease-out both; }
+  .scale-in { animation: nc-scale-in 200ms ease-out both; }
+
+  /* Misc */
   .nc-metric {
-    font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-    font-weight: 600;
-    color: #E6B84D;
-  }
-
-  /* Link underline animation — Jean-Pierre spec */
-  .nc-link {
-    position: relative;
-  }
-
-  .nc-link::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 0%;
-    height: 2px;
-    background: #E6B84D;
-    transition: width 200ms ease-out;
-  }
-
-  .nc-link:hover::after {
-    width: 100%;
-  }
-
-  /* Chart area gradient */
-  .nc-chart-area {
-    fill: url(#nc-chart-gradient);
-  }
-
-  /* Notification badge */
-  .nc-notification-badge {
-    background: #D64545;
-    color: white;
-    font-size: 11px;
-    border-radius: 50%;
-    min-width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: -4px;
-    right: -4px;
-  }
-
-  /* Legacy compatibility aliases */
-  .sf-gradient {
-    @apply nc-gradient;
-  }
-
-  .sf-gradient-text {
-    @apply nc-gradient-text;
-  }
-
-  .sf-card-glow {
-    @apply nc-card-glow;
-  }
-
-  .sf-card-hover {
-    @apply nc-card-hover;
-  }
-}
-
-/* Keyframe animations */
-@keyframes nc-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: #1B2B4A;
+    font-weight: 700;
   }
 }
 
 @keyframes nc-fade-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Chart gradient definition for SVG */
-svg defs .nc-gradient-stop-1 {
-  stop-color: #E6B84D;
-  stop-opacity: 0.3;
-}
-
-svg defs .nc-gradient-stop-2 {
-  stop-color: #E6B84D;
-  stop-opacity: 0;
-}
-
-/* Scrollbar styling for dark mode */
-.dark ::-webkit-scrollbar {
-  width: 8px;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: #0A0B0D;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #2A2B2F;
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #3A3B3F;
-}
-
-/* Toggle switch — Jean-Pierre spec */
-.nc-toggle[data-state="checked"] {
-  background: #E6B84D;
-}
-
-/* ============================
-   VISUAL POLISH ADDITIONS
-   Sprint 8 — Task 8.3
-   ============================ */
-
-/* Page entrance transition */
-.fade-in {
-  animation: nc-fade-in 300ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes nc-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Scale-in for modals and popovers */
-.scale-in {
-  animation: nc-scale-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes nc-scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-/* Skeleton with Solar tint */
-.nc-skeleton {
-  background: linear-gradient(110deg,
-    hsl(225 10% 12%) 0%,
-    hsl(42 20% 14%) 40%,
-    hsl(225 10% 12%) 60%);
-  background-size: 200% 100%;
-  animation: nc-shimmer 1.5s ease-in-out infinite;
-  border-radius: 0.375rem;
-}
-
-/* Breathing dot — live status */
-.nc-pulse {
-  animation: nc-breathe 2s ease-in-out infinite;
-}
-
-@keyframes nc-breathe {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.15); }
-}
-
-/* Floating label effect */
-.nc-float-label {
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nc-float-label:focus-within label,
-.nc-float-label:has(input:not(:placeholder-shown)) label {
-  transform: translateY(-20px) scale(0.85);
-  color: #E6B84D;
-}
-
-/* Glass morphism card */
-.nc-glass {
-  background: rgba(28, 29, 33, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-/* Stagger children animation */
-.nc-stagger-children > * {
-  animation: nc-fade-slide-up 400ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-.nc-stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.nc-stagger-children > *:nth-child(2) { animation-delay: 60ms; }
-.nc-stagger-children > *:nth-child(3) { animation-delay: 120ms; }
-.nc-stagger-children > *:nth-child(4) { animation-delay: 180ms; }
-.nc-stagger-children > *:nth-child(5) { animation-delay: 240ms; }
-.nc-stagger-children > *:nth-child(6) { animation-delay: 300ms; }
-
-/* Progress bar — smooth fill */
-.nc-progress-bar {
-  height: 4px;
-  border-radius: 2px;
-  background: hsl(225 10% 16%);
-  overflow: hidden;
-}
-
-.nc-progress-bar > div {
-  height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #E6B84D, #F0D878);
-  transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .fade-in,
-  .scale-in,
-  .nc-stagger,
-  .nc-pulse,
-  .nc-shimmer,
-  .nc-skeleton,
-  .nc-stagger-children > * {
-    animation: none !important;
-    transition: none !important;
-  }
-  
-  .nc-card-hover:hover {
-    transform: none;
-  }
-}
+/* Base scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #F3F4F6; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }

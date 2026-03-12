@@ -326,7 +326,7 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
 
             // 4.1 Playbook Sync (Optional)
             if (winningScript.trim() && supabase) {
-                await (supabase as any).from('seller_playbooks').insert({
+                await (supabase as any).from('seller_scripts').insert({
                     user_id: user.id,
                     type: 'script',
                     title: `Script do Dia - ${new Date().toLocaleDateString('pt-BR')}`,
@@ -335,7 +335,7 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
             }
 
             if (blacklistApproach.trim() && supabase) {
-                await (supabase as any).from('seller_playbooks').insert({
+                await (supabase as any).from('seller_scripts').insert({
                     user_id: user.id,
                     type: 'blacklist',
                     title: `Evitar (Blacklist) - ${new Date().toLocaleDateString('pt-BR')}`,
