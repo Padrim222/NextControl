@@ -200,10 +200,7 @@ export default function CoachChat() {
         sendMessage(input);
     };
 
-    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
+    const processFile = (file: File) => {
         if (file.size > 5 * 1024 * 1024) {
             alert('A imagem deve ter no máximo 5MB.');
             return;
@@ -215,6 +212,29 @@ export default function CoachChat() {
             setSelectedImage(base64String);
         };
         reader.readAsDataURL(file);
+    };
+
+    const handleInitialPaste = (e: React.ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    processFile(file);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        }
+    };
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        processFile(file);
         
         // Reset input value to allow selecting the same file again
         if (fileInputRef.current) {
@@ -493,7 +513,8 @@ export default function CoachChat() {
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Pergunte ao seu treinador ou cole um print..."
+                        onPaste={handleInitialPaste}
+                        placeholder="Pergunte ao seu treinador ou cole (Ctrl+V) um print..."
                         className="flex-1 nc-input-glow"
                         disabled={isLoading}
                     />
