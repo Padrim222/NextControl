@@ -14,9 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Space Grotesk", "system-ui", "sans-serif"],
-        mono: ["IBM Plex Mono", "JetBrains Mono", "monospace"],
+        sans: ["DM Sans", "system-ui", "sans-serif"],
+        display: ["Plus Jakarta Sans", "system-ui", "sans-serif"],
+        mono: ["DM Mono", "Fira Code", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -62,18 +62,30 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Nextbase 360 — Jean-Pierre Ponaroff palette
+        // Next Control brand palette — Navy + Gold
+        navy: {
+          DEFAULT: "#1B2B4A",
+          dark: "#141F35",
+          mid: "#2D4A7A",
+          light: "#EEF2F8",
+        },
+        gold: {
+          DEFAULT: "#E6B84D",
+          light: "#FEF9EC",
+          dark: "#B8941D",
+          muted: "#FDE68A",
+        },
+        // Legacy compat — solar maps to gold for old components
         solar: {
           DEFAULT: "#E6B84D",
           dark: "#B8941D",
           glow: "rgba(230, 184, 77, 0.15)",
-          muted: "#F0D878",
+          muted: "#FDE68A",
         },
-        "deep-space": "#0A0B0D",
-        graphite: "#1C1D21",
-        platinum: "#F0F0F2",
-        silver: "#8B8C91",
-        // Semantic status colors
+        "deep-space": "#FAFAFA",
+        graphite: "#F3F4F6",
+        platinum: "#1A1A1A",
+        silver: "#6B7280",
         nc: {
           success: "hsl(var(--nc-success))",
           warning: "hsl(var(--nc-warning))",

@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import {
@@ -11,16 +9,54 @@ import {
     TrendingUp,
     BarChart3,
     MessageSquare,
-    Calendar,
     CheckCircle,
     Clock,
     ChevronRight,
     Percent,
     AlertTriangle,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { useNavigate } from 'react-router-dom';
 import type { DailySubmission, Analysis, CloserMetrics } from '@/types';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
+
+const ds = {
+    bg: '#FAFAFA',
+    card: '#FFFFFF',
+    border: '1px solid #E5E7EB',
+    radius: '12px',
+    primary: '#1B2B4A',
+    accent: '#E6B84D',
+    textPrimary: '#1A1A1A',
+    textSecondary: '#6B7280',
+    textMuted: '#9CA3AF',
+    shadow: '0 1px 3px rgba(0,0,0,0.06)',
+    fontDisplay: 'Plus Jakarta Sans, system-ui, sans-serif',
+    fontBody: 'DM Sans, system-ui, sans-serif',
+};
+
+const cardStyle: React.CSSProperties = {
+    background: ds.card,
+    border: ds.border,
+    borderRadius: ds.radius,
+    boxShadow: ds.shadow,
+    fontFamily: ds.fontBody,
+};
+
+const labelStyle: React.CSSProperties = {
+    fontSize: '10px',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.1em',
+    color: ds.textMuted,
+    fontFamily: ds.fontBody,
+};
+
+const kpiNumStyle: React.CSSProperties = {
+    fontFamily: ds.fontDisplay,
+    fontWeight: 700,
+    fontSize: '30px',
+    color: ds.textPrimary,
+    lineHeight: 1,
+};
 
 export default function CloserDashboard() {
     const { user } = useAuth();
@@ -85,208 +121,314 @@ export default function CloserDashboard() {
         }, 0) / submissions.length).toFixed(1)
         : '—';
 
-    const stats = [
+    const greeting = (() => {
+        const h = new Date().getHours();
+        if (h < 12) return 'Bom dia';
+        if (h < 18) return 'Boa tarde';
+        return 'Boa noite';
+    })();
+
+    const firstName = user?.name?.split(' ')[0] || 'Closer';
+
+    const kpis = [
         {
             label: 'Calls (7d)',
-            value: totalCalls,
+            value: String(totalCalls),
             icon: Phone,
-            color: 'text-solar',
+            badge: null,
         },
         {
             label: 'Propostas (7d)',
-            value: totalProposals,
+            value: String(totalProposals),
             icon: Target,
-            color: 'text-nc-info',
+            badge: null,
         },
         {
             label: 'Vendas (7d)',
-            value: totalSales,
+            value: String(totalSales),
             icon: CheckCircle,
-            color: 'text-nc-success',
-        },
-        {
-            label: 'Status Hoje',
-            value: todaySubmitted ? 'Enviado ✓' : 'Pendente',
-            icon: todaySubmitted ? CheckCircle : Clock,
-            color: todaySubmitted ? 'text-nc-success' : 'text-nc-warning',
+            badge: totalSales > 0 ? 'positive' : 'neutral',
         },
         {
             label: 'Conversão Média',
             value: `${avgConversion}%`,
             icon: Percent,
-            color: 'text-nc-info',
+            badge: null,
         },
         {
             label: 'Último Score',
             value: latestAnalysis?.score ? `${latestAnalysis.score}/100` : '—',
             icon: Target,
-            color: 'text-solar',
+            badge: latestAnalysis?.score
+                ? latestAnalysis.score >= 70 ? 'positive' : latestAnalysis.score >= 50 ? 'neutral' : 'negative'
+                : null,
+        },
+        {
+            label: 'Status Hoje',
+            value: todaySubmitted ? 'Enviado' : 'Pendente',
+            icon: todaySubmitted ? CheckCircle : Clock,
+            badge: todaySubmitted ? 'positive' : 'negative',
         },
     ];
 
+    const getBadgeStyle = (type: string | null): React.CSSProperties => {
+        if (type === 'positive') return { background: '#ECFDF5', color: '#059669', padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 600 };
+        if (type === 'negative') return { background: '#FEF2F2', color: '#DC2626', padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 600 };
+        return { background: '#F3F4F6', color: '#9CA3AF', padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 600 };
+    };
+
+    const ghostBtnStyle: React.CSSProperties = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '8px 16px',
+        borderRadius: '8px',
+        border: '1px solid #E5E7EB',
+        background: '#FFFFFF',
+        color: ds.textPrimary,
+        fontSize: '14px',
+        fontWeight: 500,
+        fontFamily: ds.fontBody,
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+    };
+
+    const primaryBtnStyle: React.CSSProperties = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '8px 16px',
+        borderRadius: '8px',
+        border: 'none',
+        background: ds.primary,
+        color: '#FFFFFF',
+        fontSize: '14px',
+        fontWeight: 600,
+        fontFamily: ds.fontBody,
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+    };
+
     return (
-        <div className="space-y-6 max-w-4xl mx-auto">
+        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 0 32px', fontFamily: ds.fontBody }}>
+
             {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-between"
+                style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}
             >
                 <div>
-                    <h1 className="font-display text-2xl font-bold">
-                        Olá, <span className="nc-gradient-text">{user?.name?.split(' ')[0]}</span>
+                    <h1 style={{ fontFamily: ds.fontDisplay, fontSize: '26px', fontWeight: 700, color: ds.textPrimary, margin: 0 }}>
+                        {greeting},{' '}
+                        <span style={{ color: ds.primary }}>{firstName}</span>
                     </h1>
-                    <p className="text-muted-foreground text-sm mt-1">
+                    <p style={{ fontSize: '14px', color: ds.textSecondary, marginTop: '4px' }}>
                         {todaySubmitted
-                            ? '📞 Check-in de hoje enviado. Análise da call em andamento.'
-                            : '⏰ Registre suas calls do dia!'}
+                            ? 'Check-in de hoje enviado — análise de call em andamento.'
+                            : 'Registre suas calls do dia para manter o histórico atualizado.'}
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <Button onClick={() => navigate('/seller/evolution')} variant="outline" className="nc-btn-ghost">
-                        <TrendingUp className="h-4 w-4 mr-2" />
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button style={ghostBtnStyle} onClick={() => navigate('/seller/evolution')}>
+                        <TrendingUp size={16} strokeWidth={1.5} />
                         Evolução
-                    </Button>
-                    <Button onClick={() => navigate('/training/coach')} variant="outline" className="nc-btn-ghost">
-                        <MessageSquare className="h-4 w-4 mr-2" />
+                    </button>
+                    <button style={ghostBtnStyle} onClick={() => navigate('/training/coach')}>
+                        <MessageSquare size={16} strokeWidth={1.5} />
                         Consultoria
-                    </Button>
+                    </button>
+                    {!todaySubmitted && (
+                        <button style={primaryBtnStyle} onClick={() => navigate('/seller/report')}>
+                            <CheckCircle size={16} strokeWidth={1.5} />
+                            Check-in
+                        </button>
+                    )}
                 </div>
             </motion.div>
 
             {/* Pending Form Banner */}
             <FormPendingBanner formType="closer_daily" />
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {stats.map((stat, i) => (
+            {/* Priority CTA — shown FIRST when check-in not done */}
+            {!todaySubmitted && (
+                <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    onClick={() => navigate('/closer/report')}
+                    style={{
+                        background: 'linear-gradient(135deg, #1B2B4A 0%, #2D4A7A 100%)',
+                        borderRadius: '14px',
+                        padding: '20px 24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '20px',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 20px rgba(27,43,74,0.25)',
+                        marginBottom: '8px',
+                    }}
+                >
+                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(230,184,77,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Phone size={22} strokeWidth={1.5} style={{ color: '#E6B84D' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#E6B84D', marginBottom: '2px', fontFamily: ds.fontBody }}>
+                            Ação do Dia
+                        </p>
+                        <h3 style={{ fontFamily: ds.fontDisplay, fontSize: '17px', fontWeight: 700, color: '#FFFFFF', margin: '0 0 2px', lineHeight: 1.2 }}>
+                            Fazer o Check-in de Hoje
+                        </h3>
+                        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', margin: 0, fontFamily: ds.fontBody }}>
+                            Registre calls, conversão e upload de gravação
+                        </p>
+                    </div>
+                    <ChevronRight size={20} strokeWidth={1.5} style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                </motion.div>
+            )}
+
+            {/* KPI Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
+                {kpis.map((kpi, i) => (
                     <motion.div
-                        key={stat.label}
+                        key={kpi.label}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
+                        transition={{ delay: i * 0.07 }}
+                        style={cardStyle}
+                        className="kpi-card"
+                        onMouseEnter={e => {
+                            (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+                            (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.10)';
+                        }}
+                        onMouseLeave={e => {
+                            (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                            (e.currentTarget as HTMLElement).style.boxShadow = ds.shadow;
+                        }}
                     >
-                        <Card className="nc-card-border nc-card-hover bg-card">
-                            <CardContent className="pt-4 pb-4 px-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
-                                </div>
-                                <p className={`text-xl font-mono font-semibold ${stat.color}`}>
-                                    {stat.value}
-                                </p>
-                            </CardContent>
-                        </Card>
+                        <div style={{ padding: '16px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                <span style={labelStyle}>{kpi.label}</span>
+                                <kpi.icon size={16} strokeWidth={1.5} style={{ color: ds.textMuted }} />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
+                                <span style={kpiNumStyle}>{kpi.value}</span>
+                                {kpi.badge && (
+                                    <span style={getBadgeStyle(kpi.badge)}>
+                                        {kpi.badge === 'positive' ? '↑' : kpi.badge === 'negative' ? '↓' : '—'}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
                     </motion.div>
                 ))}
             </div>
 
-            {/* Daily Submission Entry */}
-            {!todaySubmitted && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-                    <Card
-                        className="nc-card-border nc-card-hover bg-card cursor-pointer group"
-                        onClick={() => navigate('/seller/report')}
-                    >
-                        <CardContent className="py-8 text-center">
-                            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-solar/10 mb-4 group-hover:bg-solar/20 transition-colors">
-                                <Phone className="h-7 w-7 text-solar" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-1">Check-in de Closer</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Registre calls, taxa de conversão e upload de gravação
-                            </p>
-                            <Button className="mt-4 nc-btn-primary">
-                                Começar <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            )}
-
-            {/* Latest Coach Feedback */}
+            {/* Latest Analysis Card */}
             {latestAnalysis && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-                    <Card className="nc-card-border bg-card">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-solar" />
-                                Última Análise de Call
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex items-center gap-4">
-                                <div className="text-center px-4 py-2 rounded-lg bg-solar/10">
-                                    <p className="text-2xl font-mono font-bold text-solar">{latestAnalysis.score}</p>
-                                    <p className="text-xs text-muted-foreground">Score</p>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    style={{ ...cardStyle, marginBottom: '24px' }}
+                >
+                    <div style={{ padding: '20px 20px 8px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <TrendingUp size={17} strokeWidth={1.5} style={{ color: ds.primary }} />
+                        <span style={{ fontFamily: ds.fontDisplay, fontSize: '15px', fontWeight: 700, color: ds.textPrimary }}>
+                            Última Análise de Call
+                        </span>
+                    </div>
+                    <div style={{ padding: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '16px' }}>
+                            <div style={{
+                                textAlign: 'center', padding: '12px 20px', borderRadius: '10px',
+                                background: '#FEF9EC', flexShrink: 0
+                            }}>
+                                <div style={{ fontFamily: ds.fontDisplay, fontSize: '28px', fontWeight: 700, color: ds.primary, lineHeight: 1 }}>
+                                    {latestAnalysis.score}
                                 </div>
-                                <p className="text-sm text-muted-foreground flex-1 line-clamp-3">
-                                    {latestAnalysis.content}
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 rounded-lg bg-nc-success/10 border border-nc-success/20">
-                                    <p className="text-xs font-medium text-nc-success mb-2 uppercase">Pontos Fortes</p>
-                                    <ul className="text-xs text-muted-foreground space-y-1">
-                                        {latestAnalysis.strengths?.slice(0, 3).map((s, i) => (
-                                            <li key={i} className="flex items-start gap-1.5">
-                                                <CheckCircle className="h-3 w-3 text-nc-success mt-0.5 shrink-0" />
-                                                {s}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div className="p-3 rounded-lg bg-nc-warning/10 border border-nc-warning/20">
-                                    <p className="text-xs font-medium text-nc-warning mb-2 uppercase">Melhorar</p>
-                                    <ul className="text-xs text-muted-foreground space-y-1">
-                                        {latestAnalysis.improvements?.slice(0, 3).map((s, i) => (
-                                            <li key={i} className="flex items-start gap-1.5">
-                                                <AlertTriangle className="h-3 w-3 text-nc-warning mt-0.5 shrink-0" />
-                                                {s}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                <div style={{ fontSize: '10px', textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: ds.textMuted, marginTop: '4px' }}>
+                                    Score
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                            <p style={{ fontSize: '14px', color: ds.textSecondary, lineHeight: 1.6, flex: 1, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                                {latestAnalysis.content}
+                            </p>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div style={{ padding: '14px', borderRadius: '10px', background: '#ECFDF5', border: '1px solid #A7F3D0' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: '#059669', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: '10px' }}>
+                                    Pontos Fortes
+                                </div>
+                                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {latestAnalysis.strengths?.slice(0, 3).map((s, i) => (
+                                        <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '12px', color: ds.textSecondary }}>
+                                            <CheckCircle size={12} strokeWidth={1.5} style={{ color: '#059669', marginTop: '2px', flexShrink: 0 }} />
+                                            {s}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <div style={{ padding: '14px', borderRadius: '10px', background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: '#D97706', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: '10px' }}>
+                                    Melhorar
+                                </div>
+                                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {latestAnalysis.improvements?.slice(0, 3).map((s, i) => (
+                                        <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '12px', color: ds.textSecondary }}>
+                                            <AlertTriangle size={12} strokeWidth={1.5} style={{ color: '#D97706', marginTop: '2px', flexShrink: 0 }} />
+                                            {s}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </motion.div>
             )}
 
             {/* Recent Submissions */}
             {submissions.length > 0 && (
-                <Card className="nc-card-border bg-card">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4 text-solar" />
+                <div style={cardStyle}>
+                    <div style={{ padding: '20px 20px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <BarChart3 size={17} strokeWidth={1.5} style={{ color: ds.primary }} />
+                        <span style={{ fontFamily: ds.fontDisplay, fontSize: '15px', fontWeight: 700, color: ds.textPrimary }}>
                             Últimos Check-ins
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            {submissions.slice(0, 5).map((sub) => {
-                                const metrics = sub.metrics as CloserMetrics;
-                                return (
-                                    <div
-                                        key={sub.id}
-                                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-secondary/50 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-solar" />
-                                            <span className="text-sm font-mono">{sub.submission_date}</span>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                            <span className="font-mono">{metrics?.calls_made || 0} calls</span>
-                                            <span className="font-mono">{metrics?.conversion_rate || 0}% conv.</span>
-                                            {sub.call_recording && <Phone className="h-3 w-3 text-nc-info" />}
-                                        </div>
+                        </span>
+                    </div>
+                    <div style={{ padding: '12px 20px' }}>
+                        {submissions.slice(0, 5).map((sub) => {
+                            const metrics = sub.metrics as CloserMetrics;
+                            return (
+                                <div
+                                    key={sub.id}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        padding: '10px 12px', borderRadius: '8px', transition: 'background 0.12s',
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F9FAFB'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ds.accent, border: `2px solid ${ds.primary}` }} />
+                                        <span style={{ fontSize: '13px', fontFamily: 'monospace', color: ds.textPrimary }}>{sub.submission_date}</span>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </CardContent>
-                </Card>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <span style={{ fontSize: '12px', color: ds.textSecondary, fontFamily: 'monospace' }}>
+                                            {metrics?.calls_made || 0} calls
+                                        </span>
+                                        <span style={{ fontSize: '12px', color: ds.textSecondary, fontFamily: 'monospace' }}>
+                                            {metrics?.conversion_rate || 0}% conv.
+                                        </span>
+                                        {sub.call_recording && (
+                                            <Phone size={13} strokeWidth={1.5} style={{ color: '#3B82F6' }} />
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Sparkles } from 'lucide-react';
+import { LogOut, Sparkles } from '@/components/ui/icons';
 import { Link, useLocation } from 'react-router-dom';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PageTransition } from './PageTransition';

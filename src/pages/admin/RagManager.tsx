@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Database, Plus, Trash2, Search, FileText, Loader2 } from 'lucide-react';
+import { Database, Plus, Trash2, Search, FileText, Loader2, Info } from '@/components/ui/icons';
 
 const CATEGORIES = [
     { value: 'estrategia', label: '🎯 Estratégia' },
@@ -140,16 +140,33 @@ export default function RagManager() {
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         <Database className="h-6 w-6 text-amber-500" />
-                        Base de Conhecimento RAG
+                        Base de Conhecimento
                     </h1>
                     <p className="text-muted-foreground mt-1">
-                        {documents.length} documentos na base · Busca por similaridade vetorial
+                        {documents.length} documento{documents.length !== 1 ? 's' : ''} indexado{documents.length !== 1 ? 's' : ''} · A IA usa isso para analisar os vendedores
                     </p>
                 </div>
                 <Button onClick={() => setShowForm(!showForm)} className="gap-2">
                     <Plus className="h-4 w-4" />
-                    Novo Documento
+                    Adicionar Material
                 </Button>
+            </div>
+
+            {/* How-to guide */}
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start gap-3">
+                    <Info className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-amber-800 space-y-1">
+                        <p className="font-semibold">Como embedar material de um cliente:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-amber-700">
+                            <li>Clique em <strong>"Adicionar Material"</strong> no canto superior direito.</li>
+                            <li>Cole o conteúdo do material no campo de texto (playbook, script, estratégia, etc.).</li>
+                            <li>Escolha a categoria certa (ex: Estratégia, Scripts, Playbooks).</li>
+                            <li>Clique em <strong>"Adicionar &amp; Indexar"</strong> — a IA passa a usar esse conteúdo automaticamente.</li>
+                        </ol>
+                        <p className="mt-1 text-amber-600 text-xs">Quanto mais material relevante você adicionar, mais precisa fica a análise da IA.</p>
+                    </div>
+                </div>
             </div>
 
             {/* Search Section */}

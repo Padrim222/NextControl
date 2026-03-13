@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { User, DailySubmission, Analysis, CallLog, Report } from '@/types';
 import { Spinner } from '@/components/ui/Spinner';
@@ -16,7 +15,8 @@ import {
     MessageCircle,
     Download,
     Eye,
-} from 'lucide-react';
+    RefreshCw,
+} from '@/components/ui/icons';
 import {
     Dialog,
     DialogContent,
@@ -29,6 +29,76 @@ import { StrategistPanel } from '@/components/admin/StrategistPanel';
 import { ImprovementChecklist } from '@/components/admin/ImprovementChecklist';
 import { downloadReportAsPDF } from '@/lib/pdf-export';
 import { AdminFormPanel } from '@/components/admin/AdminFormPanel';
+
+/* ─── Design tokens ─────────────────────────────────────────────── */
+const t = {
+    bg: '#FAFAFA',
+    card: '#FFFFFF',
+    border: '1px solid #E5E7EB',
+    radius: '12px',
+    primary: '#1B2B4A',
+    accent: '#E6B84D',
+    textPrimary: '#1A1A1A',
+    textSecondary: '#6B7280',
+    textMuted: '#9CA3AF',
+    shadow: '0 1px 3px rgba(0,0,0,0.06)',
+    fontDisplay: 'Plus Jakarta Sans, system-ui, sans-serif',
+    fontBody: 'DM Sans, system-ui, sans-serif',
+    badgePositive: { background: '#ECFDF5', color: '#059669' } as React.CSSProperties,
+    badgeWarning:  { background: '#FFFBEB', color: '#D97706' } as React.CSSProperties,
+    badgeError:    { background: '#FEF2F2', color: '#DC2626' } as React.CSSProperties,
+    avatarBg: '#FEF9EC',
+    avatarColor: '#1B2B4A',
+};
+
+/* ─── Shared styles ─────────────────────────────────────────────── */
+const cardStyle: React.CSSProperties = {
+    background: t.card,
+    border: t.border,
+    borderRadius: t.radius,
+    boxShadow: t.shadow,
+};
+
+const btnPrimary: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: t.primary,
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '7px 14px',
+    fontSize: '13px',
+    fontFamily: 'DM Sans, system-ui, sans-serif',
+    fontWeight: 500,
+    cursor: 'pointer',
+};
+
+const btnGhost: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: 'transparent',
+    color: '#1A1A1A',
+    border: '1px solid #E5E7EB',
+    borderRadius: '8px',
+    padding: '7px 14px',
+    fontSize: '13px',
+    fontFamily: 'DM Sans, system-ui, sans-serif',
+    fontWeight: 500,
+    cursor: 'pointer',
+};
+
+const btnDanger: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    background: 'transparent',
+    color: '#DC2626',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '6px',
+    cursor: 'pointer',
+};
 
 interface SubmissionWithSeller extends DailySubmission {
     seller?: { name: string; email: string; seller_type: string };
@@ -55,20 +125,17 @@ export default function AdminDashboard() {
     const fetchAll = async () => {
         setIsLoading(true);
         try {
-            // Fetch users
             const { data: usersData } = await (supabase as any)
                 .from('users')
                 .select('*')
                 .order('created_at', { ascending: false });
             if (usersData) setRealUsers(usersData as User[]);
 
-            // Fetch clients
             const { data: clientsData } = await supabase
                 .from('clients')
                 .select('id, name');
             if (clientsData) setClients(clientsData);
 
-            // Fetch daily submissions with seller info
             const { data: subsData } = await (supabase as any)
                 .from('daily_submissions')
                 .select('*, seller:users!seller_id(name, email, seller_type)')
@@ -76,7 +143,6 @@ export default function AdminDashboard() {
                 .limit(50);
             if (subsData) setSubmissions(subsData);
 
-            // Fetch analyses
             const { data: analysesData } = await (supabase as any)
                 .from('analyses')
                 .select('*')
@@ -84,7 +150,6 @@ export default function AdminDashboard() {
                 .limit(50);
             if (analysesData) setAnalyses(analysesData);
 
-            // Fetch reports
             const { data: reportsData } = await (supabase as any)
                 .from('reports')
                 .select('*')
@@ -92,7 +157,6 @@ export default function AdminDashboard() {
                 .limit(50);
             if (reportsData) setReports(reportsData);
 
-            // Fetch call logs
             const { data: callData } = await supabase
                 .from('call_logs')
                 .select('*')
@@ -118,7 +182,6 @@ export default function AdminDashboard() {
         return reports.find(r => r.submission_id === submissionId);
     };
 
-    // Submissions that have no analysis yet (pending review)
     const pendingSubmissions = submissions.filter(s => !getAnalysisForSubmission(s.id));
     const analyzedSubmissions = submissions.filter(s => !!getAnalysisForSubmission(s.id));
 
@@ -128,9 +191,7 @@ export default function AdminDashboard() {
             const { data: analysis, error } = await (supabase as any).functions.invoke('analyze-submission', {
                 body: { submission_id: submission.id },
             });
-
             if (error) throw error;
-
             toast.success(`🤖 Análise concluída! Score: ${analysis?.score || '—'}/100`);
             fetchAll();
             setSelectedSubmission(null);
@@ -148,16 +209,12 @@ export default function AdminDashboard() {
             toast.error('Primeiro analise a submissão antes de gerar o relatório');
             return;
         }
-
         setIsGeneratingPDF(true);
         try {
             const { data: reportData, error } = await (supabase as any).functions.invoke('generate-report', {
                 body: { submission_id: submission.id, analysis_id: analysis.id },
             });
-
             if (error) throw error;
-
-            // Download PDF from HTML content
             if (reportData?.html_content) {
                 const sellerName = submission.seller?.name || 'vendedor';
                 const date = submission.submission_date;
@@ -166,7 +223,6 @@ export default function AdminDashboard() {
             } else {
                 toast.success('Relatório criado!');
             }
-
             fetchAll();
             setSelectedSubmission(null);
         } catch (err) {
@@ -197,109 +253,173 @@ export default function AdminDashboard() {
         toast.success('WhatsApp aberto!');
     };
 
+    /* ─── Loading state ──────────────────────────────────────────── */
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA' }}>
                 <Spinner size="md" />
             </div>
         );
     }
 
+    const teamCount = realUsers.filter(u => u.role !== 'admin' && u.role !== 'client').length;
+
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold">
-                        Painel <span className="nc-gradient-text">Administrador</span> 👔
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                        Olá, {user?.name} • Next Control
-                    </p>
+        <div style={{ minHeight: '100vh', background: '#FAFAFA', fontFamily: 'DM Sans, system-ui, sans-serif', padding: '32px 24px' }}>
+            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+
+                {/* ── Page Header ──────────────────────────────────── */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '32px' }}>
+                    <div>
+                        <h1 style={{
+                            fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+                            fontSize: '26px',
+                            fontWeight: 700,
+                            color: '#1A1A1A',
+                            margin: 0,
+                            lineHeight: 1.2,
+                        }}>
+                            Painel Admin
+                        </h1>
+                        <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0' }}>
+                            Olá, {user?.name} · Next Control
+                        </p>
+                    </div>
+                    <button
+                        style={{ ...btnGhost, color: '#6B7280' }}
+                        onClick={fetchAll}
+                    >
+                        <RefreshCw size={14} strokeWidth={1.5} />
+                        Atualizar
+                    </button>
                 </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <Card className="nc-card-hover nc-card-border">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Equipe</p>
-                                    <p className="text-2xl font-bold">{realUsers.filter(u => u.role !== 'admin' && u.role !== 'client').length}</p>
-                                </div>
-                                <Users className="h-8 w-8 text-solar opacity-80" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                {/* ── KPI Row ──────────────────────────────────────── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
 
-                    <Card className="nc-card-hover nc-card-border">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Clientes</p>
-                                    <p className="text-2xl font-bold">{clients.length}</p>
-                                </div>
-                                <Users className="h-8 w-8 text-nc-info opacity-80" />
+                    {/* Equipe */}
+                    <div style={cardStyle}>
+                        <div style={{ padding: '20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>
+                                    Equipe
+                                </p>
+                                <p style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: '32px', fontWeight: 700, color: '#1A1A1A', margin: 0, lineHeight: 1 }}>
+                                    {teamCount}
+                                </p>
                             </div>
-                        </CardContent>
-                    </Card>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#FEF9EC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <Users size={18} strokeWidth={1.5} color="#1B2B4A" />
+                            </div>
+                        </div>
+                    </div>
 
-                    <Card className="nc-card-hover nc-card-border border-nc-warning/30">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Aguardando Análise</p>
-                                    <p className="text-2xl font-bold text-nc-warning">{pendingSubmissions.length}</p>
-                                </div>
-                                <Clock className="h-8 w-8 text-nc-warning opacity-80" />
+                    {/* Clientes */}
+                    <div style={cardStyle}>
+                        <div style={{ padding: '20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>
+                                    Clientes
+                                </p>
+                                <p style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: '32px', fontWeight: 700, color: '#1A1A1A', margin: 0, lineHeight: 1 }}>
+                                    {clients.length}
+                                </p>
                             </div>
-                        </CardContent>
-                    </Card>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <Users size={18} strokeWidth={1.5} color="#4F46E5" />
+                            </div>
+                        </div>
+                    </div>
 
-                    <Card className="nc-card-hover nc-card-border">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Analisados</p>
-                                    <p className="text-2xl font-bold text-nc-success">{analyzedSubmissions.length}</p>
+                    {/* Aguardando Análise */}
+                    <div style={{ ...cardStyle, borderColor: pendingSubmissions.length > 0 ? '#FCD34D' : '#E5E7EB' }}>
+                        <div style={{ padding: '20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>
+                                    Aguardando Análise
+                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <p style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: '32px', fontWeight: 700, color: pendingSubmissions.length > 0 ? '#D97706' : '#1A1A1A', margin: 0, lineHeight: 1 }}>
+                                        {pendingSubmissions.length}
+                                    </p>
+                                    {pendingSubmissions.length > 0 && (
+                                        <span style={{ background: '#FFFBEB', color: '#D97706', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px' }}>
+                                            pendente
+                                        </span>
+                                    )}
                                 </div>
-                                <CheckCircle className="h-8 w-8 text-nc-success opacity-80" />
                             </div>
-                        </CardContent>
-                    </Card>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <Clock size={18} strokeWidth={1.5} color="#D97706" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Analisados */}
+                    <div style={cardStyle}>
+                        <div style={{ padding: '20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>
+                                    Analisados
+                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <p style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: '32px', fontWeight: 700, color: analyzedSubmissions.length > 0 ? '#059669' : '#1A1A1A', margin: 0, lineHeight: 1 }}>
+                                        {analyzedSubmissions.length}
+                                    </p>
+                                    {analyzedSubmissions.length > 0 && (
+                                        <span style={{ background: '#ECFDF5', color: '#059669', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px' }}>
+                                            ok
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <CheckCircle size={18} strokeWidth={1.5} color="#059669" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Action Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    {/* User Validation */}
-                    <Card className="nc-card-border">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Users className="h-5 w-5 text-nc-info" />
+                {/* ── Action Grid ──────────────────────────────────── */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+
+                    {/* Validação de Acessos */}
+                    <div style={cardStyle}>
+                        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #E5E7EB' }}>
+                            <p style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: '16px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 2px' }}>
                                 Validação de Acessos
-                            </CardTitle>
-                            <CardDescription>
+                            </p>
+                            <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
                                 Libere acesso para novos membros
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
+                            </p>
+                        </div>
+                        <div style={{ padding: '16px 20px' }}>
                             {realUsers.filter(u => u.status === 'pending').length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p>Todos validados</p>
+                                <div style={{ textAlign: 'center', padding: '32px 0', color: '#9CA3AF' }}>
+                                    <CheckCircle size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.4 }} />
+                                    <p style={{ fontSize: '14px', margin: 0 }}>Todos validados</p>
                                 </div>
                             ) : (
-                                <div className="space-y-3">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     {realUsers.filter(u => u.status === 'pending').map(pendingUser => (
-                                        <div key={pendingUser.id} className="flex items-center justify-between p-3 bg-card border rounded-lg">
-                                            <div>
-                                                <p className="font-medium">{pendingUser.name}</p>
-                                                <p className="text-xs text-muted-foreground">{pendingUser.email} • {pendingUser.role}</p>
+                                        <div key={pendingUser.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#FAFAFA', border: '1px solid #E5E7EB', borderRadius: '10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#FEF9EC', color: '#1B2B4A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
+                                                    {pendingUser.name?.charAt(0).toUpperCase() || '?'}
+                                                </div>
+                                                <div>
+                                                    <p style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>
+                                                        {pendingUser.name}
+                                                    </p>
+                                                    <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>
+                                                        {pendingUser.email} · <span style={{ textTransform: 'capitalize' }}>{pendingUser.role}</span>
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
+                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                <button
+                                                    style={btnDanger}
+                                                    title="Rejeitar"
                                                     onClick={async () => {
                                                         const { error } = await (supabase as any).from('users').update({ status: 'suspended' }).eq('id', pendingUser.id);
                                                         if (error) { toast.error('Erro'); } else {
@@ -308,11 +428,10 @@ export default function AdminDashboard() {
                                                         }
                                                     }}
                                                 >
-                                                    <XCircle className="h-4 w-4 text-nc-error" />
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-nc-success hover:bg-nc-success/90 text-white"
+                                                    <XCircle size={18} strokeWidth={1.5} />
+                                                </button>
+                                                <button
+                                                    style={{ ...btnPrimary, padding: '6px 12px', fontSize: '12px' }}
                                                     onClick={async () => {
                                                         const { error } = await (supabase as any).from('users').update({ status: 'active' }).eq('id', pendingUser.id);
                                                         if (error) { toast.error('Erro'); } else {
@@ -321,78 +440,76 @@ export default function AdminDashboard() {
                                                         }
                                                     }}
                                                 >
-                                                    <CheckCircle className="h-4 w-4" />
-                                                </Button>
+                                                    <CheckCircle size={13} strokeWidth={1.5} />
+                                                    Aprovar
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
-                    {/* Pending Submissions */}
-                    <Card className="nc-card-border border-nc-warning/20">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Clock className="h-5 w-5 text-nc-warning" />
+                    {/* Submissões Pendentes */}
+                    <div style={cardStyle}>
+                        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #E5E7EB' }}>
+                            <p style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: '16px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 2px' }}>
                                 Submissões Pendentes
-                            </CardTitle>
-                            <CardDescription>Submissões aguardando análise IA</CardDescription>
-                        </CardHeader>
-                        <CardContent>
+                            </p>
+                            <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
+                                Submissões aguardando análise IA
+                            </p>
+                        </div>
+                        <div style={{ padding: '16px 20px' }}>
                             {pendingSubmissions.length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p>Nenhuma submissão pendente</p>
+                                <div style={{ textAlign: 'center', padding: '32px 0', color: '#9CA3AF' }}>
+                                    <CheckCircle size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.4 }} />
+                                    <p style={{ fontSize: '14px', margin: 0 }}>Nenhuma submissão pendente</p>
                                 </div>
                             ) : (
-                                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
                                     {pendingSubmissions.map((sub) => (
-                                        <div
-                                            key={sub.id}
-                                            className="flex items-center justify-between p-3 bg-card rounded-lg border hover:border-solar/50 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded-full bg-solar/10 flex items-center justify-center">
-                                                    <FileText className="h-4 w-4 text-solar" />
+                                        <div key={sub.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#FAFAFA', border: '1px solid #E5E7EB', borderRadius: '10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#FEF9EC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <FileText size={16} strokeWidth={1.5} color="#1B2B4A" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-sm">{sub.seller?.name || getSellerName(sub.seller_id)}</p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {new Date(sub.submission_date).toLocaleDateString('pt-BR')} • {sub.conversation_prints?.length || 0} prints
+                                                    <p style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>
+                                                        {sub.seller?.name || getSellerName(sub.seller_id)}
+                                                    </p>
+                                                    <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>
+                                                        {new Date(sub.submission_date).toLocaleDateString('pt-BR')} · {sub.conversation_prints?.length || 0} prints
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-8"
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button
+                                                    style={{ ...btnGhost, padding: '5px 10px', fontSize: '12px' }}
                                                     onClick={() => setSelectedSubmission(sub)}
                                                 >
-                                                    <Eye className="h-3 w-3 mr-1" />
+                                                    <Eye size={13} strokeWidth={1.5} />
                                                     Ver
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="h-8 bg-solar hover:bg-solar/90 text-deep-space"
+                                                </button>
+                                                <button
+                                                    style={{ ...btnPrimary, padding: '5px 10px', fontSize: '12px' }}
                                                     onClick={() => handleAnalyze(sub)}
                                                 >
-                                                    <Sparkles className="h-3 w-3 mr-1" />
-                                                    Analisar
-                                                </Button>
+                                                    <Sparkles size={13} strokeWidth={1.5} />
+                                                    Analisar IA
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Conselho RY: Head Agent + Strategist */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* ── HeadAgentPanel + StrategistPanel ─────────────── */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                     <HeadAgentPanel
                         reports={[]}
                         callLogs={callLogs}
@@ -407,153 +524,156 @@ export default function AdminDashboard() {
                     />
                 </div>
 
-                {/* Public Forms Panel */}
-                <div className="mb-8">
+                {/* ── AdminFormPanel ────────────────────────────────── */}
+                <div style={{ marginBottom: '24px' }}>
                     <AdminFormPanel />
                 </div>
 
-                {/* Analyzed Submissions */}
+                {/* ── Analyzed Submissions ──────────────────────────── */}
                 {analyzedSubmissions.length > 0 && (
-                    <Card className="nc-card-border border-nc-success/20 mb-8">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <CheckCircle className="h-5 w-5 text-nc-success" />
+                    <div style={{ ...cardStyle, marginBottom: '24px' }}>
+                        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #E5E7EB' }}>
+                            <p style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: '16px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 2px' }}>
                                 Submissões Analisadas
-                            </CardTitle>
-                            <CardDescription>
+                            </p>
+                            <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
                                 Resultados das análises IA — gere PDFs ou envie via WhatsApp
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                            </p>
+                        </div>
+                        <div style={{ padding: '16px 20px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
                                 {analyzedSubmissions.slice(0, 20).map((sub) => {
                                     const analysis = getAnalysisForSubmission(sub.id);
-                                    const report = getReportForSubmission(sub.id);
+                                    const _report = getReportForSubmission(sub.id);
                                     return (
-                                        <div
-                                            key={sub.id}
-                                            className="flex items-center justify-between p-3 bg-card rounded-lg border"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded-full bg-nc-success/10 flex items-center justify-center">
-                                                    <CheckCircle className="h-4 w-4 text-nc-success" />
+                                        <div key={sub.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#FAFAFA', border: '1px solid #E5E7EB', borderRadius: '10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <CheckCircle size={16} strokeWidth={1.5} color="#059669" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-sm">{sub.seller?.name || getSellerName(sub.seller_id)}</p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {new Date(sub.submission_date).toLocaleDateString('pt-BR')} • Score: <span className="font-mono font-bold">{analysis?.score || '—'}</span>
+                                                    <p style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>
+                                                        {sub.seller?.name || getSellerName(sub.seller_id)}
+                                                    </p>
+                                                    <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>
+                                                        {new Date(sub.submission_date).toLocaleDateString('pt-BR')} · Score:{' '}
+                                                        <span style={{ fontWeight: 700, fontFamily: 'monospace', color: '#059669' }}>
+                                                            {analysis?.score || '—'}
+                                                        </span>
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-8"
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button
+                                                    style={{ ...btnGhost, padding: '5px 10px', fontSize: '12px', opacity: isGeneratingPDF ? 0.5 : 1 }}
                                                     onClick={() => handleGenerateReport(sub)}
                                                     disabled={isGeneratingPDF}
                                                 >
-                                                    <Download className="h-3 w-3 mr-1" />
+                                                    <Download size={13} strokeWidth={1.5} />
                                                     PDF
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="h-8 bg-nc-success hover:bg-nc-success/90 text-white gap-1"
+                                                </button>
+                                                <button
+                                                    style={{ ...btnPrimary, padding: '5px 10px', fontSize: '12px', background: '#059669' }}
                                                     onClick={() => handleDeliverWhatsApp(sub)}
                                                 >
-                                                    <MessageCircle className="h-3 w-3" />
+                                                    <MessageCircle size={13} strokeWidth={1.5} />
                                                     WhatsApp
-                                                </Button>
+                                                </button>
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 )}
 
-                {/* Submission Detail Modal */}
-                <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>Detalhes da Submissão</DialogTitle>
-                            <DialogDescription>
-                                {selectedSubmission && (
-                                    <>
-                                        {selectedSubmission.seller?.name || getSellerName(selectedSubmission.seller_id)} •{' '}
-                                        {new Date(selectedSubmission.submission_date).toLocaleDateString('pt-BR')}
-                                    </>
-                                )}
-                            </DialogDescription>
-                        </DialogHeader>
+            </div>
 
-                        {selectedSubmission && (
-                            <div className="space-y-4">
-                                {/* Metrics */}
+            {/* ── Submission Detail Modal ───────────────────────────── */}
+            <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Detalhes da Submissão</DialogTitle>
+                        <DialogDescription>
+                            {selectedSubmission && (
+                                <>
+                                    {selectedSubmission.seller?.name || getSellerName(selectedSubmission.seller_id)} ·{' '}
+                                    {new Date(selectedSubmission.submission_date).toLocaleDateString('pt-BR')}
+                                </>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedSubmission && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                            {/* Metrics */}
+                            <div>
+                                <p style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', marginBottom: '10px' }}>
+                                    Métricas
+                                </p>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                    {Object.entries(selectedSubmission.metrics as Record<string, any>).map(([key, value]) => (
+                                        <div key={key} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '12px' }}>
+                                            <p style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'capitalize', margin: '0 0 4px' }}>
+                                                {key.replace(/_/g, ' ')}
+                                            </p>
+                                            <p style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: '20px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
+                                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Prints */}
+                            {selectedSubmission.conversation_prints?.length > 0 && (
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wider">Métricas</h3>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {Object.entries(selectedSubmission.metrics as Record<string, any>).map(([key, value]) => (
-                                            <div key={key} className="bg-muted rounded-lg p-3">
-                                                <p className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</p>
-                                                <p className="text-lg font-mono font-bold">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</p>
-                                            </div>
+                                    <p style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', marginBottom: '10px' }}>
+                                        Prints ({selectedSubmission.conversation_prints.length})
+                                    </p>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                                        {selectedSubmission.conversation_prints.map((url, i) => (
+                                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ aspectRatio: '1', background: '#F3F4F6', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', display: 'block' }}>
+                                                <img src={url} alt={`Print ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            </a>
                                         ))}
                                     </div>
                                 </div>
+                            )}
 
-                                {/* Prints */}
-                                {selectedSubmission.conversation_prints?.length > 0 && (
-                                    <div>
-                                        <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wider">
-                                            Prints ({selectedSubmission.conversation_prints.length})
-                                        </h3>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {selectedSubmission.conversation_prints.map((url, i) => (
-                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="aspect-square bg-muted rounded-lg overflow-hidden border hover:border-solar transition-colors">
-                                                    <img src={url} alt={`Print ${i + 1}`} className="w-full h-full object-cover" />
-                                                </a>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Notes */}
-                                {selectedSubmission.notes && (
-                                    <div className="bg-muted rounded-lg p-4">
-                                        <p className="text-sm font-medium mb-1">Observações:</p>
-                                        <p className="text-sm text-muted-foreground">{selectedSubmission.notes}</p>
-                                    </div>
-                                )}
-
-                                {/* Actions */}
-                                <div className="flex gap-3 pt-4 border-t">
-                                    <Button
-                                        className="flex-1 bg-solar hover:bg-solar/90 text-deep-space"
-                                        onClick={() => handleAnalyze(selectedSubmission)}
-                                        disabled={isGeneratingAI}
-                                    >
-                                        {isGeneratingAI ? (
-                                            <><Sparkles className="h-4 w-4 mr-2 animate-spin" /> Analisando...</>
-                                        ) : (
-                                            <><Sparkles className="h-4 w-4 mr-2" /> Analisar com IA</>
-                                        )}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => handleGenerateReport(selectedSubmission)}
-                                        disabled={isGeneratingPDF || !getAnalysisForSubmission(selectedSubmission.id)}
-                                    >
-                                        <Download className="h-4 w-4 mr-2" />
-                                        PDF
-                                    </Button>
+                            {/* Notes */}
+                            {selectedSubmission.notes && (
+                                <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '14px' }}>
+                                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 4px' }}>Observações:</p>
+                                    <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>{selectedSubmission.notes}</p>
                                 </div>
+                            )}
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: '10px', paddingTop: '16px', borderTop: '1px solid #E5E7EB' }}>
+                                <button
+                                    style={{ ...btnPrimary, flex: 1, justifyContent: 'center', padding: '10px 16px', fontSize: '14px', opacity: isGeneratingAI ? 0.7 : 1 }}
+                                    onClick={() => handleAnalyze(selectedSubmission)}
+                                    disabled={isGeneratingAI}
+                                >
+                                    <Sparkles size={16} strokeWidth={1.5} />
+                                    {isGeneratingAI ? 'Analisando...' : 'Analisar com IA'}
+                                </button>
+                                <button
+                                    style={{ ...btnGhost, padding: '10px 16px', fontSize: '14px', opacity: (!getAnalysisForSubmission(selectedSubmission.id) || isGeneratingPDF) ? 0.5 : 1 }}
+                                    onClick={() => handleGenerateReport(selectedSubmission)}
+                                    disabled={isGeneratingPDF || !getAnalysisForSubmission(selectedSubmission.id)}
+                                >
+                                    <Download size={16} strokeWidth={1.5} />
+                                    PDF
+                                </button>
                             </div>
-                        )}
-                    </DialogContent>
-                </Dialog>
-            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

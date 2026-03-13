@@ -1,21 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    MessageSquare,
     Send,
     Sparkles,
     User,
     Loader2,
     Bot,
-    Target,
-    TrendingUp,
     ArrowLeft,
-} from 'lucide-react';
+    Zap,
+} from '@/components/ui/icons';
 import { useNavigate } from 'react-router-dom';
 import type { CoachInteraction } from '@/types';
 
@@ -27,8 +22,8 @@ interface ChatMessage {
 }
 
 const WELCOME_MESSAGES: Record<string, string> = {
-    seller: '👋 Olá! Sou sua Consultoria de Bolso. Posso te ajudar com técnicas de abordagem, follow-up, como lidar com objeções e melhorar seus números. O que gostaria de aprender hoje?',
-    closer: '👋 Olá! Sou sua Consultoria de Bolso. Posso te ajudar com técnicas de fechamento, scripts de call, como contornar objeções e aumentar sua taxa de conversão. O que gostaria de praticar?',
+    seller: 'Olá! Sou sua Consultoria de Bolso. Posso te ajudar com técnicas de abordagem, follow-up, como lidar com objeções e melhorar seus números. O que gostaria de aprender hoje?',
+    closer: 'Olá! Sou sua Consultoria de Bolso. Posso te ajudar com técnicas de fechamento, scripts de call, como contornar objeções e aumentar sua taxa de conversão. O que gostaria de praticar?',
 };
 
 const SELLER_QUESTIONS = [
@@ -57,15 +52,12 @@ export default function CoachChat() {
     const sellerType = user?.seller_type || 'seller';
 
     useEffect(() => {
-        // Welcome message
         setMessages([{
             id: 'welcome',
             role: 'assistant',
             content: WELCOME_MESSAGES[sellerType] || WELCOME_MESSAGES.seller,
             timestamp: new Date(),
         }]);
-
-        // Load history
         loadHistory();
     }, [user]);
 
@@ -111,7 +103,6 @@ export default function CoachChat() {
         try {
             let aiResponse: string;
 
-            // Try Edge Function first, fall back to mock
             if (supabase) {
                 try {
                     const conversationHistory = messages
@@ -131,8 +122,6 @@ export default function CoachChat() {
                 } catch (edgeFnError) {
                     console.warn('Edge Function fallback to mock:', edgeFnError);
                     aiResponse = generateMockResponse(text, sellerType);
-
-                    // Save to database manually since Edge Function didn't
                     await (supabase as any).from('coach_interactions').insert({
                         seller_id: user.id,
                         question: text.trim(),
@@ -144,13 +133,12 @@ export default function CoachChat() {
                 aiResponse = generateMockResponse(text, sellerType);
             }
 
-            const botMsg: ChatMessage = {
+            setMessages(prev => [...prev, {
                 id: `b-${Date.now()}`,
                 role: 'assistant',
                 content: aiResponse,
                 timestamp: new Date(),
-            };
-            setMessages(prev => [...prev, botMsg]);
+            }]);
         } catch (error) {
             console.error('Error sending message:', error);
         } finally {
@@ -165,86 +153,178 @@ export default function CoachChat() {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] max-w-3xl mx-auto">
+        <div
+            className="flex flex-col max-w-3xl mx-auto"
+            style={{ height: 'calc(100vh - 64px)', fontFamily: 'DM Sans, system-ui, sans-serif' }}
+        >
             {/* Header */}
-            <div className="flex items-center gap-3 py-4 border-b border-border">
-                <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
+            <div
+                className="flex items-center gap-3 px-4 py-3 bg-white"
+                style={{ borderBottom: '1px solid #E5E7EB' }}
+            >
+                <button
+                    onClick={() => navigate(-1)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                    style={{ color: '#6B7280' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                    <ArrowLeft size={16} strokeWidth={1.5} />
+                </button>
+
                 <div className="flex items-center gap-3 flex-1">
-                    <div className="w-10 h-10 rounded-xl nc-gradient flex items-center justify-center">
-                        <Sparkles className="h-5 w-5 text-deep-space" />
+                    <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center"
+                        style={{ background: '#1B2B4A' }}
+                    >
+                        <Zap size={16} style={{ color: '#E6B84D' }} strokeWidth={2} />
                     </div>
                     <div>
-                        <h1 className="font-display text-lg font-bold">Consultoria de Bolso</h1>
-                        <p className="text-xs text-muted-foreground">Coaching IA personalizado</p>
+                        <h1
+                            className="text-[15px] font-semibold leading-tight"
+                            style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', color: '#1A1A1A' }}
+                        >
+                            Consultoria de Bolso
+                        </h1>
+                        <p className="text-[11px]" style={{ color: '#9CA3AF' }}>
+                            Coaching IA personalizado
+                        </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-nc-success animate-pulse" />
-                    <span className="text-xs text-muted-foreground">Online</span>
+
+                <div className="flex items-center gap-1.5">
+                    <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: '#059669', boxShadow: '0 0 6px rgba(5,150,105,0.4)' }}
+                    />
+                    <span className="text-[11px]" style={{ color: '#9CA3AF' }}>Online</span>
                 </div>
             </div>
 
             {/* Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto py-4 space-y-4 px-2">
+            <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto py-5 space-y-4 px-4"
+                style={{ background: '#FAFAFA' }}
+            >
                 <AnimatePresence initial={false}>
                     {messages.map((msg) => (
                         <motion.div
                             key={msg.id}
-                            initial={{ opacity: 0, y: 10 }}
+                            initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
                             className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                         >
                             {/* Avatar */}
-                            <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${msg.role === 'assistant' ? 'bg-solar/15 text-solar' : 'bg-graphite text-platinum'
-                                }`}>
-                                {msg.role === 'assistant' ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                            <div
+                                className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                                style={
+                                    msg.role === 'assistant'
+                                        ? { background: '#FEF9EC', color: '#1B2B4A' }
+                                        : { background: '#1B2B4A', color: '#E6B84D' }
+                                }
+                            >
+                                {msg.role === 'assistant'
+                                    ? <Bot size={15} strokeWidth={1.5} />
+                                    : <User size={15} strokeWidth={1.5} />
+                                }
                             </div>
 
                             {/* Bubble */}
-                            <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'assistant'
-                                ? 'bg-card nc-card-border text-foreground rounded-tl-md'
-                                : 'nc-gradient text-deep-space rounded-tr-md'
-                                }`}>
+                            <div
+                                className="max-w-[78%] px-4 py-3 text-[14px] leading-relaxed"
+                                style={
+                                    msg.role === 'assistant'
+                                        ? {
+                                            background: '#FFFFFF',
+                                            border: '1px solid #E5E7EB',
+                                            borderRadius: '12px 12px 12px 3px',
+                                            color: '#1A1A1A',
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                                            whiteSpace: 'pre-wrap',
+                                        }
+                                        : {
+                                            background: '#1B2B4A',
+                                            borderRadius: '12px 12px 3px 12px',
+                                            color: '#FFFFFF',
+                                            whiteSpace: 'pre-wrap',
+                                        }
+                                }
+                            >
                                 {msg.content}
                             </div>
                         </motion.div>
                     ))}
                 </AnimatePresence>
 
-                {/* Loading indicator */}
+                {/* Loading dots */}
                 {isLoading && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="flex gap-3"
                     >
-                        <div className="w-8 h-8 rounded-lg bg-solar/15 flex items-center justify-center">
-                            <Bot className="h-4 w-4 text-solar" />
+                        <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ background: '#FEF9EC' }}
+                        >
+                            <Bot size={15} strokeWidth={1.5} style={{ color: '#1B2B4A' }} />
                         </div>
-                        <div className="bg-card nc-card-border rounded-2xl rounded-tl-md px-4 py-3">
-                            <div className="flex gap-1.5">
-                                <div className="w-2 h-2 rounded-full bg-solar/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <div className="w-2 h-2 rounded-full bg-solar/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <div className="w-2 h-2 rounded-full bg-solar/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <div
+                            className="px-4 py-3 rounded-xl"
+                            style={{
+                                background: '#FFFFFF',
+                                border: '1px solid #E5E7EB',
+                                borderRadius: '12px 12px 12px 3px',
+                            }}
+                        >
+                            <div className="flex gap-1.5 items-center h-5">
+                                {[0, 150, 300].map((delay) => (
+                                    <div
+                                        key={delay}
+                                        className="w-2 h-2 rounded-full animate-bounce"
+                                        style={{ background: '#9CA3AF', animationDelay: `${delay}ms` }}
+                                    />
+                                ))}
                             </div>
                         </div>
                     </motion.div>
                 )}
             </div>
 
-            {/* Quick questions (show when few messages) */}
+            {/* Quick questions */}
             {messages.length <= 1 && (
-                <div className="px-2 pb-3">
-                    <p className="text-xs text-muted-foreground mb-2">Perguntas rápidas:</p>
+                <div
+                    className="px-4 py-3"
+                    style={{ background: '#FAFAFA', borderTop: '1px solid #F3F4F6' }}
+                >
+                    <p className="text-[11px] font-medium mb-2" style={{ color: '#9CA3AF' }}>
+                        Perguntas rápidas
+                    </p>
                     <div className="flex flex-wrap gap-2">
                         {(sellerType === 'closer' ? CLOSER_QUESTIONS : SELLER_QUESTIONS).map((q) => (
                             <button
                                 key={q}
                                 onClick={() => sendMessage(q)}
-                                className="text-xs px-3 py-1.5 rounded-full nc-card-border bg-card hover:bg-solar/10 hover:text-solar transition-colors"
+                                className="text-[12px] px-3 py-1.5 rounded-full transition-all"
+                                style={{
+                                    background: '#FFFFFF',
+                                    border: '1px solid #E5E7EB',
+                                    color: '#6B7280',
+                                    fontFamily: 'DM Sans, sans-serif',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = '#FEF9EC';
+                                    e.currentTarget.style.borderColor = '#1B2B4A';
+                                    e.currentTarget.style.color = '#1B2B4A';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = '#FFFFFF';
+                                    e.currentTarget.style.borderColor = '#E5E7EB';
+                                    e.currentTarget.style.color = '#6B7280';
+                                }}
                             >
                                 {q}
                             </button>
@@ -254,52 +334,73 @@ export default function CoachChat() {
             )}
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="p-3 border-t border-border">
+            <form
+                onSubmit={handleSubmit}
+                className="px-4 py-3 bg-white"
+                style={{ borderTop: '1px solid #E5E7EB' }}
+            >
                 <div className="flex gap-2">
-                    <Input
+                    <input
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Pergunte ao seu treinador..."
-                        className="flex-1 nc-input-glow"
+                        placeholder="Pergunte ao seu coach..."
                         disabled={isLoading}
+                        className="flex-1 px-4 py-2.5 rounded-lg text-[14px] outline-none transition-all"
+                        style={{
+                            background: '#FAFAFA',
+                            border: '1px solid #E5E7EB',
+                            color: '#1A1A1A',
+                            fontFamily: 'DM Sans, sans-serif',
+                        }}
+                        onFocus={(e) => {
+                            e.currentTarget.style.borderColor = '#1B2B4A';
+                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(27,43,74,0.08)';
+                        }}
+                        onBlur={(e) => {
+                            e.currentTarget.style.borderColor = '#E5E7EB';
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
                     />
-                    <Button
+                    <button
                         type="submit"
                         disabled={!input.trim() || isLoading}
-                        className="nc-btn-primary px-4"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center transition-all disabled:opacity-40"
+                        style={{ background: '#1B2B4A', color: '#E6B84D' }}
                     >
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    </Button>
+                        {isLoading
+                            ? <Loader2 size={16} className="animate-spin" />
+                            : <Send size={16} strokeWidth={2} />
+                        }
+                    </button>
                 </div>
             </form>
         </div>
     );
 }
 
-// MVP Mock response generator — will be replaced by OpenAI Edge Function
 function generateMockResponse(question: string, sellerType: string): string {
     const q = question.toLowerCase();
 
     if (q.includes('abord') || q.includes('prospec')) {
-        return '💡 Para abordagens eficazes:\n\n1. **Personalização** — Pesquise o perfil antes de abordar. Mencione algo específico (post recente, empresa, cargo).\n2. **Value-first** — Ofereça algo de valor antes de pedir algo. Compartilhe um insight ou dado relevante.\n3. **Pergunta aberta** — Evite "tem interesse?" e use "como vocês estão lidando com [problema]?".\n4. **Timing** — Terças e quartas, 9-11h são os melhores horários.\n\nQuer que eu elabore algum desses pontos?';
+        return 'Para abordagens eficazes:\n\n1. Personalização — Pesquise o perfil antes de abordar. Mencione algo específico (post recente, empresa, cargo).\n2. Value-first — Ofereça algo de valor antes de pedir algo. Compartilhe um insight ou dado relevante.\n3. Pergunta aberta — Evite "tem interesse?" e use "como vocês estão lidando com [problema]?".\n4. Timing — Terças e quartas, 9-11h são os melhores horários.\n\nQuer que eu elabore algum desses pontos?';
     }
 
     if (q.includes('follow') || q.includes('acompanham')) {
-        return '🔄 Estratégia de Follow-up:\n\n1. **Regra 2-5-12** — 2 dias após primeiro contato, 5 dias se não responder, 12 dias último follow-up.\n2. **Nunca diga "só passando pra ver"** — Sempre traga algo novo: artigo, caso de sucesso, dado.\n3. **Multicanal** — Alterne entre LinkedIn, email e WhatsApp.\n4. **Break-up email** — No último follow-up, seja direto: "Entendo que o timing pode não ser ideal. Posso retomar em [período]?".\n\nQuer um template de follow-up?';
+        return 'Estratégia de Follow-up:\n\n1. Regra 2-5-12 — 2 dias após primeiro contato, 5 dias se não responder, 12 dias último follow-up.\n2. Nunca diga "só passando pra ver" — Sempre traga algo novo: artigo, caso de sucesso, dado.\n3. Multicanal — Alterne entre LinkedIn, email e WhatsApp.\n4. Break-up email — No último follow-up, seja direto: "Entendo que o timing pode não ser ideal. Posso retomar em [período]?"\n\nQuer um template de follow-up?';
     }
 
     if (q.includes('obje') || q.includes('caro') || q.includes('preço')) {
-        return '🛡️ Contornando "Tá caro":\n\n1. **Nunca desconte direto** — Isso posiciona seu produto como sobrevalorizado.\n2. **Isole a objeção** — "Além do preço, existe alguma outra preocupação?"\n3. **Reframe para ROI** — "Se este investimento te gerasse 3x de retorno em 90 dias, faria sentido?"\n4. **Parcele** — Divida o valor por dia/semana para diminuir a percepção.\n5. **Social proof** — "O [cliente X] teve a mesma preocupação e em 60 dias já tinha pago o investimento."\n\nQuer praticar um roleplay?';
+        return 'Contornando "Tá caro":\n\n1. Nunca desconte direto — Isso posiciona seu produto como sobrevalorizado.\n2. Isole a objeção — "Além do preço, existe alguma outra preocupação?"\n3. Reframe para ROI — "Se este investimento te gerasse 3x de retorno em 90 dias, faria sentido?"\n4. Parcele — Divida o valor por dia/semana para diminuir a percepção.\n5. Social proof — "O [cliente X] teve a mesma preocupação e em 60 dias já tinha pago o investimento."\n\nQuer praticar um roleplay?';
     }
 
     if (q.includes('rapport') || q.includes('conex')) {
-        return '🤝 Construindo Rapport:\n\n1. **Espelhamento** — Adapte seu tom, velocidade e energia ao prospect.\n2. **Interesses comuns** — LinkedIn é seu melhor amigo pra pesquisar.\n3. **Escuta ativa** — Repita o que ouviu: "Se entendi bem, seu maior desafio é...".\n4. **Vulnerabilidade calculada** — Admita limitações genuínas do seu produto. Gera confiança.\n\nRapport não é técnica, é intenção genuína. O prospect sente quando é forçado.';
+        return 'Construindo Rapport:\n\n1. Espelhamento — Adapte seu tom, velocidade e energia ao prospect.\n2. Interesses comuns — LinkedIn é seu melhor amigo pra pesquisar.\n3. Escuta ativa — Repita o que ouviu: "Se entendi bem, seu maior desafio é...".\n4. Vulnerabilidade calculada — Admita limitações genuínas do seu produto. Gera confiança.\n\nRapport não é técnica, é intenção genuína. O prospect sente quando é forçado.';
     }
 
     if (q.includes('script') || q.includes('roteiro') || q.includes('call')) {
-        return '📞 Roteiro de Call Vencedora:\n\n1. **Abertura (30s)** — Nome, empresa, motivo claro. "Estou ligando porque notei que..."\n2. **Qualificação (2min)** — 3 perguntas SPIN: Situação, Problema, Implicação.\n3. **Apresentação (3min)** — Conecte a solução ao problema que ELE descreveu.\n4. **Objeções (2min)** — "Faz sentido? O que te preocupa?"\n5. **Fechamento (1min)** — "Baseado no que conversamos, faz sentido avançarmos com [próximo passo]?"\n\nDica: Grave suas calls e reveja 1 por semana. Você vai evoluir 10x.';
+        return 'Roteiro de Call Vencedora:\n\n1. Abertura (30s) — Nome, empresa, motivo claro. "Estou ligando porque notei que..."\n2. Qualificação (2min) — 3 perguntas SPIN: Situação, Problema, Implicação.\n3. Apresentação (3min) — Conecte a solução ao problema que ELE descreveu.\n4. Objeções (2min) — "Faz sentido? O que te preocupa?"\n5. Fechamento (1min) — "Baseado no que conversamos, faz sentido avançarmos com [próximo passo]?"\n\nDica: Grave suas calls e reveja 1 por semana. Você vai evoluir 10x.';
     }
 
-    return `🤖 Boa pergunta! Como ${sellerType === 'closer' ? 'closer' : 'vendedor'}, isso é super relevante.\n\nVou analisar suas últimas submissões para personalizar minha resposta. Por enquanto, aqui vai uma dica rápida:\n\n**Foco no processo, não só no resultado.** Se você está fazendo as atividades certas, os números vêm naturalmente.\n\nQuer que eu aprofunde em alguma área específica?`;
+    return `Boa pergunta! Como ${sellerType === 'closer' ? 'closer' : 'vendedor'}, isso é super relevante.\n\nVou analisar suas últimas submissões para personalizar minha resposta. Por enquanto, aqui vai uma dica rápida:\n\nFoco no processo, não só no resultado. Se você está fazendo as atividades certas, os números vêm naturalmente.\n\nQuer que eu aprofunde em alguma área específica?`;
 }

@@ -7,11 +7,17 @@ import {
   Eye,
   MessageSquare,
   GraduationCap,
-  Sparkles,
   Send,
   FileText,
   Users,
-} from 'lucide-react';
+  TrendingUp,
+  Zap,
+  Settings,
+  ChevronRight,
+  CheckSquare,
+  BookOpen,
+  Inbox,
+} from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 
 const AppSidebar = () => {
@@ -20,103 +26,205 @@ const AppSidebar = () => {
 
   if (!user) return null;
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const linkClass = (path: string) =>
-    `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative ${isActive(path)
-      ? 'nc-sidebar-active text-foreground'
-      : 'text-muted-foreground nc-sidebar-hover hover:text-foreground'
-    }`;
+  const NavItem = ({
+    to,
+    icon: Icon,
+    label,
+    hint,
+    badge,
+  }: {
+    to: string;
+    icon: React.ElementType;
+    label: string;
+    hint?: string;
+    badge?: number;
+  }) => {
+    const active = isActive(to);
+    return (
+      <Link
+        to={to}
+        className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+          active
+            ? 'bg-[#1B2B4A] text-white'
+            : 'text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#1A1A1A]'
+        }`}
+        title={hint}
+      >
+        <Icon
+          size={16}
+          strokeWidth={1.5}
+          className={`flex-shrink-0 ${active ? 'text-[#E6B84D]' : 'text-current'}`}
+        />
+        <span className="flex-1 truncate">{label}</span>
+        {badge !== undefined && badge > 0 && (
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+            active ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
+          }`}>
+            {badge}
+          </span>
+        )}
+        {active && !badge && (
+          <ChevronRight size={12} className="text-[#E6B84D] opacity-70 flex-shrink-0" />
+        )}
+      </Link>
+    );
+  };
+
+  const ZoneLabel = ({ children }: { children: React.ReactNode }) => (
+    <p className="px-3 pt-5 pb-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#C4C9D4]">
+      {children}
+    </p>
+  );
+
+  const roleLabel = () => {
+    switch (user.role) {
+      case 'admin': return 'Administrador';
+      case 'seller': return user.seller_type || 'Vendedor';
+      case 'closer': return 'Closer';
+      case 'client': return 'Cliente';
+      case 'cs': return 'CS de Vendas';
+      default: return user.role;
+    }
+  };
+
+  const roleBadgeColor = () => {
+    switch (user.role) {
+      case 'admin': return 'bg-red-100 text-red-700';
+      case 'seller': return 'bg-blue-100 text-blue-700';
+      case 'closer': return 'bg-amber-100 text-amber-700';
+      case 'client': return 'bg-purple-100 text-purple-700';
+      case 'cs': return 'bg-emerald-100 text-emerald-700';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border bg-sidebar flex flex-col z-50">
-      {/* Brand */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg nc-gradient flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-deep-space" />
+    <aside className="fixed left-0 top-0 h-screen w-60 bg-white border-r border-[#E5E7EB] flex flex-col z-50">
+
+      {/* Logo */}
+      <div className="px-5 py-4 border-b border-[#E5E7EB]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#1B2B4A] flex items-center justify-center flex-shrink-0">
+            <Zap size={15} className="text-[#E6B84D]" strokeWidth={2} />
           </div>
           <div>
-            <h1 className="font-display text-base font-bold nc-gradient-text">Next Control</h1>
-            <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Consultoria de Bolso</p>
+            <h1 className="text-[14px] font-bold text-[#1A1A1A] leading-tight"
+              style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif' }}>
+              Next Control
+            </h1>
+            <p className="text-[9px] text-[#9CA3AF] font-medium tracking-wider uppercase mt-0.5">
+              Consultoria de Bolso
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-0.5">
-        <p className="px-4 py-2 text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
-          Principal
-        </p>
-
-        {/* Admin */}
-        {user.role === 'admin' && (
-          <Link to="/admin" className={linkClass('/admin')}>
-            <LayoutDashboard size={18} /> Dashboard
-          </Link>
-        )}
-
-        {/* Seller */}
-        {(user.role === 'seller') && (
-          <>
-            <Link to="/seller" className={linkClass('/seller')}>
-              <LayoutDashboard size={18} /> Dashboard
-            </Link>
-          </>
-        )}
-
-        {/* Closer */}
-        {user.role === 'closer' && (
-          <Link to="/closer" className={linkClass('/closer')}>
-            <Phone size={18} /> Dashboard
-          </Link>
-        )}
-
-        {/* Client */}
-        {user.role === 'client' && (
-          <Link to="/client" className={linkClass('/client')}>
-            <Eye size={18} /> Meu Painel
-          </Link>
-        )}
-
-        {/* CS */}
-        {(user.role === 'admin' || user.role === 'cs') && (
-          <Link to="/cs" className={linkClass('/cs')}>
-            <Users size={18} /> CS Dashboard
-          </Link>
-        )}
-
-        {/* Coaching & Training */}
-        {(user.role === 'seller' || user.role === 'closer' || user.role === 'admin') && (
-          <>
-            <p className="px-4 py-2 mt-4 text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
-              Coaching
-            </p>
-            <Link to="/training/coach" className={linkClass('/training/coach')}>
-              <MessageSquare size={18} /> Consultoria
-            </Link>
-            <Link to="/training" className={linkClass('/training')}>
-              <GraduationCap size={18} /> Materiais
-            </Link>
-          </>
-        )}
-      </nav>
-
-      {/* User Footer */}
-      <div className="p-4 border-t border-border">
-        <div className="flex items-center gap-3 mb-3 px-2">
-          <div className="w-8 h-8 rounded-full nc-gradient flex items-center justify-center text-xs font-bold text-primary-foreground">
-            {user.name.charAt(0)}
+      {/* User */}
+      <div className="px-4 py-3 border-b border-[#E5E7EB]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#1B2B4A] flex items-center justify-center text-[12px] font-bold text-white flex-shrink-0">
+            {user.name.charAt(0).toUpperCase()}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">
-              {user.role === 'cs' ? 'CS de Vendas' : user.seller_type || user.role}
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-[#1A1A1A] truncate leading-tight">
+              {user.name}
             </p>
+            <span className={`inline-block text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mt-0.5 ${roleBadgeColor()}`}>
+              {roleLabel()}
+            </span>
           </div>
         </div>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={logout}>
-          <LogOut size={16} /> Sair
+      </div>
+
+      {/* Navigation — Command Center */}
+      <nav className="flex-1 px-3 py-1 overflow-y-auto">
+
+        {/* ── ADMIN ── */}
+        {user.role === 'admin' && (
+          <>
+            <ZoneLabel>Fazer</ZoneLabel>
+            <NavItem to="/admin" icon={LayoutDashboard} label="Painel Geral" hint="Ver pendências, submissões e validações" />
+            <NavItem to="/admin/manage" icon={Users} label="Gerenciar Equipe" hint="Adicionar membros e clientes" />
+
+            <ZoneLabel>Revisar</ZoneLabel>
+            <NavItem to="/cs" icon={Inbox} label="CS Inbox" hint="Perguntas de clientes aguardando resposta" />
+            <NavItem to="/training" icon={GraduationCap} label="Treinamentos" hint="Materiais de capacitação da equipe" />
+
+            <ZoneLabel>Configurar</ZoneLabel>
+            <NavItem to="/admin/rag" icon={BookOpen} label="Base de Conhecimento" hint="Adicionar conteúdo para a IA analisar" />
+          </>
+        )}
+
+        {/* ── SELLER ── */}
+        {user.role === 'seller' && (
+          <>
+            <ZoneLabel>Fazer</ZoneLabel>
+            <NavItem to="/seller/report" icon={Send} label="Check-in do Dia" hint="Registrar suas atividades diárias" />
+
+            <ZoneLabel>Revisar</ZoneLabel>
+            <NavItem to="/seller" icon={LayoutDashboard} label="Meu Desempenho" hint="Ver score, feedback e histórico" />
+            <NavItem to="/seller/evolution" icon={TrendingUp} label="Evolução Semanal" hint="Tendências e progresso ao longo do tempo" />
+
+            <ZoneLabel>Suporte</ZoneLabel>
+            <NavItem to="/training/coach" icon={MessageSquare} label="Consultoria IA" hint="Tire dúvidas estratégicas com IA" />
+            <NavItem to="/training" icon={GraduationCap} label="Materiais" hint="Biblioteca de treinamento" />
+          </>
+        )}
+
+        {/* ── CLOSER ── */}
+        {user.role === 'closer' && (
+          <>
+            <ZoneLabel>Fazer</ZoneLabel>
+            <NavItem to="/closer/report" icon={Phone} label="Check-in de Closer" hint="Registrar calls e fechamentos do dia" />
+
+            <ZoneLabel>Revisar</ZoneLabel>
+            <NavItem to="/closer" icon={LayoutDashboard} label="Meu Desempenho" hint="Ver score, conversão e histórico" />
+            <NavItem to="/closer/call-analysis" icon={FileText} label="Análise de Calls" hint="Feedback detalhado por chamada" />
+
+            <ZoneLabel>Suporte</ZoneLabel>
+            <NavItem to="/training/coach" icon={MessageSquare} label="Consultoria IA" hint="Tire dúvidas estratégicas com IA" />
+            <NavItem to="/training" icon={GraduationCap} label="Materiais" hint="Biblioteca de treinamento" />
+          </>
+        )}
+
+        {/* ── CLIENT ── */}
+        {user.role === 'client' && (
+          <>
+            <ZoneLabel>Fazer</ZoneLabel>
+            <NavItem to="/client" icon={Eye} label="Meu Projeto" hint="Acompanhar plano e fases do projeto" />
+
+            <ZoneLabel>Suporte</ZoneLabel>
+            <NavItem to="/training/coach" icon={MessageSquare} label="Consultoria de Bolso" hint="Tire dúvidas estratégicas com IA" />
+            <NavItem to="/training" icon={BookOpen} label="Conhecimento" hint="Materiais e treinamentos" />
+          </>
+        )}
+
+        {/* ── CS ── */}
+        {user.role === 'cs' && (
+          <>
+            <ZoneLabel>Fazer</ZoneLabel>
+            <NavItem to="/cs" icon={Inbox} label="Inbox de Clientes" hint="Perguntas aguardando resposta" />
+
+            <ZoneLabel>Revisar</ZoneLabel>
+            <NavItem to="/training" icon={GraduationCap} label="Treinamentos" hint="Gerenciar materiais de capacitação" />
+          </>
+        )}
+
+      </nav>
+
+      {/* Logout */}
+      <div className="px-4 py-3 border-t border-[#E5E7EB]">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-[12px] text-[#9CA3AF] font-medium hover:bg-[#F3F4F6] hover:text-[#1A1A1A] rounded-lg"
+          onClick={logout}
+        >
+          <LogOut size={14} strokeWidth={1.5} />
+          Sair da conta
         </Button>
       </div>
     </aside>

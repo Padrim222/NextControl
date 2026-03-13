@@ -16,10 +16,11 @@ import {
     Loader2,
     Copy,
     Plus,
-    Shield,
     Phone,
     Mail,
-} from 'lucide-react';
+    Info,
+    Link as LinkIcon,
+} from '@/components/ui/icons';
 
 type UserRole = 'seller' | 'closer' | 'cs' | 'client' | 'admin';
 
@@ -30,6 +31,7 @@ interface ManagedUser {
     role: UserRole;
     seller_type: string | null;
     status: string;
+    client_id: string | null;
     created_at: string;
 }
 
@@ -72,7 +74,7 @@ export default function AdminManage() {
 
     // New user form
     const [showUserForm, setShowUserForm] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', role: 'seller' as UserRole, password: '' });
+    const [newUser, setNewUser] = useState({ name: '', email: '', role: 'seller' as UserRole, password: '', client_id: '' });
     const [isCreatingUser, setIsCreatingUser] = useState(false);
     const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
 
@@ -80,6 +82,11 @@ export default function AdminManage() {
     const [showClientForm, setShowClientForm] = useState(false);
     const [newClient, setNewClient] = useState({ name: '', email: '', phone: '', company: '', segment: '' });
     const [isCreatingClient, setIsCreatingClient] = useState(false);
+
+    // Link user to client
+    const [linkingUserId, setLinkingUserId] = useState<string | null>(null);
+    const [selectedClientId, setSelectedClientId] = useState('');
+    const [isLinking, setIsLinking] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -89,15 +96,9 @@ export default function AdminManage() {
         if (!supabase) return;
         setIsLoading(true);
         try {
-            const [_, __] = await Promise.all([
-                Promise.resolve(), // placeholder for future admin edge function
-                Promise.resolve(),
-            ]);
-
-            // Use direct DB queries since they're simpler
             const { data: usersData } = await (supabase as any)
                 .from('users')
-                .select('id, name, email, role, seller_type, status, created_at')
+                .select('id, name, email, role, seller_type, status, client_id, created_at')
                 .order('created_at', { ascending: false });
 
             const { data: clientsData } = await (supabase as any)
@@ -119,6 +120,10 @@ export default function AdminManage() {
             toast.error('Nome e email são obrigatórios');
             return;
         }
+        if (newUser.role === 'client' && !newUser.client_id) {
+            toast.error('Selecione o cliente que este usuário irá acessar');
+            return;
+        }
         setIsCreatingUser(true);
         try {
             const password = newUser.password.trim() || 'NextControl2026!';
@@ -129,24 +134,37 @@ export default function AdminManage() {
             });
 
             if (authError) throw authError;
-            if (!authData.user) throw new Error('User creation failed');
+            if (!authData.user) throw new Error('Criação de usuário falhou');
 
-            // Insert into users table
-            await (supabase as any).from('users').upsert([{
+            const insertData: any = {
                 id: authData.user.id,
                 email: newUser.email.trim().toLowerCase(),
                 name: newUser.name.trim(),
                 role: newUser.role,
                 status: 'active',
-            }], { onConflict: 'id' });
+            };
 
-            toast.success(`Usuário ${newUser.name} criado!`);
+            if (newUser.role === 'client' && newUser.client_id) {
+                insertData.client_id = newUser.client_id;
+            }
+
+            await (supabase as any).from('users').upsert([insertData], { onConflict: 'id' });
+
+            toast.success(`✅ Usuário ${newUser.name} criado!`, {
+                description: newUser.role === 'client'
+                    ? 'O cliente já pode acessar o painel com as credenciais abaixo.'
+                    : 'Envie as credenciais para o novo membro.'
+            });
             setCreatedCredentials({ email: newUser.email.trim().toLowerCase(), password });
-            setNewUser({ name: '', email: '', role: 'seller', password: '' });
+            setNewUser({ name: '', email: '', role: 'seller', password: '', client_id: '' });
             setShowUserForm(false);
             fetchData();
         } catch (error: any) {
-            toast.error(error?.message || 'Erro ao criar usuário');
+            if (error?.message?.includes('already registered')) {
+                toast.error('Este email já está cadastrado no sistema.');
+            } else {
+                toast.error(error?.message || 'Erro ao criar usuário');
+            }
         } finally {
             setIsCreatingUser(false);
         }
@@ -170,7 +188,9 @@ export default function AdminManage() {
 
             if (error) throw error;
 
-            toast.success(`Cliente ${newClient.name} criado!`);
+            toast.success(`Cliente ${newClient.name} criado!`, {
+                description: 'Agora crie um usuário de acesso para ele na aba Equipe.'
+            });
             setNewClient({ name: '', email: '', phone: '', company: '', segment: '' });
             setShowClientForm(false);
             fetchData();
@@ -181,11 +201,39 @@ export default function AdminManage() {
         }
     };
 
+    const handleLinkUserToClient = async (userId: string) => {
+        if (!selectedClientId) {
+            toast.error('Selecione um cliente para vincular');
+            return;
+        }
+        setIsLinking(true);
+        try {
+            const { error } = await (supabase as any)
+                .from('users')
+                .update({ client_id: selectedClientId })
+                .eq('id', userId);
+            if (error) throw error;
+            toast.success('Usuário vinculado ao cliente!');
+            setLinkingUserId(null);
+            setSelectedClientId('');
+            fetchData();
+        } catch (error: any) {
+            toast.error(error?.message || 'Erro ao vincular');
+        } finally {
+            setIsLinking(false);
+        }
+    };
+
     const copyCredentials = () => {
         if (!createdCredentials) return;
         const text = `Login: ${createdCredentials.email}\nSenha: ${createdCredentials.password}`;
         navigator.clipboard.writeText(text);
         toast.success('Credenciais copiadas!');
+    };
+
+    const getClientName = (clientId: string | null) => {
+        if (!clientId) return null;
+        return clients.find(c => c.id === clientId)?.name || null;
     };
 
     return (
@@ -203,16 +251,33 @@ export default function AdminManage() {
                 </div>
             </div>
 
+            {/* Guide Banner */}
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <div className="flex items-start gap-3">
+                    <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-blue-800 space-y-1">
+                        <p className="font-semibold">Como adicionar um cliente ao sistema:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                            <li>Na aba <strong>Clientes</strong>, clique em "Novo Cliente" e preencha os dados da empresa.</li>
+                            <li>Na aba <strong>Equipe</strong>, clique em "Novo Membro", selecione a função <strong>Cliente</strong> e vincule ao cliente criado no passo 1.</li>
+                            <li>Copie o email e senha gerados e envie para o cliente — ele já pode acessar o painel.</li>
+                        </ol>
+                        <p className="mt-2 text-blue-600 font-medium">Para embedar material do cliente: menu lateral → <strong>Base de Conhecimento</strong></p>
+                    </div>
+                </div>
+            </div>
+
             {/* Credentials Card */}
             {createdCredentials && (
                 <Card className="nc-card-border border-nc-success/30 bg-nc-success/5">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-nc-success">✅ Usuário criado! Copie as credenciais:</p>
+                                <p className="text-sm font-medium text-nc-success">✅ Usuário criado! Copie e envie as credenciais:</p>
                                 <p className="text-sm font-mono mt-1">
-                                    Login: <strong>{createdCredentials.email}</strong> • Senha: <strong>{createdCredentials.password}</strong>
+                                    Login: <strong>{createdCredentials.email}</strong> · Senha: <strong>{createdCredentials.password}</strong>
                                 </p>
+                                <p className="text-xs text-muted-foreground mt-1">O usuário deve acessar o sistema com esses dados e pode trocar a senha depois.</p>
                             </div>
                             <div className="flex gap-2">
                                 <Button size="sm" variant="outline" onClick={copyCredentials}>
@@ -255,7 +320,10 @@ export default function AdminManage() {
             {activeTab === 'users' && (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">Equipe</h3>
+                        <div>
+                            <h3 className="text-lg font-semibold">Equipe & Acessos</h3>
+                            <p className="text-xs text-muted-foreground">Membros com login no sistema</p>
+                        </div>
                         <Button onClick={() => setShowUserForm(!showUserForm)} size="sm">
                             <Plus className="h-4 w-4 mr-1" /> Novo Membro
                         </Button>
@@ -269,20 +337,22 @@ export default function AdminManage() {
                                     <UserPlus className="h-4 w-4 text-primary" />
                                     Adicionar Membro
                                 </CardTitle>
-                                <CardDescription>O login será o email e a senha padrão é NextControl2026!</CardDescription>
+                                <CardDescription>
+                                    A senha padrão é <strong>NextControl2026!</strong> — o usuário pode alterar depois.
+                                </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <Label>Nome</Label>
+                                        <Label>Nome completo</Label>
                                         <Input
-                                            placeholder="Nome completo"
+                                            placeholder="Nome do usuário"
                                             value={newUser.name}
                                             onChange={e => setNewUser(prev => ({ ...prev, name: e.target.value }))}
                                         />
                                     </div>
                                     <div>
-                                        <Label>Email</Label>
+                                        <Label>Email de acesso</Label>
                                         <Input
                                             type="email"
                                             placeholder="email@empresa.com"
@@ -293,16 +363,16 @@ export default function AdminManage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <Label>Função</Label>
+                                        <Label>Função no sistema</Label>
                                         <select
                                             value={newUser.role}
-                                            onChange={e => setNewUser(prev => ({ ...prev, role: e.target.value as UserRole }))}
+                                            onChange={e => setNewUser(prev => ({ ...prev, role: e.target.value as UserRole, client_id: '' }))}
                                             className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                                         >
-                                            <option value="seller">Seller</option>
+                                            <option value="seller">Seller (Vendedor)</option>
                                             <option value="closer">Closer</option>
-                                            <option value="cs">CS</option>
-                                            <option value="client">Cliente</option>
+                                            <option value="cs">CS (Suporte)</option>
+                                            <option value="client">Cliente (acesso ao painel do cliente)</option>
                                             <option value="admin">Admin</option>
                                         </select>
                                     </div>
@@ -316,9 +386,40 @@ export default function AdminManage() {
                                         />
                                     </div>
                                 </div>
+
+                                {/* Client linking — only shown when role = client */}
+                                {newUser.role === 'client' && (
+                                    <div className="rounded-lg border border-purple-200 bg-purple-50 p-3 space-y-2">
+                                        <p className="text-xs font-semibold text-purple-800 flex items-center gap-1.5">
+                                            <LinkIcon className="h-3 w-3" />
+                                            Vincular ao cliente (obrigatório para role Cliente)
+                                        </p>
+                                        <p className="text-xs text-purple-600">
+                                            Selecione o cliente que este usuário irá acessar. Se o cliente ainda não existe, crie-o primeiro na aba "Clientes".
+                                        </p>
+                                        <select
+                                            value={newUser.client_id}
+                                            onChange={e => setNewUser(prev => ({ ...prev, client_id: e.target.value }))}
+                                            className="w-full h-10 px-3 rounded-md border border-purple-300 bg-white text-sm"
+                                        >
+                                            <option value="">— Selecione o cliente —</option>
+                                            {clients.map(c => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.name}{c.company ? ` (${c.company})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {clients.length === 0 && (
+                                            <p className="text-xs text-amber-700 font-medium">
+                                                Nenhum cliente cadastrado. Crie um cliente na aba "Clientes" primeiro.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="flex gap-2 pt-2">
                                     <Button onClick={handleCreateUser} disabled={isCreatingUser}>
-                                        {isCreatingUser ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Criando...</> : 'Criar Membro'}
+                                        {isCreatingUser ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Criando...</> : 'Criar Acesso'}
                                     </Button>
                                     <Button variant="ghost" onClick={() => setShowUserForm(false)}>Cancelar</Button>
                                 </div>
@@ -336,24 +437,79 @@ export default function AdminManage() {
                             <CardContent className="p-0">
                                 <div className="divide-y divide-border">
                                     {users.map(u => (
-                                        <div key={u.id} className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-solar/10 flex items-center justify-center text-solar font-bold text-sm">
-                                                    {u.name.charAt(0)}
+                                        <div key={u.id}>
+                                            <div className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-solar/10 flex items-center justify-center text-solar font-bold text-sm">
+                                                        {u.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{u.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                                                        {u.role === 'client' && (
+                                                            <p className="text-xs mt-0.5">
+                                                                {u.client_id
+                                                                    ? <span className="text-purple-600 font-medium">→ {getClientName(u.client_id)}</span>
+                                                                    : <span className="text-amber-600 font-medium">⚠ Sem cliente vinculado</span>
+                                                                }
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-medium">{u.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge className={`text-xs ${ROLE_COLORS[u.role] || ''}`}>
+                                                        {ROLE_LABELS[u.role] || u.role}
+                                                    </Badge>
+                                                    <Badge variant={u.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                                                        {u.status === 'active' ? '✓' : u.status}
+                                                    </Badge>
+                                                    {u.role === 'client' && !u.client_id && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="text-xs h-7 border-purple-300 text-purple-700 hover:bg-purple-50"
+                                                            onClick={() => {
+                                                                setLinkingUserId(u.id);
+                                                                setSelectedClientId('');
+                                                            }}
+                                                        >
+                                                            <LinkIcon className="h-3 w-3 mr-1" />
+                                                            Vincular
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge className={`text-xs ${ROLE_COLORS[u.role] || ''}`}>
-                                                    {ROLE_LABELS[u.role] || u.role}
-                                                </Badge>
-                                                <Badge variant={u.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                                                    {u.status === 'active' ? '✓' : u.status}
-                                                </Badge>
-                                            </div>
+                                            {/* Inline link panel */}
+                                            {linkingUserId === u.id && (
+                                                <div className="px-4 pb-3 bg-purple-50 border-t border-purple-100">
+                                                    <p className="text-xs text-purple-700 font-medium pt-2 mb-2">Selecione o cliente para vincular a {u.name}:</p>
+                                                    <div className="flex gap-2">
+                                                        <select
+                                                            value={selectedClientId}
+                                                            onChange={e => setSelectedClientId(e.target.value)}
+                                                            className="flex-1 h-8 px-2 rounded border border-purple-300 bg-white text-xs"
+                                                        >
+                                                            <option value="">— Selecione —</option>
+                                                            {clients.map(c => (
+                                                                <option key={c.id} value={c.id}>
+                                                                    {c.name}{c.company ? ` (${c.company})` : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-8 text-xs"
+                                                            onClick={() => handleLinkUserToClient(u.id)}
+                                                            disabled={isLinking || !selectedClientId}
+                                                        >
+                                                            {isLinking ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Vincular'}
+                                                        </Button>
+                                                        <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setLinkingUserId(null)}>
+                                                            Cancelar
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                     {users.length === 0 && (
@@ -372,7 +528,10 @@ export default function AdminManage() {
             {activeTab === 'clients' && (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">Clientes</h3>
+                        <div>
+                            <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
+                            <p className="text-xs text-muted-foreground">Empresas e projetos gerenciados</p>
+                        </div>
                         <Button onClick={() => setShowClientForm(!showClientForm)} size="sm">
                             <Plus className="h-4 w-4 mr-1" /> Novo Cliente
                         </Button>
@@ -386,11 +545,14 @@ export default function AdminManage() {
                                     <Building2 className="h-4 w-4 text-primary" />
                                     Adicionar Cliente
                                 </CardTitle>
+                                <CardDescription>
+                                    Após criar o cliente aqui, vá para a aba <strong>Equipe</strong> e crie o acesso de login para ele.
+                                </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <Label>Nome</Label>
+                                        <Label>Nome do responsável *</Label>
                                         <Input
                                             placeholder="Nome do cliente"
                                             value={newClient.name}
@@ -417,7 +579,7 @@ export default function AdminManage() {
                                         />
                                     </div>
                                     <div>
-                                        <Label>Telefone</Label>
+                                        <Label>Telefone / WhatsApp</Label>
                                         <Input
                                             placeholder="(11) 99999-9999"
                                             value={newClient.phone}
@@ -452,34 +614,43 @@ export default function AdminManage() {
                         <Card className="nc-card-border">
                             <CardContent className="p-0">
                                 <div className="divide-y divide-border">
-                                    {clients.map(c => (
-                                        <div key={c.id} className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-nc-info/10 flex items-center justify-center text-nc-info font-bold text-sm">
-                                                    {c.name.charAt(0)}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium">{c.name}</p>
-                                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                        {c.company && <span>{c.company}</span>}
-                                                        {c.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
-                                                        {c.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+                                    {clients.map(c => {
+                                        const linkedUser = users.find(u => u.client_id === c.id);
+                                        return (
+                                            <div key={c.id} className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-nc-info/10 flex items-center justify-center text-nc-info font-bold text-sm">
+                                                        {c.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{c.name}</p>
+                                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                            {c.company && <span>{c.company}</span>}
+                                                            {c.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
+                                                            {c.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+                                                        </div>
+                                                        {linkedUser
+                                                            ? <p className="text-xs text-emerald-600 mt-0.5">✓ Acesso: {linkedUser.email}</p>
+                                                            : <p className="text-xs text-amber-600 mt-0.5">⚠ Sem login — crie na aba Equipe</p>
+                                                        }
                                                     </div>
                                                 </div>
+                                                <div className="flex items-center gap-2">
+                                                    {c.segment && (
+                                                        <Badge variant="secondary" className="text-xs">{c.segment}</Badge>
+                                                    )}
+                                                    <Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                                                        {c.status === 'active' ? '✓ Ativo' : c.status}
+                                                    </Badge>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                {c.segment && (
-                                                    <Badge variant="secondary" className="text-xs">{c.segment}</Badge>
-                                                )}
-                                                <Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                                                    {c.status === 'active' ? '✓ Ativo' : c.status}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {clients.length === 0 && (
                                         <div className="p-8 text-center text-muted-foreground text-sm">
-                                            Nenhum cliente cadastrado
+                                            <Building2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                                            <p>Nenhum cliente cadastrado ainda.</p>
+                                            <p className="text-xs mt-1">Clique em "Novo Cliente" para começar.</p>
                                         </div>
                                     )}
                                 </div>
