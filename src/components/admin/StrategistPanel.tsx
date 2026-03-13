@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,10 +8,12 @@ import {
     Send,
     ArrowRight,
     Sparkles,
-} from 'lucide-react';
+} from '@/components/ui/icons';
+import { supabase } from '@/lib/supabase';
 
 interface StrategistPanelProps {
-    clientName: string;
+    /** Optional override — when supplied the internal selector is hidden */
+    clientName?: string;
     briefing?: string;
     onStrategySent?: (strategy: string) => void;
 }
@@ -23,10 +25,46 @@ interface StrategyPath {
     priority: 'high' | 'medium' | 'low';
 }
 
-export function StrategistPanel({ clientName, briefing, onStrategySent }: StrategistPanelProps) {
+interface ClientOption {
+    id: string;
+    name: string;
+}
+
+export function StrategistPanel({ clientName: propClientName, briefing, onStrategySent }: StrategistPanelProps) {
     const [inputBriefing, setInputBriefing] = useState(briefing || '');
     const [isGenerating, setIsGenerating] = useState(false);
     const [paths, setPaths] = useState<StrategyPath[] | null>(null);
+
+    const [clients, setClients] = useState<ClientOption[]>([]);
+    const [selectedClientId, setSelectedClientId] = useState<string>('');
+    const [loadingClients, setLoadingClients] = useState(true);
+
+    // Determine effective client name: prop takes priority over dropdown selection
+    const selectedClient = clients.find(c => c.id === selectedClientId);
+    const effectiveClientName = propClientName || selectedClient?.name || '';
+
+    useEffect(() => {
+        // Skip fetching if caller already provides a fixed client name
+        if (propClientName) {
+            setLoadingClients(false);
+            return;
+        }
+        (async () => {
+            setLoadingClients(true);
+            try {
+                const { data } = await (supabase as any)
+                    .from('clients')
+                    .select('id, name')
+                    .order('name', { ascending: true });
+                if (data && data.length > 0) {
+                    setClients(data as ClientOption[]);
+                    setSelectedClientId((data as ClientOption[])[0].id);
+                }
+            } finally {
+                setLoadingClients(false);
+            }
+        })();
+    }, [propClientName]);
 
     const generatePaths = () => {
         if (!inputBriefing.trim()) return;
@@ -93,7 +131,7 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
             title: '🔄 Caminho de Diagnóstico Completo',
             description: 'Análise 360° para identificar gargalos e oportunidades',
             steps: [
-                `Analisar métricas atuais do cliente ${clientName}`,
+                `Analisar métricas atuais do cliente ${effectiveClientName || 'selecionado'}`,
                 'Benchmark contra melhores performers da carteira',
                 'Identificar 3 quick wins implementáveis esta semana',
                 'Propor plano de ação de 30 dias com KPIs claros',
@@ -116,12 +154,49 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
                 <CardTitle className="flex items-center gap-2">
                     <Compass className="h-5 w-5 text-cyan-500" />
                     Estrategista Yorik
+                    {effectiveClientName && (
+                        <span className="ml-auto text-sm font-normal text-muted-foreground">
+                            — {effectiveClientName}
+                        </span>
+                    )}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
                     Humano {'>'} IA Estrategista — Gerar caminhos adaptados pro cliente
                 </p>
             </CardHeader>
             <CardContent className="space-y-4">
+                {/* Client Selector — only shown when no prop client is supplied */}
+                {!propClientName && (
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2">
+                            <Compass className="h-4 w-4 text-cyan-500" />
+                            Cliente
+                        </label>
+                        {loadingClients ? (
+                            <p className="text-sm text-muted-foreground">Carregando clientes...</p>
+                        ) : clients.length === 0 ? (
+                            <p className="text-sm text-muted-foreground italic">
+                                Nenhum cliente cadastrado
+                            </p>
+                        ) : (
+                            <select
+                                value={selectedClientId}
+                                onChange={e => {
+                                    setSelectedClientId(e.target.value);
+                                    setPaths(null);
+                                }}
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            >
+                                {clients.map(c => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+                )}
+
                 {/* Briefing Input */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-2">
@@ -138,7 +213,7 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
 
                 <Button
                     onClick={generatePaths}
-                    disabled={isGenerating || !inputBriefing.trim()}
+                    disabled={isGenerating || !inputBriefing.trim() || (!propClientName && !selectedClientId)}
                     className="w-full bg-cyan-600 hover:bg-cyan-700"
                 >
                     {isGenerating ? (

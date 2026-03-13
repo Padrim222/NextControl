@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { RoleGuard } from "@/components/layout/RoleGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
@@ -18,6 +19,7 @@ import CallAnalysis from "@/pages/closer/CallAnalysis";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminManage from "@/pages/admin/AdminManage";
 import ClientDashboard from "@/pages/client/ClientDashboard";
+import OnboardingForm from "@/pages/client/OnboardingForm";
 import CSInbox from "@/pages/cs/CSInbox";
 import TrainingHub from "@/pages/training/TrainingHub";
 import CoachChat from "@/pages/training/CoachChat";
@@ -32,6 +34,7 @@ import FormSuccess from "@/pages/forms/FormSuccess";
 const queryClient = new QueryClient();
 
 const App = () => (
+  <ThemeProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -158,6 +161,14 @@ const App = () => (
                 </RoleGuard>
               }
             />
+            <Route
+              path="/client/onboarding"
+              element={
+                <RoleGuard allowedRoles={['client', 'admin']}>
+                  <OnboardingForm />
+                </RoleGuard>
+              }
+            />
 
             {/* CS Dashboard Route */}
             <Route
@@ -200,6 +211,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

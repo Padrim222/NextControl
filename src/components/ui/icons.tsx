@@ -58,6 +58,7 @@ import {
   MegaphoneIcon,
   MicrophoneIcon,
   MinusIcon,
+  MoonIcon,
   PaperAirplaneIcon,
   PercentBadgeIcon,
   PhoneIcon,
@@ -68,6 +69,7 @@ import {
   SparklesIcon,
   Squares2X2Icon,
   StopCircleIcon,
+  SunIcon,
   PencilIcon,
   TrashIcon,
   TrophyIcon,
@@ -197,6 +199,10 @@ export const Briefcase         = wrap(BriefcaseIcon);
 export const Play              = wrap(PlayIcon);
 export const Flag              = wrap(FlagIcon);
 export const BarsArrowUp       = wrap(BarsArrowUpIcon);
+
+// ── Theme ────────────────────────────────────────────────────
+export const Sun               = wrap(SunIcon);
+export const Moon              = wrap(MoonIcon);
 
 // ── Re-exports for completeness ──────────────────────────────
 export const ArrowTopRightOnSquare = wrap(ArrowTopRightOnSquareIcon);

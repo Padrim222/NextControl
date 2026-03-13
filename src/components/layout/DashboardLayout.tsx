@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LogOut, Sparkles, Menu, X, ChevronRight } from '@/components/ui/icons';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Link, useLocation } from 'react-router-dom';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PageTransition } from './PageTransition';
@@ -254,15 +255,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                         >
                             {ROLE_LABELS[user.role] || user.role}
                         </Badge>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={logout}
-                            className="text-muted-foreground hover:text-destructive h-7 px-2 text-xs"
-                        >
-                            <LogOut className="h-3.5 w-3.5 mr-1" />
-                            Sair
-                        </Button>
+                        <div className="flex items-center gap-1">
+                            <ThemeToggle />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={logout}
+                                className="text-muted-foreground hover:text-destructive h-7 px-2 text-xs"
+                            >
+                                <LogOut className="h-3.5 w-3.5 mr-1" />
+                                Sair
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
