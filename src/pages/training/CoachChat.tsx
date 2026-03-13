@@ -10,8 +10,12 @@ import {
     Bot,
     ArrowLeft,
     Zap,
+    Lightbulb,
+    X,
+    CheckCircle,
 } from '@/components/ui/icons';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import type { CoachInteraction } from '@/types';
 
 interface ChatMessage {
@@ -19,6 +23,16 @@ interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
     timestamp: Date;
+}
+
+type AgentType = 'ss' | 'closer' | 'geral';
+
+interface SuggestionModalState {
+    open: boolean;
+    title: string;
+    agentType: AgentType;
+    suggestionText: string;
+    contextNote: string;
 }
 
 const WELCOME_MESSAGES: Record<string, string> = {
@@ -40,12 +54,26 @@ const CLOSER_QUESTIONS = [
     'Quebra de objeções',
 ];
 
+function defaultAgentType(role: string | undefined, sellerType: string): AgentType {
+    if (role === 'closer' || sellerType === 'closer') return 'closer';
+    if (role === 'seller') return 'ss';
+    return 'geral';
+}
+
 export default function CoachChat() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [modal, setModal] = useState<SuggestionModalState>({
+        open: false,
+        title: '',
+        agentType: 'geral',
+        suggestionText: '',
+        contextNote: '',
+    });
+    const [submitting, setSubmitting] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -151,6 +179,64 @@ export default function CoachChat() {
         e.preventDefault();
         sendMessage(input);
     };
+
+    const openSuggestionModal = () => {
+        if (!user) return;
+
+        // Pre-fill title with last 60 chars of recent conversation
+        const recentConversation = messages
+            .filter(m => m.id !== 'welcome')
+            .map(m => m.content)
+            .join(' ')
+            .slice(-60)
+            .trim();
+
+        // Pre-fill suggestion text with last assistant message
+        const lastAiMsg = [...messages].reverse().find(m => m.role === 'assistant' && m.id !== 'welcome');
+
+        setModal({
+            open: true,
+            title: recentConversation || 'Melhoria baseada no chat de coaching',
+            agentType: defaultAgentType(user.role, sellerType),
+            suggestionText: lastAiMsg?.content || '',
+            contextNote: '',
+        });
+    };
+
+    const closeSuggestionModal = () => {
+        setModal(prev => ({ ...prev, open: false }));
+    };
+
+    const handleSuggestionSubmit = async () => {
+        if (!user || !modal.title.trim() || !modal.suggestionText.trim()) {
+            toast.error('Preencha o título e a descrição da melhoria.');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await (supabase as any).from('agent_suggestions').insert({
+                user_id: user.id,
+                client_id: user.client_id || null,
+                agent_type: modal.agentType,
+                title: modal.title.trim(),
+                suggestion_text: modal.suggestionText.trim(),
+                context_note: modal.contextNote.trim() || null,
+                source: 'user',
+                status: 'pending',
+            });
+
+            toast.success('Sugestão enviada para revisão do admin!');
+            closeSuggestionModal();
+        } catch (error) {
+            console.error('Error submitting suggestion:', error);
+            toast.error('Erro ao enviar sugestão. Tente novamente.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const hasConversation = messages.filter(m => m.id !== 'welcome').length > 0;
 
     return (
         <div
@@ -336,7 +422,7 @@ export default function CoachChat() {
             {/* Input */}
             <form
                 onSubmit={handleSubmit}
-                className="px-4 py-3 bg-white"
+                className="px-4 pt-3 pb-2 bg-white"
                 style={{ borderTop: '1px solid #E5E7EB' }}
             >
                 <div className="flex gap-2">
@@ -374,7 +460,240 @@ export default function CoachChat() {
                         }
                     </button>
                 </div>
+
+                {/* Suggestion button — shown only when there is conversation */}
+                {hasConversation && (
+                    <div className="flex justify-center mt-2 pb-1">
+                        <button
+                            type="button"
+                            onClick={openSuggestionModal}
+                            className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full transition-all"
+                            style={{
+                                background: '#FEF9EC',
+                                border: '1px solid #E6B84D',
+                                color: '#92620A',
+                                fontFamily: 'DM Sans, sans-serif',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#FEF3C7';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#FEF9EC';
+                            }}
+                        >
+                            <Lightbulb size={13} />
+                            Salvar como melhoria do agente
+                        </button>
+                    </div>
+                )}
             </form>
+
+            {/* Suggestion Modal */}
+            <AnimatePresence>
+                {modal.open && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4"
+                        style={{ background: 'rgba(0,0,0,0.5)' }}
+                        onClick={(e) => { if (e.target === e.currentTarget) closeSuggestionModal(); }}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, y: 40 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 40 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+                            style={{ maxHeight: '90vh' }}
+                        >
+                            {/* Modal header */}
+                            <div
+                                className="flex items-center justify-between px-5 py-4"
+                                style={{ borderBottom: '1px solid #F3F4F6' }}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center"
+                                        style={{ background: '#FEF9EC' }}
+                                    >
+                                        <Lightbulb size={14} style={{ color: '#92620A' }} />
+                                    </div>
+                                    <span
+                                        className="text-[15px] font-semibold"
+                                        style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', color: '#1A1A1A' }}
+                                    >
+                                        Sugerir melhoria ao agente
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={closeSuggestionModal}
+                                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                                    style={{ color: '#9CA3AF' }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                >
+                                    <X size={15} />
+                                </button>
+                            </div>
+
+                            {/* Modal body */}
+                            <div className="px-5 py-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 130px)' }}>
+                                {/* Title */}
+                                <div className="space-y-1.5">
+                                    <label
+                                        className="text-[12px] font-medium"
+                                        style={{ color: '#374151' }}
+                                    >
+                                        Título da melhoria
+                                    </label>
+                                    <input
+                                        value={modal.title}
+                                        onChange={(e) => setModal(prev => ({ ...prev, title: e.target.value }))}
+                                        placeholder="Ex: Como lidar com objeção de preço"
+                                        className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none transition-all"
+                                        style={{
+                                            background: '#FAFAFA',
+                                            border: '1px solid #E5E7EB',
+                                            color: '#1A1A1A',
+                                            fontFamily: 'DM Sans, sans-serif',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = '#1B2B4A';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(27,43,74,0.08)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#E5E7EB';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Agent type */}
+                                <div className="space-y-1.5">
+                                    <label
+                                        className="text-[12px] font-medium"
+                                        style={{ color: '#374151' }}
+                                    >
+                                        Tipo de agente
+                                    </label>
+                                    <div className="flex gap-2">
+                                        {(['ss', 'closer', 'geral'] as AgentType[]).map((type) => (
+                                            <button
+                                                key={type}
+                                                type="button"
+                                                onClick={() => setModal(prev => ({ ...prev, agentType: type }))}
+                                                className="flex-1 py-2 rounded-lg text-[12px] font-medium transition-all capitalize"
+                                                style={
+                                                    modal.agentType === type
+                                                        ? { background: '#1B2B4A', color: '#E6B84D', border: '1px solid #1B2B4A' }
+                                                        : { background: '#FAFAFA', color: '#6B7280', border: '1px solid #E5E7EB' }
+                                                }
+                                            >
+                                                {type === 'ss' ? 'SS' : type === 'closer' ? 'Closer' : 'Geral'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Suggestion text */}
+                                <div className="space-y-1.5">
+                                    <label
+                                        className="text-[12px] font-medium"
+                                        style={{ color: '#374151' }}
+                                    >
+                                        Descreva a melhoria ou novo contexto
+                                    </label>
+                                    <textarea
+                                        value={modal.suggestionText}
+                                        onChange={(e) => setModal(prev => ({ ...prev, suggestionText: e.target.value }))}
+                                        placeholder="Descreva o que o agente deveria saber ou como deveria responder..."
+                                        rows={5}
+                                        className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none transition-all resize-none"
+                                        style={{
+                                            background: '#FAFAFA',
+                                            border: '1px solid #E5E7EB',
+                                            color: '#1A1A1A',
+                                            fontFamily: 'DM Sans, sans-serif',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = '#1B2B4A';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(27,43,74,0.08)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#E5E7EB';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Context note */}
+                                <div className="space-y-1.5">
+                                    <label
+                                        className="text-[12px] font-medium"
+                                        style={{ color: '#374151' }}
+                                    >
+                                        O que motivou essa sugestão?{' '}
+                                        <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(opcional)</span>
+                                    </label>
+                                    <input
+                                        value={modal.contextNote}
+                                        onChange={(e) => setModal(prev => ({ ...prev, contextNote: e.target.value }))}
+                                        placeholder="Ex: Percebi que o agente não sabe lidar com esse cenário"
+                                        className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none transition-all"
+                                        style={{
+                                            background: '#FAFAFA',
+                                            border: '1px solid #E5E7EB',
+                                            color: '#1A1A1A',
+                                            fontFamily: 'DM Sans, sans-serif',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = '#1B2B4A';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(27,43,74,0.08)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#E5E7EB';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Modal footer */}
+                            <div
+                                className="px-5 py-4 flex gap-2"
+                                style={{ borderTop: '1px solid #F3F4F6' }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={closeSuggestionModal}
+                                    className="flex-1 py-2.5 rounded-lg text-[13px] font-medium transition-all"
+                                    style={{
+                                        background: '#F3F4F6',
+                                        color: '#6B7280',
+                                        border: '1px solid #E5E7EB',
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSuggestionSubmit}
+                                    disabled={submitting || !modal.title.trim() || !modal.suggestionText.trim()}
+                                    className="flex-1 py-2.5 rounded-lg text-[13px] font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                                    style={{ background: '#1B2B4A', color: '#E6B84D' }}
+                                >
+                                    {submitting
+                                        ? <Loader2 size={14} className="animate-spin" />
+                                        : <CheckCircle size={14} />
+                                    }
+                                    Enviar Sugestão
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

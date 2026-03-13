@@ -29,6 +29,7 @@ import { StrategistPanel } from '@/components/admin/StrategistPanel';
 import { ImprovementChecklist } from '@/components/admin/ImprovementChecklist';
 import { downloadReportAsPDF } from '@/lib/pdf-export';
 import { AdminFormPanel } from '@/components/admin/AdminFormPanel';
+import { AgentSuggestionsPanel } from '@/components/admin/AgentSuggestionsPanel';
 
 /* ─── Design tokens ─────────────────────────────────────────────── */
 const t = {
@@ -527,6 +528,11 @@ export default function AdminDashboard() {
                 {/* ── AdminFormPanel ────────────────────────────────── */}
                 <div style={{ marginBottom: '24px' }}>
                     <AdminFormPanel />
+                </div>
+
+                {/* ── AgentSuggestionsPanel ─────────────────────────── */}
+                <div style={{ marginBottom: '24px' }}>
+                    <AgentSuggestionsPanel />
                 </div>
 
                 {/* ── Analyzed Submissions ──────────────────────────── */}
