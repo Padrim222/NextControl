@@ -18,6 +18,7 @@ import {
   ArrowTrendingUpIcon,
   ArrowUpRightIcon,
   ArrowUpTrayIcon,
+  Bars3Icon,
   BarsArrowUpIcon,
   BellIcon,
   BoltIcon,
@@ -67,6 +68,7 @@ import {
   SparklesIcon,
   Squares2X2Icon,
   StopCircleIcon,
+  PencilIcon,
   TrashIcon,
   TrophyIcon,
   UserIcon,
@@ -120,6 +122,7 @@ export const ChevronRight      = wrap(ChevronRightIcon);
 
 // ── Actions ──────────────────────────────────────────────────
 export const LogOut            = wrap(ArrowRightOnRectangleIcon);
+export const Menu              = wrap(Bars3Icon);
 export const Download          = wrap(ArrowDownTrayIcon);
 export const Upload            = wrap(ArrowUpTrayIcon);
 export const Send              = wrap(PaperAirplaneIcon);
@@ -132,6 +135,7 @@ export const Minus             = wrap(MinusIcon);
 export const Eye               = wrap(EyeIcon);
 export const EyeOff            = wrap(EyeSlashIcon);
 export const Camera            = wrap(CameraIcon);
+export const Pencil            = wrap(PencilIcon);
 export const Trash2            = wrap(TrashIcon);
 
 // ── Communication ────────────────────────────────────────────
