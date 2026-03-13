@@ -12,14 +12,17 @@
 -- 1. clients
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.clients (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        TEXT NOT NULL,
-    company     TEXT,
-    email       TEXT,
-    phone       TEXT,
-    status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'churned')),
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name                TEXT NOT NULL,
+    company             TEXT,
+    email               TEXT,
+    phone               TEXT,
+    status              TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'churned')),
+    auth_user_id        UUID REFERENCES auth.users(id),  -- login do cliente (se tiver acesso)
+    assigned_seller_id  UUID,                             -- FK para users adicionada abaixo
+    assigned_closer_id  UUID,                             -- FK para users adicionada abaixo
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_clients_status ON public.clients(status);
@@ -32,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     name        TEXT NOT NULL,
     email       TEXT,
     role        TEXT NOT NULL DEFAULT 'seller' CHECK (role IN ('admin', 'client', 'seller', 'closer', 'cs', 'strategist')),
+    status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('pending', 'active', 'suspended')),
     client_id   UUID REFERENCES public.clients(id) ON DELETE SET NULL,
     seller_type TEXT CHECK (seller_type IN ('seller', 'closer')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -40,6 +44,12 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 CREATE INDEX IF NOT EXISTS idx_users_role      ON public.users(role);
 CREATE INDEX IF NOT EXISTS idx_users_client_id ON public.users(client_id);
+
+-- Add FKs for clients.assigned_*_id now that users table exists
+ALTER TABLE public.clients
+    ADD CONSTRAINT fk_clients_assigned_seller FOREIGN KEY (assigned_seller_id) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE public.clients
+    ADD CONSTRAINT fk_clients_assigned_closer FOREIGN KEY (assigned_closer_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 -- ============================================================
 -- 3. call_uploads  — core pipeline table
