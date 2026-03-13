@@ -20,6 +20,8 @@ import {
     Mail,
     Info,
     Link as LinkIcon,
+    Pencil,
+    Trash2,
 } from '@/components/ui/icons';
 
 type UserRole = 'seller' | 'closer' | 'cs' | 'client' | 'admin';
@@ -87,6 +89,11 @@ export default function AdminManage() {
     const [linkingUserId, setLinkingUserId] = useState<string | null>(null);
     const [selectedClientId, setSelectedClientId] = useState('');
     const [isLinking, setIsLinking] = useState(false);
+
+    // Edit client
+    const [editingClientId, setEditingClientId] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', company: '', segment: '', status: 'active' });
+    const [isSavingClient, setIsSavingClient] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -221,6 +228,64 @@ export default function AdminManage() {
             toast.error(error?.message || 'Erro ao vincular');
         } finally {
             setIsLinking(false);
+        }
+    };
+
+    const handleEditClient = (c: ManagedClient) => {
+        setEditingClientId(c.id);
+        setEditForm({
+            name: c.name,
+            email: c.email || '',
+            phone: c.phone || '',
+            company: c.company || '',
+            segment: c.segment || '',
+            status: c.status,
+        });
+    };
+
+    const handleSaveClient = async () => {
+        if (!editingClientId) return;
+        if (!editForm.name.trim()) {
+            toast.error('Nome é obrigatório');
+            return;
+        }
+        setIsSavingClient(true);
+        try {
+            const { error } = await (supabase as any)
+                .from('clients')
+                .update({
+                    name: editForm.name.trim(),
+                    email: editForm.email.trim() || null,
+                    phone: editForm.phone.trim() || null,
+                    company: editForm.company.trim() || null,
+                    segment: editForm.segment.trim() || null,
+                    status: editForm.status,
+                })
+                .eq('id', editingClientId);
+            if (error) throw error;
+            toast.success('Cliente atualizado!');
+            setEditingClientId(null);
+            fetchData();
+        } catch (error: any) {
+            toast.error(error?.message || 'Erro ao salvar cliente');
+        } finally {
+            setIsSavingClient(false);
+        }
+    };
+
+    const handleDeleteClient = async (id: string, name: string) => {
+        if (!window.confirm(`Tem certeza que deseja excluir o cliente "${name}"? Esta ação não pode ser desfeita.`)) return;
+        try {
+            const { error } = await (supabase as any)
+                .from('clients')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+            toast.success(`Cliente ${name} excluído.`);
+            if (editingClientId === id) setEditingClientId(null);
+            fetchData();
+        } catch (error: any) {
+            toast.error(error?.message || 'Erro ao excluir cliente');
         }
     };
 
@@ -616,33 +681,126 @@ export default function AdminManage() {
                                 <div className="divide-y divide-border">
                                     {clients.map(c => {
                                         const linkedUser = users.find(u => u.client_id === c.id);
+                                        const isEditing = editingClientId === c.id;
                                         return (
-                                            <div key={c.id} className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-nc-info/10 flex items-center justify-center text-nc-info font-bold text-sm">
-                                                        {c.name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-medium">{c.name}</p>
-                                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                            {c.company && <span>{c.company}</span>}
-                                                            {c.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
-                                                            {c.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+                                            <div key={c.id}>
+                                                <div className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-full bg-nc-info/10 flex items-center justify-center text-nc-info font-bold text-sm">
+                                                            {c.name.charAt(0)}
                                                         </div>
-                                                        {linkedUser
-                                                            ? <p className="text-xs text-emerald-600 mt-0.5">✓ Acesso: {linkedUser.email}</p>
-                                                            : <p className="text-xs text-amber-600 mt-0.5">⚠ Sem login — crie na aba Equipe</p>
-                                                        }
+                                                        <div>
+                                                            <p className="text-sm font-medium">{c.name}</p>
+                                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                                {c.company && <span>{c.company}</span>}
+                                                                {c.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
+                                                                {c.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+                                                            </div>
+                                                            {linkedUser
+                                                                ? <p className="text-xs text-emerald-600 mt-0.5">✓ Acesso: {linkedUser.email}</p>
+                                                                : <p className="text-xs text-amber-600 mt-0.5">⚠ Sem login — crie na aba Equipe</p>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {c.segment && (
+                                                            <Badge variant="secondary" className="text-xs">{c.segment}</Badge>
+                                                        )}
+                                                        <Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                                                            {c.status === 'active' ? '✓ Ativo' : c.status}
+                                                        </Badge>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                                            onClick={() => isEditing ? setEditingClientId(null) : handleEditClient(c)}
+                                                            title="Editar cliente"
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                                            onClick={() => handleDeleteClient(c.id, c.name)}
+                                                            title="Excluir cliente"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    {c.segment && (
-                                                        <Badge variant="secondary" className="text-xs">{c.segment}</Badge>
-                                                    )}
-                                                    <Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                                                        {c.status === 'active' ? '✓ Ativo' : c.status}
-                                                    </Badge>
-                                                </div>
+                                                {/* Inline edit panel */}
+                                                {isEditing && (
+                                                    <div className="px-4 pb-4 bg-muted/30 border-t border-border">
+                                                        <p className="text-xs font-semibold text-foreground pt-3 mb-3">Editar cliente</p>
+                                                        <div className="grid grid-cols-2 gap-3 mb-3">
+                                                            <div>
+                                                                <Label className="text-xs">Nome do responsável *</Label>
+                                                                <Input
+                                                                    className="h-8 text-sm"
+                                                                    value={editForm.name}
+                                                                    onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <Label className="text-xs">Empresa</Label>
+                                                                <Input
+                                                                    className="h-8 text-sm"
+                                                                    value={editForm.company}
+                                                                    onChange={e => setEditForm(prev => ({ ...prev, company: e.target.value }))}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-3 gap-3 mb-3">
+                                                            <div>
+                                                                <Label className="text-xs">Email</Label>
+                                                                <Input
+                                                                    type="email"
+                                                                    className="h-8 text-sm"
+                                                                    value={editForm.email}
+                                                                    onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <Label className="text-xs">Telefone</Label>
+                                                                <Input
+                                                                    className="h-8 text-sm"
+                                                                    value={editForm.phone}
+                                                                    onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <Label className="text-xs">Segmento</Label>
+                                                                <Input
+                                                                    className="h-8 text-sm"
+                                                                    value={editForm.segment}
+                                                                    onChange={e => setEditForm(prev => ({ ...prev, segment: e.target.value }))}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 mb-3">
+                                                            <div>
+                                                                <Label className="text-xs">Status</Label>
+                                                                <select
+                                                                    value={editForm.status}
+                                                                    onChange={e => setEditForm(prev => ({ ...prev, status: e.target.value }))}
+                                                                    className="h-8 px-2 rounded-md border border-input bg-background text-sm"
+                                                                >
+                                                                    <option value="active">Ativo</option>
+                                                                    <option value="inactive">Inativo</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button size="sm" className="h-8 text-xs" onClick={handleSaveClient} disabled={isSavingClient}>
+                                                                {isSavingClient ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Salvando...</> : 'Salvar'}
+                                                            </Button>
+                                                            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingClientId(null)}>
+                                                                Cancelar
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
