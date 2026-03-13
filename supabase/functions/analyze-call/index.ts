@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 const CALL_EVALUATION_PROMPT = `Você é um AVALIADOR PROFISSIONAL DE CALLS DE VENDAS da Next Control.
-Analise a transcrição de call e avalie o closer em 6 dimensões.
+Analise a transcrição de call usando o formato SANDUÍCHE: pontos positivos → gaps críticos → ações recomendadas.
 Seja direto, preciso e acionável. Português BR.
 
 Dimensões de Avaliação (0-10 cada):
@@ -18,6 +18,11 @@ Dimensões de Avaliação (0-10 cada):
 5. FECHAMENTO: Pedido de fechamento, urgentização, CTA
 6. COMUNICAÇÃO: Fluidez, escuta ativa, linguagem corporal vocal
 
+FORMATO SANDUÍCHE (OBRIGATÓRIO):
+- Camada 1: Pontos positivos identificados (mínimo 3)
+- Camada 2: Gaps críticos e estruturais (mínimo 3)
+- Camada 3: Ações recomendadas concretas (mínimo 3)
+
 RETORNE SOMENTE JSON válido:
 {
   "score_abertura": <0-10>,
@@ -27,10 +32,14 @@ RETORNE SOMENTE JSON válido:
   "score_fechamento": <0-10>,
   "score_comunicacao": <0-10>,
   "score_geral": <média ponderada, 1 decimal>,
-  "pontos_fortes": ["string"],
-  "melhorias": ["string"],
+  "pontos_fortes": ["string — pontos positivos detalhados"],
+  "gaps_criticos": ["string — gaps estruturais identificados"],
+  "acoes_recomendadas": ["string — ações concretas e acionáveis"],
+  "melhorias": ["string — resumo curto de áreas a melhorar"],
+  "insights_convertidas": ["string — o que funcionou nas partes que avançaram"],
+  "insights_perdidas": ["string — motivos de perda ou desengajamento"],
   "resultado": "vendeu" | "perdeu" | "follow-up",
-  "feedback_detalhado": "<análise em markdown, 150-250 palavras>",
+  "feedback_detalhado": "<análise SANDUÍCHE em markdown, 300-500 palavras: positivos → gaps → recomendações>",
   "nivel": "Iniciante" | "Intermediário" | "Avançado" | "Expert"
 }`
 
@@ -60,7 +69,7 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
         )
 
-        const { transcription, prospect_name, duration_minutes, client_id } = await req.json()
+        const { transcription, prospect_name, duration_minutes, client_id, call_upload_id } = await req.json()
 
         if (!transcription?.trim()) {
             throw new Error('transcription is required')
@@ -93,9 +102,32 @@ Deno.serve(async (req) => {
             .eq('id', user.id)
             .single()
 
+        // RAG context: fetch active client materials if client_id provided
+        let ragContext = ""
+        if (client_id) {
+            const { data: materials } = await supabase
+                .from('client_materials')
+                .select('title, description')
+                .eq('client_id', client_id)
+                .eq('is_rag_active', true)
+
+            if (materials && materials.length > 0) {
+                const { data: clientData } = await supabase
+                    .from('clients')
+                    .select('name')
+                    .eq('id', client_id)
+                    .single()
+
+                ragContext = "\n\n=== CONTEXTO DE CONHECIMENTO DO CLIENTE (" + (clientData?.name || "N/A") + ") ===\n" +
+                    materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/REGRAS: ${m.description || 'Sem descrição'}`).join('\n\n') +
+                    "\n=======================================\n\nUse este contexto para validar se o closer está seguindo o playbook, as regras de preço, descontos e abordagem do produto."
+            }
+        }
+
         const userPrompt = `Closer: ${closer?.name || 'Desconhecido'}
 Prospect: ${prospect_name || 'N/A'}
 Duração: ${duration_minutes || 'N/A'} minutos
+${ragContext}
 
 TRANSCRIÇÃO DA CALL:
 ${transcription}`
@@ -115,7 +147,7 @@ ${transcription}`
                     { role: 'user', content: userPrompt }
                 ],
                 temperature: 0.3,
-                max_tokens: 1500,
+                max_tokens: 3000,
                 response_format: { type: 'json_object' },
             }),
         })
@@ -130,26 +162,33 @@ ${transcription}`
         const rawContent = aiData.choices?.[0]?.message?.content || '{}'
         const evaluation = JSON.parse(rawContent.replace(/```json\n?|\n?```/g, ''))
 
-        // Create call_log first
-        const { data: callLog } = await supabase
-            .from('call_logs')
-            .insert({
-                closer_id: user.id,
-                client_id: client_id || null,
-                call_date: today,
-                transcription: transcription.substring(0, 10000),
-                outcome: evaluation.resultado === 'vendeu' ? 'sale' : evaluation.resultado === 'follow-up' ? 'reschedule' : 'no_sale',
-                prospect_name: prospect_name || null,
-                duration_minutes: duration_minutes || null,
-            })
-            .select('id')
-            .single()
+        // Create call_log first (best-effort — table may not exist yet)
+        let callLogId: string | null = null
+        try {
+            const { data: callLog } = await supabase
+                .from('call_logs')
+                .insert({
+                    closer_id: user.id,
+                    client_id: client_id || null,
+                    call_date: today,
+                    transcription: transcription.substring(0, 10000),
+                    outcome: evaluation.resultado === 'vendeu' ? 'sale' : evaluation.resultado === 'follow-up' ? 'reschedule' : 'no_sale',
+                    prospect_name: prospect_name || null,
+                    duration_minutes: duration_minutes || null,
+                })
+                .select('id')
+                .single()
+            callLogId = callLog?.id || null
+        } catch (e) {
+            // call_logs table may not exist — non-fatal
+            console.warn('call_logs insert skipped (table may not exist):', e)
+        }
 
         // Save evaluation
         const { data: savedEvaluation, error: saveError } = await supabase
             .from('call_evaluations')
             .insert({
-                call_log_id: callLog?.id || null,
+                call_log_id: callLogId,
                 closer_id: user.id,
                 prospect_name: prospect_name || null,
                 duration_minutes: duration_minutes || null,
@@ -161,7 +200,11 @@ ${transcription}`
                 score_comunicacao: evaluation.score_comunicacao || 0,
                 score_geral: evaluation.score_geral || 0,
                 pontos_fortes: evaluation.pontos_fortes || [],
+                gaps_criticos: evaluation.gaps_criticos || [],
+                acoes_recomendadas: evaluation.acoes_recomendadas || [],
                 melhorias: evaluation.melhorias || [],
+                insights_convertidas: evaluation.insights_convertidas || [],
+                insights_perdidas: evaluation.insights_perdidas || [],
                 resultado: evaluation.resultado || 'perdeu',
                 feedback_detalhado: evaluation.feedback_detalhado || '',
                 nivel: evaluation.nivel || 'Iniciante',
@@ -172,9 +215,27 @@ ${transcription}`
 
         if (saveError) {
             console.error('Failed to save evaluation:', saveError)
-            throw new Error('Failed to save evaluation')
+            throw new Error('Failed to save evaluation: ' + saveError.message)
         }
 
+        // If called from the call_uploads pipeline, update the record's status and evaluation_id
+        if (call_upload_id && savedEvaluation) {
+            const { error: uploadUpdateError } = await supabase
+                .from('call_uploads')
+                .update({
+                    status: 'analyzed',
+                    evaluation_id: savedEvaluation.id,
+                })
+                .eq('id', call_upload_id)
+
+            if (uploadUpdateError) {
+                console.error('Failed to update call_uploads status:', uploadUpdateError)
+                // Non-fatal — evaluation was already saved
+            }
+        }
+
+        // Return the evaluation directly (frontend reads it as `data` from the fetch response)
+        // CallsPipeline.tsx reads `evaluation.id` and `evaluation.score_geral` from the response root
         return new Response(
             JSON.stringify(savedEvaluation),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

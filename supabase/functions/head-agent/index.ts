@@ -14,8 +14,7 @@ Deno.serve(async (req) => {
     try {
         const supabase = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-            { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
         )
 
         const { report_id } = await req.json()
@@ -136,8 +135,10 @@ Deno.serve(async (req) => {
         )
 
     } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        console.error('Head agent error:', message)
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: message }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         )
     }

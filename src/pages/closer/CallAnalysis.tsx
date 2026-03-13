@@ -20,7 +20,7 @@ import {
     FileText,
     Award,
     ArrowLeft,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -178,7 +178,8 @@ export default function CallAnalysis() {
             }
 
             const data = await response.json();
-            setResult(data.evaluation);
+            // analyze-call returns the evaluation object at the root level
+            setResult(data.evaluation ?? data);
             setShowForm(false);
             toast.success('Análise concluída!');
             fetchHistory();
