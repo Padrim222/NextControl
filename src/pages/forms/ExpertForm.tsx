@@ -20,7 +20,7 @@ import {
     BOTTLENECK_OPTIONS,
 } from '@/types/forms';
 import type { ExpertWeeklyData } from '@/types/forms';
-import { BarChart3, Crosshair, Megaphone, CheckCircle } from 'lucide-react';
+import { BarChart3, Crosshair, Megaphone, CheckCircle } from '@/components/ui/icons';
 
 const STEPS = [
     { id: 'identify', title: 'Identificação', emoji: '👤' },

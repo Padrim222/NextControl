@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, Square, Play, RefreshCw, Send, Trash2, StopCircle } from 'lucide-react';
+import { Mic, Square, Play, RefreshCw, Send, Trash2, StopCircle } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

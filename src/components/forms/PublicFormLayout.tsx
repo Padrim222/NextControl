@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from '@/components/ui/icons';
 import { motion } from 'framer-motion';
 import type { FormType } from '@/types/forms';
 import { FORM_CONFIG } from '@/types/forms';

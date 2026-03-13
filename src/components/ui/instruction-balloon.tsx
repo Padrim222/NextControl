@@ -1,5 +1,5 @@
 
-import { HelpCircle, Lightbulb } from 'lucide-react';
+import { HelpCircle, Lightbulb } from '@/components/ui/icons';
 import {
     Popover,
     PopoverContent,

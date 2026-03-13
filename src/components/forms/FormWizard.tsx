@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Send, Loader2 } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface FormWizardStep {

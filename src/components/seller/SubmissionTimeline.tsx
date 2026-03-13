@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '@/components/ui/icons';
 import type { DailySubmission } from '@/types';
 
 interface SubmissionTimelineProps {
@@ -25,7 +25,6 @@ export function SubmissionTimeline({
   onItemClick,
 }: SubmissionTimelineProps) {
   const visible = submissions.slice(0, maxItems);
-
   if (visible.length === 0) return null;
 
   return (
@@ -35,43 +34,46 @@ export function SubmissionTimeline({
         const score = scoreMap?.get(sub.id);
         const printsCount = sub.conversation_prints?.length || 0;
 
+        const scoreBg = score == null ? '' : score >= 70 ? '#ECFDF5' : score >= 40 ? '#FFFBEB' : '#FEF2F2';
+        const scoreColor = score == null ? '' : score >= 70 ? '#059669' : score >= 40 ? '#D97706' : '#DC2626';
+
         return (
           <button
             key={sub.id}
             type="button"
             onClick={() => onItemClick?.(sub)}
-            className="w-full flex items-center justify-between py-3 px-3 rounded-lg hover:bg-secondary/50 transition-colors min-h-[44px] text-left group"
+            className="w-full flex items-center justify-between py-3 px-3 rounded-lg text-left group transition-colors"
+            style={{ fontFamily: 'DM Sans, sans-serif' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-solar shrink-0" />
-              <span className="text-sm font-mono">
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#1B2B4A' }} />
+              <span className="text-[13px] font-medium" style={{ color: '#1A1A1A' }}>
                 {formatSubmissionDate(sub.submission_date)}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-[12px]" style={{ color: '#9CA3AF' }}>
                 {printsCount} {printsCount === 1 ? 'print' : 'prints'}
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-3 text-[12px]" style={{ color: '#9CA3AF' }}>
                 {metrics?.approaches != null && (
-                  <span className="font-mono hidden sm:inline">{String(metrics.approaches)} abordagens</span>
+                  <span className="hidden sm:inline">{String(metrics.approaches)} abordagens</span>
                 )}
                 {metrics?.calls_made != null && (
-                  <span className="font-mono hidden sm:inline">{String(metrics.calls_made)} calls</span>
+                  <span className="hidden sm:inline">{String(metrics.calls_made)} calls</span>
                 )}
               </div>
               {score != null && (
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
-                  score >= 70
-                    ? 'bg-nc-success/10 text-nc-success'
-                    : score >= 40
-                      ? 'bg-nc-warning/10 text-nc-warning'
-                      : 'bg-nc-error/10 text-nc-error'
-                }`}>
+                <span
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: scoreBg, color: scoreColor, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
+                >
                   {score}
                 </span>
               )}
-              <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+              <ChevronRight size={14} strokeWidth={1.5} style={{ color: '#D1D5DB' }} className="group-hover:text-[#9CA3AF] transition-colors" />
             </div>
           </button>
         );

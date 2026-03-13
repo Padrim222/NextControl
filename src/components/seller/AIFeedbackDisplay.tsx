@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, AlertCircle, BarChart3, Lightbulb } from 'lucide-react';
+import { CheckCircle2, AlertCircle, BarChart3, Lightbulb } from '@/components/ui/icons';
 
 interface FeedbackData {
     operational_analysis: string;

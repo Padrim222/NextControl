@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { submitPublicForm, triggerFormAnalysis, uploadFormFiles } from '@/lib/formSubmission';
 import type { CloserDailyData } from '@/types/forms';
-import { Phone, Upload, CheckCircle, X as XIcon } from 'lucide-react';
+import { Phone, Upload, CheckCircle, X as XIcon } from '@/components/ui/icons';
 
 const STEPS = [
     { id: 'identify', title: 'Identificação', emoji: '👤' },

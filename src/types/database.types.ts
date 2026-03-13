@@ -244,6 +244,104 @@ export interface Database {
                     }
                 ]
             }
+            client_materials: {
+                Row: {
+                    id: string
+                    client_id: string | null
+                    user_id: string
+                    file_name: string
+                    file_type: string
+                    file_size: number
+                    storage_path: string
+                    public_url: string | null
+                    status: 'pending' | 'processing' | 'done' | 'error'
+                    notes: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    client_id?: string | null
+                    user_id: string
+                    file_name: string
+                    file_type: string
+                    file_size: number
+                    storage_path: string
+                    public_url?: string | null
+                    status?: 'pending' | 'processing' | 'done' | 'error'
+                    notes?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    client_id?: string | null
+                    user_id?: string
+                    file_name?: string
+                    file_type?: string
+                    file_size?: number
+                    storage_path?: string
+                    public_url?: string | null
+                    status?: 'pending' | 'processing' | 'done' | 'error'
+                    notes?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Relationships: []
+            }
+            content_outputs: {
+                Row: {
+                    id: string
+                    client_id: string | null
+                    user_id: string
+                    title: string
+                    content_type: 'post' | 'caption' | 'script' | 'email' | 'strategy' | 'other'
+                    status: 'draft' | 'review' | 'approved' | 'published'
+                    content_body: string | null
+                    preview_url: string | null
+                    platform: string | null
+                    material_id: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    client_id?: string | null
+                    user_id: string
+                    title: string
+                    content_type?: 'post' | 'caption' | 'script' | 'email' | 'strategy' | 'other'
+                    status?: 'draft' | 'review' | 'approved' | 'published'
+                    content_body?: string | null
+                    preview_url?: string | null
+                    platform?: string | null
+                    material_id?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    client_id?: string | null
+                    user_id?: string
+                    title?: string
+                    content_type?: 'post' | 'caption' | 'script' | 'email' | 'strategy' | 'other'
+                    status?: 'draft' | 'review' | 'approved' | 'published'
+                    content_body?: string | null
+                    preview_url?: string | null
+                    platform?: string | null
+                    material_id?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "content_outputs_material_id_fkey"
+                        columns: ["material_id"]
+                        isOneToOne: false
+                        referencedRelation: "client_materials"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
             weekly_reports: {
                 Row: {
                     id: string

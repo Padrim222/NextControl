@@ -1,7 +1,7 @@
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { CheckCircle, ArrowRight, Sparkles } from '@/components/ui/icons';
 import { FORM_CONFIG, type FormType } from '@/types/forms';
 
 export default function FormSuccess() {

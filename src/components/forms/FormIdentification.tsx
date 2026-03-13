@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { User, Mail, Phone } from 'lucide-react';
+import { User, Mail, Phone } from '@/components/ui/icons';
 
 interface FormIdentificationProps {
     name: string;

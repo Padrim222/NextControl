@@ -14,7 +14,7 @@ import {
     Link2,
     Users,
     FileText,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { FORM_CONFIG, type FormType, type FormSubmission } from '@/types/forms';
 
 const FORM_LINKS: { type: FormType; slug: string }[] = [
