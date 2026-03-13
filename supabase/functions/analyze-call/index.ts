@@ -43,6 +43,7 @@ RETORNE SOMENTE JSON válido:
   "nivel": "Iniciante" | "Intermediário" | "Avançado" | "Expert"
 }`
 
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
         )
 
-        const { transcription, prospect_name, duration_minutes, client_id, call_upload_id } = await req.json()
+        const { transcription, prospect_name, duration_minutes, client_id } = await req.json()
 
         if (!transcription?.trim()) {
             throw new Error('transcription is required')
@@ -102,27 +103,29 @@ Deno.serve(async (req) => {
             .eq('id', user.id)
             .single()
 
-        // RAG context: fetch active client materials if client_id provided
-        let ragContext = ""
-        if (client_id) {
+        // --- RAG CONTEXT FETCH ---
+        let ragContext = "";
+        const effectiveClientId = client_id;
+        if (effectiveClientId) {
             const { data: materials } = await supabase
                 .from('client_materials')
                 .select('title, description')
-                .eq('client_id', client_id)
-                .eq('is_rag_active', true)
+                .eq('client_id', effectiveClientId)
+                .eq('is_rag_active', true);
 
             if (materials && materials.length > 0) {
                 const { data: clientData } = await supabase
                     .from('clients')
                     .select('name')
-                    .eq('id', client_id)
-                    .single()
+                    .eq('id', effectiveClientId)
+                    .single();
 
                 ragContext = "\n\n=== CONTEXTO DE CONHECIMENTO DO CLIENTE (" + (clientData?.name || "N/A") + ") ===\n" +
                     materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/REGRAS: ${m.description || 'Sem descrição'}`).join('\n\n') +
-                    "\n=======================================\n\nUse este contexto para validar se o closer está seguindo o playbook, as regras de preço, descontos e abordagem do produto."
+                    "\n=======================================\n\nUse este contexto para validar se o closer está seguindo o playbook, as regras de preço, descontos e abordagem do produto.";
             }
         }
+        // -------------------------
 
         const userPrompt = `Closer: ${closer?.name || 'Desconhecido'}
 Prospect: ${prospect_name || 'N/A'}
@@ -162,33 +165,26 @@ ${transcription}`
         const rawContent = aiData.choices?.[0]?.message?.content || '{}'
         const evaluation = JSON.parse(rawContent.replace(/```json\n?|\n?```/g, ''))
 
-        // Create call_log first (best-effort — table may not exist yet)
-        let callLogId: string | null = null
-        try {
-            const { data: callLog } = await supabase
-                .from('call_logs')
-                .insert({
-                    closer_id: user.id,
-                    client_id: client_id || null,
-                    call_date: today,
-                    transcription: transcription.substring(0, 10000),
-                    outcome: evaluation.resultado === 'vendeu' ? 'sale' : evaluation.resultado === 'follow-up' ? 'reschedule' : 'no_sale',
-                    prospect_name: prospect_name || null,
-                    duration_minutes: duration_minutes || null,
-                })
-                .select('id')
-                .single()
-            callLogId = callLog?.id || null
-        } catch (e) {
-            // call_logs table may not exist — non-fatal
-            console.warn('call_logs insert skipped (table may not exist):', e)
-        }
+        // Create call_log first
+        const { data: callLog } = await supabase
+            .from('call_logs')
+            .insert({
+                closer_id: user.id,
+                client_id: client_id || null,
+                call_date: today,
+                transcription: transcription.substring(0, 10000),
+                outcome: evaluation.resultado === 'vendeu' ? 'sale' : evaluation.resultado === 'follow-up' ? 'reschedule' : 'no_sale',
+                prospect_name: prospect_name || null,
+                duration_minutes: duration_minutes || null,
+            })
+            .select('id')
+            .single()
 
         // Save evaluation
         const { data: savedEvaluation, error: saveError } = await supabase
             .from('call_evaluations')
             .insert({
-                call_log_id: callLogId,
+                call_log_id: callLog?.id || null,
                 closer_id: user.id,
                 prospect_name: prospect_name || null,
                 duration_minutes: duration_minutes || null,
@@ -200,11 +196,7 @@ ${transcription}`
                 score_comunicacao: evaluation.score_comunicacao || 0,
                 score_geral: evaluation.score_geral || 0,
                 pontos_fortes: evaluation.pontos_fortes || [],
-                gaps_criticos: evaluation.gaps_criticos || [],
-                acoes_recomendadas: evaluation.acoes_recomendadas || [],
                 melhorias: evaluation.melhorias || [],
-                insights_convertidas: evaluation.insights_convertidas || [],
-                insights_perdidas: evaluation.insights_perdidas || [],
                 resultado: evaluation.resultado || 'perdeu',
                 feedback_detalhado: evaluation.feedback_detalhado || '',
                 nivel: evaluation.nivel || 'Iniciante',
@@ -215,27 +207,9 @@ ${transcription}`
 
         if (saveError) {
             console.error('Failed to save evaluation:', saveError)
-            throw new Error('Failed to save evaluation: ' + saveError.message)
+            throw new Error('Failed to save evaluation')
         }
 
-        // If called from the call_uploads pipeline, update the record's status and evaluation_id
-        if (call_upload_id && savedEvaluation) {
-            const { error: uploadUpdateError } = await supabase
-                .from('call_uploads')
-                .update({
-                    status: 'analyzed',
-                    evaluation_id: savedEvaluation.id,
-                })
-                .eq('id', call_upload_id)
-
-            if (uploadUpdateError) {
-                console.error('Failed to update call_uploads status:', uploadUpdateError)
-                // Non-fatal — evaluation was already saved
-            }
-        }
-
-        // Return the evaluation directly (frontend reads it as `data` from the fetch response)
-        // CallsPipeline.tsx reads `evaluation.id` and `evaluation.score_geral` from the response root
         return new Response(
             JSON.stringify(savedEvaluation),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

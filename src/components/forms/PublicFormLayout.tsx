@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
-import { Sparkles } from '@/components/ui/icons';
+import { Sparkles, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import type { FormType } from '@/types/forms';
 import { FORM_CONFIG } from '@/types/forms';
 
@@ -11,23 +12,33 @@ interface PublicFormLayoutProps {
 
 export function PublicFormLayout({ formType, children }: PublicFormLayoutProps) {
     const config = FORM_CONFIG[formType];
+    const navigate = useNavigate();
 
     return (
         <div className="min-h-screen bg-background flex flex-col">
             {/* Header */}
             <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-                <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md nc-gradient flex items-center justify-center">
-                        <Sparkles className="h-4 w-4 text-deep-space" />
+                <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2 -ml-2 rounded-full hover:bg-muted/50 text-muted-foreground transition-colors"
+                            title="Voltar"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </button>
+                        <div className="w-8 h-8 rounded-md nc-gradient flex items-center justify-center">
+                            <Sparkles className="h-4 w-4 text-deep-space" />
+                        </div>
+                        <div>
+                            <span className="text-sm font-display font-bold nc-gradient-text">
+                                Next Control
+                            </span>
+                        </div>
                     </div>
-                    <div>
-                        <span className="text-sm font-display font-bold nc-gradient-text">
-                            Next Control
-                        </span>
-                        <span className="text-xs text-muted-foreground ml-2">
-                            {config.frequency}
-                        </span>
-                    </div>
+                    <span className="text-xs text-muted-foreground">
+                        {config.frequency}
+                    </span>
                 </div>
             </header>
 

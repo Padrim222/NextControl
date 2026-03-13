@@ -8,10 +8,10 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-background">
       <AppSidebar />
-      <main className="ml-60 min-h-screen">
-        <div className="px-8 py-8 max-w-[1200px]">
+      <main className="ml-60 p-6 md:p-8 min-h-screen">
+        <div className="max-w-7xl mx-auto">
           {children}
         </div>
       </main>

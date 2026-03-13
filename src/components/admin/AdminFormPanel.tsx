@@ -16,6 +16,12 @@ import {
     FileText,
 } from '@/components/ui/icons';
 import { FORM_CONFIG, type FormType, type FormSubmission } from '@/types/forms';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 const FORM_LINKS: { type: FormType; slug: string }[] = [
     { type: 'expert_weekly', slug: 'expert-weekly' },
@@ -27,6 +33,10 @@ export function AdminFormPanel() {
     const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<FormType | 'all'>('all');
+
+    // Novas states para visualizar e analisar
+    const [selectedForm, setSelectedForm] = useState<FormSubmission | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     useEffect(() => {
         fetchSubmissions();
@@ -59,6 +69,25 @@ export function AdminFormPanel() {
         const url = `${baseUrl}/form/${slug}`;
         navigator.clipboard.writeText(url);
         toast.success('Link copiado!', { description: url });
+    };
+
+    const handleAnalyzeForm = async (sub: FormSubmission) => {
+        setIsAnalyzing(true);
+        try {
+            const { data, error } = await (supabase as any).functions.invoke('analyze-form-submission', {
+                body: { id: sub.id },
+            });
+            if (error) throw error;
+
+            toast.success(`Formulário analisado com sucesso! Score: ${data?.score || 'N/A'}`);
+            fetchSubmissions();
+            setSelectedForm(null);
+        } catch (err) {
+            console.error('Analysis error:', err);
+            toast.error('Erro ao analisar formulário. Tente novamente.');
+        } finally {
+            setIsAnalyzing(false);
+        }
     };
 
     const openLink = (slug: string) => {
@@ -162,8 +191,8 @@ export function AdminFormPanel() {
                                 <button
                                     key={f}
                                     className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${filter === f
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'text-muted-foreground hover:bg-muted'
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'text-muted-foreground hover:bg-muted'
                                         }`}
                                     onClick={() => setFilter(f)}
                                 >
@@ -217,6 +246,14 @@ export function AdminFormPanel() {
                                                 </span>
                                             )}
                                             {statusBadge(sub.ai_status)}
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 ml-2"
+                                                onClick={() => setSelectedForm(sub)}
+                                            >
+                                                Detalhes
+                                            </Button>
                                         </div>
                                     </div>
                                 );
@@ -225,6 +262,70 @@ export function AdminFormPanel() {
                     )}
                 </div>
             </CardContent>
+
+            {/* Modal de Detalhes do Formulário */}
+            <Dialog open={!!selectedForm} onOpenChange={() => setSelectedForm(null)}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Relatório de {selectedForm?.submitter_name}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedForm && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span className="text-muted-foreground block text-xs">Tipo</span>
+                                    {FORM_CONFIG[selectedForm.form_type]?.title}
+                                </div>
+                                <div>
+                                    <span className="text-muted-foreground block text-xs">Data</span>
+                                    {new Date(selectedForm.created_at).toLocaleString('pt-BR')}
+                                </div>
+                            </div>
+
+                            <h3 className="font-semibold text-sm border-b pb-2">Dados Preenchidos</h3>
+                            <div className="grid grid-cols-2 gap-2 text-sm bg-muted/20 p-4 rounded-lg">
+                                {Object.entries(selectedForm.data || {}).map(([key, value]) => {
+                                    if (key === 'ai_analysis') return null; // hide analysis from raw data print
+                                    return (
+                                        <div key={key} className="break-words">
+                                            <span className="text-muted-foreground text-xs block uppercase mb-1">{key.replace(/_/g, ' ')}</span>
+                                            <span className="font-medium">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+
+                            {/* Mostrar IA se houver */}
+                            {(selectedForm as any).data?.ai_analysis && (
+                                <div className="mt-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+                                    <h3 className="font-medium text-primary mb-2 flex items-center gap-2">
+                                        <Sparkles className="h-4 w-4" /> Feedback da Inteligência Artificial
+                                    </h3>
+                                    <pre className="text-sm whitespace-pre-wrap font-sans">
+                                        {(selectedForm as any).data.ai_analysis}
+                                    </pre>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
+                                <Button variant="ghost" onClick={() => setSelectedForm(null)}>
+                                    Fechar
+                                </Button>
+                                <Button
+                                    className="nc-btn-primary gap-2"
+                                    onClick={() => handleAnalyzeForm(selectedForm)}
+                                    disabled={isAnalyzing}
+                                >
+                                    {isAnalyzing ? <Sparkles className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                    {isAnalyzing ? 'Analisando...' : 'Analisar com IA'}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }

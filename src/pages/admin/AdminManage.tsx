@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -16,13 +17,10 @@ import {
     Loader2,
     Copy,
     Plus,
+    Shield,
     Phone,
     Mail,
-    Info,
-    Link as LinkIcon,
-    Pencil,
-    Trash2,
-} from '@/components/ui/icons';
+} from 'lucide-react';
 
 type UserRole = 'seller' | 'closer' | 'cs' | 'client' | 'admin';
 
@@ -33,7 +31,6 @@ interface ManagedUser {
     role: UserRole;
     seller_type: string | null;
     status: string;
-    client_id: string | null;
     created_at: string;
 }
 
@@ -45,6 +42,11 @@ interface ManagedClient {
     company: string | null;
     segment: string | null;
     status: string;
+    project_summary: string | null;
+    current_phase: string | null;
+    next_step: string | null;
+    team_status: string | null;
+    operational_processes: string | null;
     created_at: string;
 }
 
@@ -76,24 +78,27 @@ export default function AdminManage() {
 
     // New user form
     const [showUserForm, setShowUserForm] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', role: 'seller' as UserRole, password: '', client_id: '' });
+    const [newUser, setNewUser] = useState({ name: '', email: '', role: 'seller' as UserRole, password: '' });
     const [isCreatingUser, setIsCreatingUser] = useState(false);
     const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
 
-    // New client form
+    // Client form (create/edit)
     const [showClientForm, setShowClientForm] = useState(false);
-    const [newClient, setNewClient] = useState({ name: '', email: '', phone: '', company: '', segment: '', password: '' });
-    const [isCreatingClient, setIsCreatingClient] = useState(false);
-
-    // Link user to client
-    const [linkingUserId, setLinkingUserId] = useState<string | null>(null);
-    const [selectedClientId, setSelectedClientId] = useState('');
-    const [isLinking, setIsLinking] = useState(false);
-
-    // Edit client
     const [editingClientId, setEditingClientId] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', company: '', segment: '', status: 'active' });
-    const [isSavingClient, setIsSavingClient] = useState(false);
+    const [clientForm, setClientForm] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        company: '',
+        segment: '',
+        project_summary: '',
+        current_phase: '',
+        next_step: '',
+        team_status: '',
+        operational_processes: '',
+        password: '',
+    });
+    const [isSubmittingClient, setIsSubmittingClient] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -103,9 +108,10 @@ export default function AdminManage() {
         if (!supabase) return;
         setIsLoading(true);
         try {
+            // Use direct DB queries since they're simpler
             const { data: usersData } = await (supabase as any)
                 .from('users')
-                .select('id, name, email, role, seller_type, status, client_id, created_at')
+                .select('id, name, email, role, seller_type, status, created_at')
                 .order('created_at', { ascending: false });
 
             const { data: clientsData } = await (supabase as any)
@@ -127,10 +133,6 @@ export default function AdminManage() {
             toast.error('Nome e email são obrigatórios');
             return;
         }
-        if (newUser.role === 'client' && !newUser.client_id) {
-            toast.error('Selecione o cliente que este usuário irá acessar');
-            return;
-        }
         setIsCreatingUser(true);
         try {
             const password = newUser.password.trim() || 'NextControl2026!';
@@ -141,192 +143,127 @@ export default function AdminManage() {
             });
 
             if (authError) throw authError;
-            if (!authData.user) throw new Error('Criação de usuário falhou');
+            if (!authData.user) throw new Error('User creation failed');
 
-            const insertData: any = {
+            // Insert into users table
+            await (supabase as any).from('users').upsert([{
                 id: authData.user.id,
                 email: newUser.email.trim().toLowerCase(),
                 name: newUser.name.trim(),
                 role: newUser.role,
                 status: 'active',
-            };
+            }], { onConflict: 'id' });
 
-            if (newUser.role === 'client' && newUser.client_id) {
-                insertData.client_id = newUser.client_id;
-            }
-
-            await (supabase as any).from('users').upsert([insertData], { onConflict: 'id' });
-
-            toast.success(`✅ Usuário ${newUser.name} criado!`, {
-                description: newUser.role === 'client'
-                    ? 'O cliente já pode acessar o painel com as credenciais abaixo.'
-                    : 'Envie as credenciais para o novo membro.'
-            });
+            toast.success(`Usuário ${newUser.name} criado!`);
             setCreatedCredentials({ email: newUser.email.trim().toLowerCase(), password });
-            setNewUser({ name: '', email: '', role: 'seller', password: '', client_id: '' });
+            setNewUser({ name: '', email: '', role: 'seller', password: '' });
             setShowUserForm(false);
             fetchData();
         } catch (error: any) {
-            if (error?.message?.includes('already registered')) {
-                toast.error('Este email já está cadastrado no sistema.');
-            } else {
-                toast.error(error?.message || 'Erro ao criar usuário');
-            }
+            toast.error(error?.message || 'Erro ao criar usuário');
         } finally {
             setIsCreatingUser(false);
         }
     };
 
-    const handleCreateClient = async () => {
-        if (!newClient.name.trim()) {
+    const handleSaveClient = async () => {
+        if (!clientForm.name.trim()) {
             toast.error('Nome é obrigatório');
             return;
         }
-        const hasLogin = newClient.email.trim() && newClient.password.trim();
-        setIsCreatingClient(true);
+        setIsSubmittingClient(true);
         try {
-            // 1. Create client record
-            const { data: clientData, error: clientError } = await (supabase as any)
-                .from('clients')
-                .insert({
-                    name: newClient.name.trim(),
-                    email: newClient.email.trim() || null,
-                    phone: newClient.phone.trim() || null,
-                    company: newClient.company.trim() || null,
-                    segment: newClient.segment.trim() || null,
-                    status: 'active',
-                })
-                .select('id')
-                .single();
+            const payload = {
+                name: clientForm.name.trim(),
+                email: clientForm.email.trim() || null,
+                phone: clientForm.phone.trim() || null,
+                company: clientForm.company.trim() || null,
+                segment: clientForm.segment.trim() || null,
+                project_summary: clientForm.project_summary.trim() || null,
+                current_phase: clientForm.current_phase.trim() || null,
+                next_step: clientForm.next_step.trim() || null,
+                team_status: clientForm.team_status.trim() || null,
+                operational_processes: clientForm.operational_processes.trim() || null,
+                status: 'active',
+            };
 
-            if (clientError) throw clientError;
-
-            // 2. Optionally create auth user + link to client
-            if (hasLogin) {
-                const password = newClient.password.trim();
-                const email = newClient.email.trim().toLowerCase();
-
-                const { data: authData, error: authError } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: { data: { name: newClient.name.trim(), role: 'client' } },
-                });
-
-                if (authError) throw authError;
-                if (!authData.user) throw new Error('Falha ao criar usuário de acesso');
-
-                await (supabase as any).from('users').upsert([{
-                    id: authData.user.id,
-                    email,
-                    name: newClient.name.trim(),
-                    role: 'client',
-                    status: 'active',
-                    client_id: clientData.id,
-                }], { onConflict: 'id' });
-
-                setCreatedCredentials({ email, password });
-                toast.success(`✅ Cliente ${newClient.name} criado com acesso!`, {
-                    description: 'Copie as credenciais abaixo e envie para o cliente.'
-                });
+            if (editingClientId) {
+                const { error } = await (supabase as any)
+                    .from('clients')
+                    .update(payload)
+                    .eq('id', editingClientId);
+                if (error) throw error;
+                toast.success('Cliente atualizado!');
             } else {
-                toast.success(`Cliente ${newClient.name} criado!`, {
-                    description: 'Para criar o login, vá até a aba Equipe e selecione a função Cliente.'
-                });
+                const { data: clientData, error: clientError } = await (supabase as any)
+                    .from('clients')
+                    .insert(payload)
+                    .select('id')
+                    .single();
+                if (clientError) throw clientError;
+
+                // Optionally create auth user for client panel access
+                const hasLogin = clientForm.email.trim() && clientForm.password.trim();
+                if (hasLogin) {
+                    const email = clientForm.email.trim().toLowerCase();
+                    const password = clientForm.password.trim();
+                    const { data: authData, error: authError } = await supabase.auth.signUp({
+                        email,
+                        password,
+                        options: { data: { name: clientForm.name.trim(), role: 'client' } },
+                    });
+                    if (authError) throw authError;
+                    if (authData.user) {
+                        await (supabase as any).from('users').upsert([{
+                            id: authData.user.id,
+                            email,
+                            name: clientForm.name.trim(),
+                            role: 'client',
+                            status: 'active',
+                            client_id: clientData.id,
+                        }], { onConflict: 'id' });
+                        setCreatedCredentials({ email, password });
+                        toast.success(`✅ Cliente ${clientForm.name} criado com acesso ao painel!`, {
+                            description: 'Copie as credenciais abaixo e envie para o cliente.'
+                        });
+                    }
+                } else {
+                    toast.success('Cliente criado!');
+                }
             }
 
-            setNewClient({ name: '', email: '', phone: '', company: '', segment: '', password: '' });
+            setClientForm({
+                name: '', email: '', phone: '', company: '', segment: '',
+                project_summary: '', current_phase: '', next_step: '',
+                team_status: '', operational_processes: '', password: '',
+            });
+            setEditingClientId(null);
             setShowClientForm(false);
             fetchData();
         } catch (error: any) {
-            if (error?.message?.includes('already registered')) {
-                toast.error('Este email já está cadastrado no sistema.');
-            } else {
-                toast.error(error?.message || 'Erro ao criar cliente');
-            }
+            toast.error(error?.message || 'Erro ao processar cliente');
         } finally {
-            setIsCreatingClient(false);
-        }
-    };
-
-    const handleLinkUserToClient = async (userId: string) => {
-        if (!selectedClientId) {
-            toast.error('Selecione um cliente para vincular');
-            return;
-        }
-        setIsLinking(true);
-        try {
-            const { error } = await (supabase as any)
-                .from('users')
-                .update({ client_id: selectedClientId })
-                .eq('id', userId);
-            if (error) throw error;
-            toast.success('Usuário vinculado ao cliente!');
-            setLinkingUserId(null);
-            setSelectedClientId('');
-            fetchData();
-        } catch (error: any) {
-            toast.error(error?.message || 'Erro ao vincular');
-        } finally {
-            setIsLinking(false);
+            setIsSubmittingClient(false);
         }
     };
 
     const handleEditClient = (c: ManagedClient) => {
-        setEditingClientId(c.id);
-        setEditForm({
-            name: c.name,
+        setClientForm({
+            name: c.name || '',
             email: c.email || '',
             phone: c.phone || '',
             company: c.company || '',
             segment: c.segment || '',
-            status: c.status,
+            project_summary: c.project_summary || '',
+            current_phase: c.current_phase || '',
+            next_step: c.next_step || '',
+            team_status: c.team_status || '',
+            operational_processes: c.operational_processes || '',
+            password: '',
         });
-    };
-
-    const handleSaveClient = async () => {
-        if (!editingClientId) return;
-        if (!editForm.name.trim()) {
-            toast.error('Nome é obrigatório');
-            return;
-        }
-        setIsSavingClient(true);
-        try {
-            const { error } = await (supabase as any)
-                .from('clients')
-                .update({
-                    name: editForm.name.trim(),
-                    email: editForm.email.trim() || null,
-                    phone: editForm.phone.trim() || null,
-                    company: editForm.company.trim() || null,
-                    segment: editForm.segment.trim() || null,
-                    status: editForm.status,
-                })
-                .eq('id', editingClientId);
-            if (error) throw error;
-            toast.success('Cliente atualizado!');
-            setEditingClientId(null);
-            fetchData();
-        } catch (error: any) {
-            toast.error(error?.message || 'Erro ao salvar cliente');
-        } finally {
-            setIsSavingClient(false);
-        }
-    };
-
-    const handleDeleteClient = async (id: string, name: string) => {
-        if (!window.confirm(`Tem certeza que deseja excluir o cliente "${name}"? Esta ação não pode ser desfeita.`)) return;
-        try {
-            const { error } = await (supabase as any)
-                .from('clients')
-                .delete()
-                .eq('id', id);
-            if (error) throw error;
-            toast.success(`Cliente ${name} excluído.`);
-            if (editingClientId === id) setEditingClientId(null);
-            fetchData();
-        } catch (error: any) {
-            toast.error(error?.message || 'Erro ao excluir cliente');
-        }
+        setEditingClientId(c.id);
+        setShowClientForm(true);
+        setActiveTab('clients');
     };
 
     const copyCredentials = () => {
@@ -334,11 +271,6 @@ export default function AdminManage() {
         const text = `Login: ${createdCredentials.email}\nSenha: ${createdCredentials.password}`;
         navigator.clipboard.writeText(text);
         toast.success('Credenciais copiadas!');
-    };
-
-    const getClientName = (clientId: string | null) => {
-        if (!clientId) return null;
-        return clients.find(c => c.id === clientId)?.name || null;
     };
 
     return (
@@ -356,33 +288,16 @@ export default function AdminManage() {
                 </div>
             </div>
 
-            {/* Guide Banner */}
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                <div className="flex items-start gap-3">
-                    <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-blue-800 space-y-1">
-                        <p className="font-semibold">Como adicionar um cliente ao sistema:</p>
-                        <ol className="list-decimal list-inside space-y-1 text-blue-700">
-                            <li>Na aba <strong>Clientes</strong>, clique em "Novo Cliente" e preencha os dados + email/senha para criar o acesso de uma vez.</li>
-                            <li>Copie as credenciais geradas e envie para o cliente — ele já pode acessar o painel.</li>
-                            <li><em>Alternativa:</em> crie o cliente sem login e adicione o acesso depois na aba <strong>Equipe</strong>.</li>
-                        </ol>
-                        <p className="mt-2 text-blue-600 font-medium">Para subir material do cliente: menu lateral → <strong>Base de Conhecimento</strong></p>
-                    </div>
-                </div>
-            </div>
-
             {/* Credentials Card */}
             {createdCredentials && (
                 <Card className="nc-card-border border-nc-success/30 bg-nc-success/5">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-nc-success">✅ Usuário criado! Copie e envie as credenciais:</p>
+                                <p className="text-sm font-medium text-nc-success">✅ Usuário criado! Copie as credenciais:</p>
                                 <p className="text-sm font-mono mt-1">
-                                    Login: <strong>{createdCredentials.email}</strong> · Senha: <strong>{createdCredentials.password}</strong>
+                                    Login: <strong>{createdCredentials.email}</strong> • Senha: <strong>{createdCredentials.password}</strong>
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-1">O usuário deve acessar o sistema com esses dados e pode trocar a senha depois.</p>
                             </div>
                             <div className="flex gap-2">
                                 <Button size="sm" variant="outline" onClick={copyCredentials}>
@@ -425,10 +340,7 @@ export default function AdminManage() {
             {activeTab === 'users' && (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-lg font-semibold">Equipe & Acessos</h3>
-                            <p className="text-xs text-muted-foreground">Membros com login no sistema</p>
-                        </div>
+                        <h3 className="text-lg font-semibold">Equipe</h3>
                         <Button onClick={() => setShowUserForm(!showUserForm)} size="sm">
                             <Plus className="h-4 w-4 mr-1" /> Novo Membro
                         </Button>
@@ -442,22 +354,20 @@ export default function AdminManage() {
                                     <UserPlus className="h-4 w-4 text-primary" />
                                     Adicionar Membro
                                 </CardTitle>
-                                <CardDescription>
-                                    A senha padrão é <strong>NextControl2026!</strong> — o usuário pode alterar depois.
-                                </CardDescription>
+                                <CardDescription>O login será o email e a senha padrão é NextControl2026!</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <Label>Nome completo</Label>
+                                        <Label>Nome</Label>
                                         <Input
-                                            placeholder="Nome do usuário"
+                                            placeholder="Nome completo"
                                             value={newUser.name}
                                             onChange={e => setNewUser(prev => ({ ...prev, name: e.target.value }))}
                                         />
                                     </div>
                                     <div>
-                                        <Label>Email de acesso</Label>
+                                        <Label>Email</Label>
                                         <Input
                                             type="email"
                                             placeholder="email@empresa.com"
@@ -468,16 +378,16 @@ export default function AdminManage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <Label>Função no sistema</Label>
+                                        <Label>Função</Label>
                                         <select
                                             value={newUser.role}
-                                            onChange={e => setNewUser(prev => ({ ...prev, role: e.target.value as UserRole, client_id: '' }))}
+                                            onChange={e => setNewUser(prev => ({ ...prev, role: e.target.value as UserRole }))}
                                             className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                                         >
-                                            <option value="seller">Seller (Vendedor)</option>
+                                            <option value="seller">Seller</option>
                                             <option value="closer">Closer</option>
-                                            <option value="cs">CS (Suporte)</option>
-                                            <option value="client">Cliente (acesso ao painel do cliente)</option>
+                                            <option value="cs">CS</option>
+                                            <option value="client">Cliente</option>
                                             <option value="admin">Admin</option>
                                         </select>
                                     </div>
@@ -491,40 +401,9 @@ export default function AdminManage() {
                                         />
                                     </div>
                                 </div>
-
-                                {/* Client linking — only shown when role = client */}
-                                {newUser.role === 'client' && (
-                                    <div className="rounded-lg border border-purple-200 bg-purple-50 p-3 space-y-2">
-                                        <p className="text-xs font-semibold text-purple-800 flex items-center gap-1.5">
-                                            <LinkIcon className="h-3 w-3" />
-                                            Vincular ao cliente (obrigatório para role Cliente)
-                                        </p>
-                                        <p className="text-xs text-purple-600">
-                                            Selecione o cliente que este usuário irá acessar. Se o cliente ainda não existe, crie-o primeiro na aba "Clientes".
-                                        </p>
-                                        <select
-                                            value={newUser.client_id}
-                                            onChange={e => setNewUser(prev => ({ ...prev, client_id: e.target.value }))}
-                                            className="w-full h-10 px-3 rounded-md border border-purple-300 bg-white text-sm"
-                                        >
-                                            <option value="">— Selecione o cliente —</option>
-                                            {clients.map(c => (
-                                                <option key={c.id} value={c.id}>
-                                                    {c.name}{c.company ? ` (${c.company})` : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {clients.length === 0 && (
-                                            <p className="text-xs text-amber-700 font-medium">
-                                                Nenhum cliente cadastrado. Crie um cliente na aba "Clientes" primeiro.
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-
                                 <div className="flex gap-2 pt-2">
                                     <Button onClick={handleCreateUser} disabled={isCreatingUser}>
-                                        {isCreatingUser ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Criando...</> : 'Criar Acesso'}
+                                        {isCreatingUser ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Criando...</> : 'Criar Membro'}
                                     </Button>
                                     <Button variant="ghost" onClick={() => setShowUserForm(false)}>Cancelar</Button>
                                 </div>
@@ -542,79 +421,24 @@ export default function AdminManage() {
                             <CardContent className="p-0">
                                 <div className="divide-y divide-border">
                                     {users.map(u => (
-                                        <div key={u.id}>
-                                            <div className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-solar/10 flex items-center justify-center text-solar font-bold text-sm">
-                                                        {u.name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-medium">{u.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{u.email}</p>
-                                                        {u.role === 'client' && (
-                                                            <p className="text-xs mt-0.5">
-                                                                {u.client_id
-                                                                    ? <span className="text-purple-600 font-medium">→ {getClientName(u.client_id)}</span>
-                                                                    : <span className="text-amber-600 font-medium">⚠ Sem cliente vinculado</span>
-                                                                }
-                                                            </p>
-                                                        )}
-                                                    </div>
+                                        <div key={u.id} className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-solar/10 flex items-center justify-center text-solar font-bold text-sm">
+                                                    {u.name.charAt(0)}
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge className={`text-xs ${ROLE_COLORS[u.role] || ''}`}>
-                                                        {ROLE_LABELS[u.role] || u.role}
-                                                    </Badge>
-                                                    <Badge variant={u.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                                                        {u.status === 'active' ? '✓' : u.status}
-                                                    </Badge>
-                                                    {u.role === 'client' && !u.client_id && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="text-xs h-7 border-purple-300 text-purple-700 hover:bg-purple-50"
-                                                            onClick={() => {
-                                                                setLinkingUserId(u.id);
-                                                                setSelectedClientId('');
-                                                            }}
-                                                        >
-                                                            <LinkIcon className="h-3 w-3 mr-1" />
-                                                            Vincular
-                                                        </Button>
-                                                    )}
+                                                <div>
+                                                    <p className="text-sm font-medium">{u.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{u.email}</p>
                                                 </div>
                                             </div>
-                                            {/* Inline link panel */}
-                                            {linkingUserId === u.id && (
-                                                <div className="px-4 pb-3 bg-purple-50 border-t border-purple-100">
-                                                    <p className="text-xs text-purple-700 font-medium pt-2 mb-2">Selecione o cliente para vincular a {u.name}:</p>
-                                                    <div className="flex gap-2">
-                                                        <select
-                                                            value={selectedClientId}
-                                                            onChange={e => setSelectedClientId(e.target.value)}
-                                                            className="flex-1 h-8 px-2 rounded border border-purple-300 bg-white text-xs"
-                                                        >
-                                                            <option value="">— Selecione —</option>
-                                                            {clients.map(c => (
-                                                                <option key={c.id} value={c.id}>
-                                                                    {c.name}{c.company ? ` (${c.company})` : ''}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        <Button
-                                                            size="sm"
-                                                            className="h-8 text-xs"
-                                                            onClick={() => handleLinkUserToClient(u.id)}
-                                                            disabled={isLinking || !selectedClientId}
-                                                        >
-                                                            {isLinking ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Vincular'}
-                                                        </Button>
-                                                        <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setLinkingUserId(null)}>
-                                                            Cancelar
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <Badge className={`text-xs ${ROLE_COLORS[u.role] || ''}`}>
+                                                    {ROLE_LABELS[u.role] || u.role}
+                                                </Badge>
+                                                <Badge variant={u.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                                                    {u.status === 'active' ? '✓' : u.status}
+                                                </Badge>
+                                            </div>
                                         </div>
                                     ))}
                                     {users.length === 0 && (
@@ -633,98 +457,160 @@ export default function AdminManage() {
             {activeTab === 'clients' && (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
-                            <p className="text-xs text-muted-foreground">Empresas e projetos gerenciados</p>
-                        </div>
+                        <h3 className="text-lg font-semibold">Clientes</h3>
                         <Button onClick={() => setShowClientForm(!showClientForm)} size="sm">
                             <Plus className="h-4 w-4 mr-1" /> Novo Cliente
                         </Button>
                     </div>
 
-                    {/* New Client Form */}
+                    {/* New/Edit Client Form */}
                     {showClientForm && (
                         <Card className="nc-card-border border-primary/20">
                             <CardHeader className="pb-3">
                                 <CardTitle className="text-base flex items-center gap-2">
                                     <Building2 className="h-4 w-4 text-primary" />
-                                    Adicionar Cliente
+                                    {editingClientId ? 'Editar Cliente' : 'Adicionar Cliente'}
                                 </CardTitle>
-                                <CardDescription>
-                                    Preencha email e senha para criar o acesso de login junto com o cadastro — ou deixe em branco e crie depois na aba <strong>Equipe</strong>.
-                                </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-3">
+                            <CardContent className="space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <Label>Nome do responsável *</Label>
+                                        <Label>Nome</Label>
                                         <Input
                                             placeholder="Nome do cliente"
-                                            value={newClient.name}
-                                            onChange={e => setNewClient(prev => ({ ...prev, name: e.target.value }))}
+                                            value={clientForm.name}
+                                            onChange={e => setClientForm(prev => ({ ...prev, name: e.target.value }))}
                                         />
                                     </div>
                                     <div>
                                         <Label>Empresa</Label>
                                         <Input
                                             placeholder="Nome da empresa"
-                                            value={newClient.company}
-                                            onChange={e => setNewClient(prev => ({ ...prev, company: e.target.value }))}
+                                            value={clientForm.company}
+                                            onChange={e => setClientForm(prev => ({ ...prev, company: e.target.value }))}
                                         />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-3">
                                     <div>
-                                        <Label>Telefone / WhatsApp</Label>
+                                        <Label>Email</Label>
+                                        <Input
+                                            type="email"
+                                            placeholder="email@cliente.com"
+                                            value={clientForm.email}
+                                            onChange={e => setClientForm(prev => ({ ...prev, email: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Telefone</Label>
                                         <Input
                                             placeholder="(11) 99999-9999"
-                                            value={newClient.phone}
-                                            onChange={e => setNewClient(prev => ({ ...prev, phone: e.target.value }))}
+                                            value={clientForm.phone}
+                                            onChange={e => setClientForm(prev => ({ ...prev, phone: e.target.value }))}
                                         />
                                     </div>
                                     <div>
                                         <Label>Segmento</Label>
                                         <Input
                                             placeholder="Ex: Clínica, Advocacia"
-                                            value={newClient.segment}
-                                            onChange={e => setNewClient(prev => ({ ...prev, segment: e.target.value }))}
+                                            value={clientForm.segment}
+                                            onChange={e => setClientForm(prev => ({ ...prev, segment: e.target.value }))}
                                         />
                                     </div>
                                 </div>
-                                {/* Login section */}
-                                <div className="rounded-lg border border-dashed border-border p-3 space-y-3">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Acesso ao painel (opcional)</p>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <Label>Email de login</Label>
-                                            <Input
-                                                type="email"
-                                                placeholder="email@cliente.com"
-                                                value={newClient.email}
-                                                onChange={e => setNewClient(prev => ({ ...prev, email: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label>Senha</Label>
-                                            <Input
-                                                type="text"
-                                                placeholder="Mínimo 6 caracteres"
-                                                value={newClient.password}
-                                                onChange={e => setNewClient(prev => ({ ...prev, password: e.target.value }))}
-                                            />
+
+                                {/* Acesso ao painel — only shown when creating a new client */}
+                                {!editingClientId && (
+                                    <div className="pt-2 border-t border-border/50">
+                                        <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 px-1 flex items-center gap-1">
+                                            <Shield className="h-3 w-3" /> Acesso ao Painel (opcional)
+                                        </h4>
+                                        <p className="text-xs text-muted-foreground mb-2 px-1">Preencha email e senha para criar login de acesso ao painel do cliente.</p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <Label>Senha de acesso</Label>
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Deixe em branco para não criar login"
+                                                    value={clientForm.password}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, password: e.target.value }))}
+                                                />
+                                            </div>
+                                            {clientForm.email && clientForm.password && (
+                                                <div className="flex items-end">
+                                                    <p className="text-xs text-nc-success pb-2">
+                                                        ✓ Login será criado: <strong>{clientForm.email}</strong>
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        {newClient.email && newClient.password
-                                            ? '✅ O login será criado junto com o cadastro.'
-                                            : 'Deixe em branco para criar o login depois na aba Equipe.'}
-                                    </p>
+                                )}
+
+                                <div className="pt-2 border-t border-border/50">
+                                    <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 px-1">Estratégia & Painel do Cliente</h4>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <Label>Resumo do Projeto (Visível para o cliente)</Label>
+                                            <Textarea
+                                                placeholder="Descreva o foco do projeto..."
+                                                value={clientForm.project_summary}
+                                                onChange={e => setClientForm(prev => ({ ...prev, project_summary: e.target.value }))}
+                                                className="h-20 text-sm"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <Label>Fase Atual</Label>
+                                                <Input
+                                                    placeholder="Ex: Onboarding"
+                                                    value={clientForm.current_phase}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, current_phase: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Próxima Etapa</Label>
+                                                <Input
+                                                    placeholder="Ex: Máquina de Vendas"
+                                                    value={clientForm.next_step}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, next_step: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <Label>Status do Time</Label>
+                                                <Input
+                                                    placeholder="Ex: Treinando Closer"
+                                                    value={clientForm.team_status}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, team_status: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Processos Operacionais</Label>
+                                                <Input
+                                                    placeholder="Ex: CRM Configurado"
+                                                    value={clientForm.operational_processes}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, operational_processes: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex gap-2 pt-2">
-                                    <Button onClick={handleCreateClient} disabled={isCreatingClient}>
-                                        {isCreatingClient ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Criando...</> : 'Criar Cliente'}
+
+                                <div className="flex gap-2 pt-4">
+                                    <Button onClick={handleSaveClient} disabled={isSubmittingClient}>
+                                        {isSubmittingClient ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Salvando...</> : 'Salvar Cliente'}
                                     </Button>
-                                    <Button variant="ghost" onClick={() => setShowClientForm(false)}>Cancelar</Button>
+                                    <Button variant="ghost" onClick={() => {
+                                        setShowClientForm(false);
+                                        setEditingClientId(null);
+                                        setClientForm({
+                                            name: '', email: '', phone: '', company: '', segment: '',
+                                            project_summary: '', current_phase: '', next_step: '',
+                                            team_status: '', operational_processes: '', password: '',
+                                        });
+                                    }}>Cancelar</Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -739,136 +625,34 @@ export default function AdminManage() {
                         <Card className="nc-card-border">
                             <CardContent className="p-0">
                                 <div className="divide-y divide-border">
-                                    {clients.map(c => {
-                                        const linkedUser = users.find(u => u.client_id === c.id);
-                                        const isEditing = editingClientId === c.id;
-                                        return (
-                                            <div key={c.id}>
-                                                <div className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-nc-info/10 flex items-center justify-center text-nc-info font-bold text-sm">
-                                                            {c.name.charAt(0)}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium">{c.name}</p>
-                                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                                {c.company && <span>{c.company}</span>}
-                                                                {c.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
-                                                                {c.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
-                                                            </div>
-                                                            {linkedUser
-                                                                ? <p className="text-xs text-emerald-600 mt-0.5">✓ Acesso: {linkedUser.email}</p>
-                                                                : <p className="text-xs text-amber-600 mt-0.5">⚠ Sem login — crie na aba Equipe</p>
-                                                            }
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {c.segment && (
-                                                            <Badge variant="secondary" className="text-xs">{c.segment}</Badge>
-                                                        )}
-                                                        <Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                                                            {c.status === 'active' ? '✓ Ativo' : c.status}
-                                                        </Badge>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                                                            onClick={() => isEditing ? setEditingClientId(null) : handleEditClient(c)}
-                                                            title="Editar cliente"
-                                                        >
-                                                            <Pencil className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                                            onClick={() => handleDeleteClient(c.id, c.name)}
-                                                            title="Excluir cliente"
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
+                                    {clients.map(c => (
+                                        <div key={c.id} className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-nc-info/10 flex items-center justify-center text-nc-info font-bold text-sm">
+                                                    {c.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium">{c.name}</p>
+                                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                        {c.company && <span>{c.company}</span>}
+                                                        {c.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
+                                                        {c.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
                                                     </div>
                                                 </div>
-                                                {/* Inline edit panel */}
-                                                {isEditing && (
-                                                    <div className="px-4 pb-4 bg-muted/30 border-t border-border">
-                                                        <p className="text-xs font-semibold text-foreground pt-3 mb-3">Editar cliente</p>
-                                                        <div className="grid grid-cols-2 gap-3 mb-3">
-                                                            <div>
-                                                                <Label className="text-xs">Nome do responsável *</Label>
-                                                                <Input
-                                                                    className="h-8 text-sm"
-                                                                    value={editForm.name}
-                                                                    onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label className="text-xs">Empresa</Label>
-                                                                <Input
-                                                                    className="h-8 text-sm"
-                                                                    value={editForm.company}
-                                                                    onChange={e => setEditForm(prev => ({ ...prev, company: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-3 gap-3 mb-3">
-                                                            <div>
-                                                                <Label className="text-xs">Email</Label>
-                                                                <Input
-                                                                    type="email"
-                                                                    className="h-8 text-sm"
-                                                                    value={editForm.email}
-                                                                    onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label className="text-xs">Telefone</Label>
-                                                                <Input
-                                                                    className="h-8 text-sm"
-                                                                    value={editForm.phone}
-                                                                    onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label className="text-xs">Segmento</Label>
-                                                                <Input
-                                                                    className="h-8 text-sm"
-                                                                    value={editForm.segment}
-                                                                    onChange={e => setEditForm(prev => ({ ...prev, segment: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-3 mb-3">
-                                                            <div>
-                                                                <Label className="text-xs">Status</Label>
-                                                                <select
-                                                                    value={editForm.status}
-                                                                    onChange={e => setEditForm(prev => ({ ...prev, status: e.target.value }))}
-                                                                    className="h-8 px-2 rounded-md border border-input bg-background text-sm"
-                                                                >
-                                                                    <option value="active">Ativo</option>
-                                                                    <option value="inactive">Inativo</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <Button size="sm" className="h-8 text-xs" onClick={handleSaveClient} disabled={isSavingClient}>
-                                                                {isSavingClient ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Salvando...</> : 'Salvar'}
-                                                            </Button>
-                                                            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingClientId(null)}>
-                                                                Cancelar
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
-                                        );
-                                    })}
+                                            <div className="flex items-center gap-2">
+                                                {c.segment && (
+                                                    <Badge variant="secondary" className="text-xs">{c.segment}</Badge>
+                                                )}
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleEditClient(c)}>
+                                                    <Plus className="h-4 w-4 rotate-45" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
                                     {clients.length === 0 && (
                                         <div className="p-8 text-center text-muted-foreground text-sm">
-                                            <Building2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                                            <p>Nenhum cliente cadastrado ainda.</p>
-                                            <p className="text-xs mt-1">Clique em "Novo Cliente" para começar.</p>
+                                            Nenhum cliente cadastrado
                                         </div>
                                     )}
                                 </div>

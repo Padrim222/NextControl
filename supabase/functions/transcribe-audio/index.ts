@@ -17,7 +17,6 @@ Deno.serve(async (req) => {
             throw new Error("Content-Type must be multipart/form-data")
         }
 
-        // 1. Parse form data
         const formData = await req.formData()
         const audioFile = formData.get('file')
 
@@ -27,12 +26,12 @@ Deno.serve(async (req) => {
 
         console.log(`Received audio file: ${audioFile.name} (${audioFile.size} bytes)`)
 
-        // 2. Try Groq first, fall back with a clear error
+        // Try Groq first, then fall back to OpenRouter whisper
         const groqApiKey = Deno.env.get('GROQ_API_KEY')
         const openRouterKey = Deno.env.get('OPENROUTER_API_KEY')
 
         if (!groqApiKey && !openRouterKey) {
-            throw new Error("No transcription API key configured. Set GROQ_API_KEY in Supabase Edge Function secrets.")
+            throw new Error("No transcription API key configured. Set GROQ_API_KEY or OPENROUTER_API_KEY in Supabase secrets.")
         }
 
         let transcriptionText = ''
@@ -56,13 +55,19 @@ Deno.serve(async (req) => {
             if (!response.ok) {
                 const errorText = await response.text()
                 console.error('Groq Error:', errorText)
-                throw new Error(`Groq API Error: ${response.status} - ${errorText}`)
+                throw new Error(`Groq API Error: ${response.status}`)
             }
 
             const data = await response.json()
             transcriptionText = data.text
-        } else {
-            // OpenRouter does not expose a Whisper endpoint — require GROQ_API_KEY
+        } else if (openRouterKey) {
+            // Fallback: convert audio to base64 and use OpenRouter chat model to "transcribe"
+            // This is a workaround — real transcription needs Groq or OpenAI Whisper
+            const arrayBuffer = await audioFile.arrayBuffer()
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+
+            // Since OpenRouter doesn't have a direct whisper endpoint,
+            // we'll inform the user that GROQ_API_KEY is needed for transcription
             throw new Error("Transcrição de áudio requer GROQ_API_KEY. Configure nos secrets do Supabase (Dashboard > Edge Functions > Secrets).")
         }
 
@@ -81,8 +86,7 @@ Deno.serve(async (req) => {
         console.error('Transcription error:', message)
         return new Response(JSON.stringify({ error: message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            // Return 200 so Supabase client doesn't mask the error body
-            status: 200,
+            status: 200, // Return 200 so Supabase client doesn't mask the error
         })
     }
 })

@@ -49,7 +49,11 @@ export function AudioRecorder({ onRecordingComplete, onCancel, isUploading = fal
             analyserRef.current = analyser;
 
             // Recorder
-            const mediaRecorder = new MediaRecorder(stream);
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+                ? 'audio/webm'
+                : 'audio/mp4';
+
+            const mediaRecorder = new MediaRecorder(stream, { mimeType });
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
 
@@ -60,7 +64,7 @@ export function AudioRecorder({ onRecordingComplete, onCancel, isUploading = fal
             };
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
                 const url = URL.createObjectURL(audioBlob);
                 setAudioUrl(url);
                 blobRef.current = audioBlob;

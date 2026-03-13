@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import {
+    BarChart3,
     Target,
     TrendingUp,
     Send,
@@ -12,176 +17,21 @@ import {
     CheckCircle,
     Clock,
     ChevronRight,
-    ArrowUpRight,
-    ArrowDownRight,
-    Minus,
-} from '@/components/ui/icons';
+    LayoutDashboard,
+    Users,
+    Sparkles,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    Cell,
-} from 'recharts';
 import { SubmissionTimeline } from '@/components/seller/SubmissionTimeline';
+import { DailyProgressCard } from '@/components/seller/DailyProgressCard';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
-import { AgentFeedbackButton } from '@/components/AgentFeedbackButton';
-import { formatDistanceToNow, format } from 'date-fns';
+import { SellerPlaybook } from '@/components/seller/SellerPlaybook';
+import { StrategyAnalytics } from '@/components/seller/StrategyAnalytics';
+import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { DailySubmission, Analysis } from '@/types';
+import { AgentFeedbackButton } from '@/components/AgentFeedbackButton';
 
-/* ── Score Ring ── */
-function ScoreRing({ score }: { score: number | null }) {
-    const size = 120;
-    const strokeW = 9;
-    const r = (size - strokeW) / 2;
-    const circ = 2 * Math.PI * r;
-    const pct = score != null ? score / 100 : 0;
-    const offset = circ * (1 - pct);
-
-    const color =
-        score == null ? '#E5E7EB'
-        : score >= 80 ? '#1B2B4A'
-        : score >= 60 ? '#F59E0B'
-        : '#DC2626';
-
-    const label =
-        score == null ? 'Sem dados'
-        : score >= 80 ? 'Excelente'
-        : score >= 60 ? 'Bom'
-        : 'Atenção';
-
-    return (
-        <div className="flex flex-col items-center gap-2">
-            <div className="relative" style={{ width: size, height: size }}>
-                <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-                    <circle
-                        cx={size / 2} cy={size / 2} r={r}
-                        fill="none" stroke="#F3F4F6" strokeWidth={strokeW}
-                    />
-                    <circle
-                        cx={size / 2} cy={size / 2} r={r}
-                        fill="none" stroke={color} strokeWidth={strokeW}
-                        strokeLinecap="round"
-                        strokeDasharray={circ}
-                        strokeDashoffset={offset}
-                        style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1)' }}
-                    />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span
-                        className="text-[28px] font-bold leading-none"
-                        style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', color: '#1A1A1A' }}
-                    >
-                        {score ?? '—'}
-                    </span>
-                    <span className="text-[10px] font-medium mt-0.5" style={{ color: '#9CA3AF' }}>/100</span>
-                </div>
-            </div>
-            <span
-                className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                style={{
-                    background: score == null ? '#F3F4F6' : score >= 80 ? '#ECFDF5' : score >= 60 ? '#FFFBEB' : '#FEF2F2',
-                    color: score == null ? '#9CA3AF' : score >= 80 ? '#059669' : score >= 60 ? '#D97706' : '#DC2626',
-                }}
-            >
-                {label}
-            </span>
-        </div>
-    );
-}
-
-/* ── KPI Card ── */
-function KpiCard({
-    label,
-    value,
-    sub,
-    trend,
-    icon: Icon,
-    delay = 0,
-}: {
-    label: string;
-    value: string | number;
-    sub?: string;
-    trend?: 'up' | 'down' | 'neutral';
-    icon: React.ElementType;
-    delay?: number;
-}) {
-    const TrendIcon = trend === 'up' ? ArrowUpRight : trend === 'down' ? ArrowDownRight : Minus;
-    const trendColor = trend === 'up' ? '#059669' : trend === 'down' ? '#DC2626' : '#9CA3AF';
-    const trendBg = trend === 'up' ? '#ECFDF5' : trend === 'down' ? '#FEF2F2' : '#F3F4F6';
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay, duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="bg-white border border-[#E5E7EB] rounded-xl p-5 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-default"
-            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-        >
-            <div className="flex items-start justify-between mb-3">
-                <span
-                    className="text-[10px] font-semibold uppercase tracking-widest"
-                    style={{ color: '#9CA3AF' }}
-                >
-                    {label}
-                </span>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#F3F4F6' }}>
-                    <Icon size={14} strokeWidth={1.5} style={{ color: '#6B7280' }} />
-                </div>
-            </div>
-            <div
-                className="text-[30px] font-bold leading-none mb-2"
-                style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', color: '#1A1A1A' }}
-            >
-                {value}
-            </div>
-            {sub && (
-                <div className="flex items-center gap-1.5">
-                    {trend && trend !== 'neutral' ? (
-                        <span
-                            className="inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
-                            style={{ background: trendBg, color: trendColor }}
-                        >
-                            <TrendIcon size={10} />
-                            {sub}
-                        </span>
-                    ) : (
-                        <span className="text-[12px]" style={{ color: '#9CA3AF' }}>{sub}</span>
-                    )}
-                </div>
-            )}
-        </motion.div>
-    );
-}
-
-/* ── Chart Tooltip ── */
-const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload?.length) {
-        return (
-            <div
-                className="bg-white rounded-lg px-3 py-2"
-                style={{
-                    border: '1px solid #E5E7EB',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                    fontFamily: 'DM Sans, sans-serif',
-                }}
-            >
-                <p className="text-[11px] mb-0.5" style={{ color: '#9CA3AF' }}>{label}</p>
-                <p className="text-[14px] font-semibold" style={{ color: '#1B2B4A' }}>
-                    {payload[0].value} pts
-                </p>
-            </div>
-        );
-    }
-    return null;
-};
-
-/* ── Main ── */
 export default function SellerDashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -201,6 +51,8 @@ export default function SellerDashboard() {
         setIsLoading(true);
         try {
             const today = new Date().toISOString().split('T')[0];
+
+            // Fetch recent submissions
             const { data: subs, error: subsError } = await (supabase as any)
                 .from('daily_submissions')
                 .select('*')
@@ -209,11 +61,13 @@ export default function SellerDashboard() {
                 .limit(7);
 
             if (subsError) throw subsError;
+
             if (subs) {
                 setSubmissions(subs);
                 setTodaySubmitted(subs.some((s: DailySubmission) => s.submission_date === today));
             }
 
+            // Fetch analyses for all recent submissions
             if (subs?.length) {
                 const { data: analysesData, error: analysesError } = await (supabase as any)
                     .from('analyses')
@@ -222,6 +76,7 @@ export default function SellerDashboard() {
                     .order('created_at', { ascending: false });
 
                 if (analysesError) throw analysesError;
+
                 if (analysesData) {
                     setAnalyses(analysesData);
                     setLatestAnalysis(analysesData[0] || null);
@@ -229,434 +84,386 @@ export default function SellerDashboard() {
             }
         } catch (error) {
             console.error('Error fetching data:', error);
-            toast.error('Erro ao carregar dados.', {
-                action: { label: 'Tentar novamente', onClick: () => fetchData() },
+            toast.error('Erro ao carregar dados. Tente novamente.', {
+                action: {
+                    label: 'Tentar novamente',
+                    onClick: () => fetchData(),
+                },
             });
         } finally {
             setIsLoading(false);
         }
     };
 
+    // Build score map for timeline
     const scoreMap = new Map(analyses.map((a) => [a.submission_id, a.score]));
+
+    // Stats from last 7 submissions
     const totalSubmissions = submissions.length;
     const avgScore = latestAnalysis?.score ?? null;
 
-    const chartData = submissions
-        .slice()
-        .reverse()
-        .map((sub) => ({
-            date: format(new Date(sub.submission_date + 'T12:00:00'), 'EEE', { locale: ptBR }),
-            score: scoreMap.get(sub.id) ?? 0,
-        }));
+    const stats = [
+        {
+            label: 'Submissões (7d)',
+            value: totalSubmissions,
+            icon: Calendar,
+            color: 'text-solar',
+        },
+        {
+            label: 'Status Hoje',
+            value: todaySubmitted ? 'Enviado ✓' : 'Pendente',
+            icon: todaySubmitted ? CheckCircle : Clock,
+            color: todaySubmitted ? 'text-nc-success' : 'text-nc-warning',
+        },
+        {
+            label: 'Último Score',
+            value: avgScore ? `${avgScore}/100` : '—',
+            icon: Target,
+            color: 'text-solar',
+        },
+        {
+            label: 'Coach',
+            value: 'Disponível',
+            icon: MessageSquare,
+            color: 'text-nc-info',
+        },
+    ];
 
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
-    const firstName = user?.name?.split(' ')[0] ?? '';
-
+    // Loading skeleton
     if (isLoading) {
         return (
-            <div className="space-y-5 animate-pulse">
-                <div className="h-8 w-52 bg-[#F3F4F6] rounded-lg" />
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                    <div className="h-52 bg-white border border-[#E5E7EB] rounded-xl" />
-                    <div className="lg:col-span-4 grid grid-cols-2 xl:grid-cols-4 gap-4">
-                        {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="h-28 bg-white border border-[#E5E7EB] rounded-xl" />
-                        ))}
+            <div className="space-y-6 max-w-4xl mx-auto">
+                {/* Header skeleton */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <Skeleton className="h-7 w-48 mb-2" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                    <div className="hidden sm:flex gap-2">
+                        <Skeleton className="h-9 w-28" />
+                        <Skeleton className="h-9 w-28" />
                     </div>
                 </div>
-                <div className="h-60 bg-white border border-[#E5E7EB] rounded-xl" />
+                {/* Stats skeleton */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[1, 2, 3, 4].map((i) => (
+                        <Card key={i} className="nc-card-border bg-card">
+                            <CardContent className="p-4">
+                                <Skeleton className="h-4 w-20 mb-3" />
+                                <Skeleton className="h-6 w-16" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+                {/* CTA skeleton */}
+                <Card className="nc-card-border bg-card">
+                    <CardContent className="py-8 flex flex-col items-center">
+                        <Skeleton className="h-14 w-14 rounded-xl mb-4" />
+                        <Skeleton className="h-5 w-40 mb-2" />
+                        <Skeleton className="h-4 w-56 mb-4" />
+                        <Skeleton className="h-10 w-32" />
+                    </CardContent>
+                </Card>
+                {/* Timeline skeleton */}
+                <Card className="nc-card-border bg-card">
+                    <CardContent className="p-4 space-y-3">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="flex items-center justify-between py-2">
+                                <div className="flex items-center gap-3">
+                                    <Skeleton className="h-2 w-2 rounded-full" />
+                                    <Skeleton className="h-4 w-24" />
+                                </div>
+                                <Skeleton className="h-4 w-16" />
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
             </div>
         );
     }
 
     return (
-        <div className="space-y-5">
-            {/* Page Header */}
+        <div className="space-y-6 max-w-4xl mx-auto">
+            {/* Header */}
             <motion.div
-                initial={{ opacity: 0, y: -8 }}
+                initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-1"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
             >
                 <div>
-                    <h1
-                        className="text-[26px] font-bold leading-tight"
-                        style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', color: '#1A1A1A' }}
-                    >
-                        {greeting},{' '}
-                        <span style={{ color: '#1B2B4A' }}>{firstName}</span>
+                    <h1 className="font-display text-2xl font-bold">
+                        Olá, <span className="nc-gradient-text">{user?.name?.split(' ')[0]}</span>
                     </h1>
-                    <p className="text-[14px] mt-1 flex items-center gap-1.5" style={{ color: '#6B7280' }}>
-                        {todaySubmitted ? (
-                            <>
-                                <CheckCircle size={14} style={{ color: '#059669' }} strokeWidth={2} />
-                                Check-in enviado · aguardando análise
-                            </>
-                        ) : (
-                            <>
-                                <Clock size={14} style={{ color: '#F59E0B' }} strokeWidth={2} />
-                                Hora de fazer o check-in do dia
-                            </>
-                        )}
+                    <p className="text-muted-foreground text-sm mt-1">
+                        {todaySubmitted
+                            ? '🎯 Check-in de hoje enviado. Aguardando análise do coach.'
+                            : '⏰ Hora de fazer o check-in do dia!'}
                     </p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <button
+                <div className="hidden sm:flex gap-2">
+                    <Button
+                        variant="ghost"
+                        className="nc-btn-ghost"
                         onClick={() => navigate('/seller/evolution')}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150"
-                        style={{ color: '#6B7280' }}
-                        onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6';
-                            (e.currentTarget as HTMLButtonElement).style.color = '#1A1A1A';
-                        }}
-                        onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                            (e.currentTarget as HTMLButtonElement).style.color = '#6B7280';
-                        }}
                     >
-                        <TrendingUp size={14} strokeWidth={1.5} />
+                        <TrendingUp className="h-4 w-4 mr-2" />
                         Evolução
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="nc-btn-ghost"
                         onClick={() => navigate('/training/coach')}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150"
-                        style={{ color: '#6B7280' }}
-                        onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6';
-                            (e.currentTarget as HTMLButtonElement).style.color = '#1A1A1A';
-                        }}
-                        onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                            (e.currentTarget as HTMLButtonElement).style.color = '#6B7280';
-                        }}
                     >
-                        <MessageSquare size={14} strokeWidth={1.5} />
+                        <MessageSquare className="h-4 w-4 mr-2" />
                         Consultoria
-                    </button>
-                    <AgentFeedbackButton defaultAgentType="ss" />
-                    {!todaySubmitted && (
-                        <button
-                            onClick={() => navigate('/seller/report')}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold text-white transition-all hover:opacity-90"
-                            style={{ background: '#1B2B4A' }}
-                        >
-                            <Send size={13} strokeWidth={2} />
-                            Check-in
-                        </button>
-                    )}
+                    </Button>
                 </div>
             </motion.div>
 
+            {/* Pending Form Banner */}
             <FormPendingBanner formType="seller_daily" />
 
-            {/* Priority CTA — shown FIRST when check-in not done */}
-            {!todaySubmitted && (
-                <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    onClick={() => navigate('/seller/report')}
-                    className="rounded-xl p-5 flex items-center gap-5 cursor-pointer hover:opacity-95 transition-opacity"
-                    style={{
-                        background: 'linear-gradient(135deg, #1B2B4A 0%, #2D4A7A 100%)',
-                        boxShadow: '0 4px 20px rgba(27,43,74,0.25)',
-                    }}
-                >
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(230,184,77,0.15)' }}>
-                        <Send size={22} strokeWidth={1.5} style={{ color: '#E6B84D' }} />
-                    </div>
-                    <div className="flex-1">
-                        <p className="text-[11px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: '#E6B84D' }}>
-                            Ação do Dia
-                        </p>
-                        <h3 className="text-[17px] font-bold text-white leading-tight" style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif' }}>
-                            Fazer o Check-in de Hoje
-                        </h3>
-                        <p className="text-[13px] mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                            Registre seus números e receba feedback personalizado da IA
-                        </p>
-                    </div>
-                    <ChevronRight size={20} style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
-                </motion.div>
-            )}
-
-            {/* Score Ring + KPIs */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.35 }}
-                    className="bg-white border border-[#E5E7EB] rounded-xl p-6 flex flex-col items-center justify-center gap-3"
-                    style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-                >
-                    <span
-                        className="text-[10px] font-semibold uppercase tracking-widest"
-                        style={{ color: '#9CA3AF' }}
-                    >
-                        Score de Performance
-                    </span>
-                    <ScoreRing score={avgScore} />
-                    {latestAnalysis?.created_at && (
-                        <p className="text-[11px] text-center" style={{ color: '#9CA3AF' }}>
-                            {formatDistanceToNow(new Date(latestAnalysis.created_at), {
-                                addSuffix: true,
-                                locale: ptBR,
-                            })}
-                        </p>
-                    )}
-                </motion.div>
-
-                <div className="lg:col-span-4 grid grid-cols-2 xl:grid-cols-4 gap-4">
-                    <KpiCard
-                        label="Submissões"
-                        value={totalSubmissions}
-                        sub="últimos 7 dias"
-                        icon={Calendar}
-                        delay={0.05}
-                    />
-                    <KpiCard
-                        label="Hoje"
-                        value={todaySubmitted ? 'Enviado' : 'Pendente'}
-                        sub={todaySubmitted ? 'completo' : 'faça agora'}
-                        trend={todaySubmitted ? 'up' : 'neutral'}
-                        icon={todaySubmitted ? CheckCircle : Clock}
-                        delay={0.1}
-                    />
-                    <KpiCard
-                        label="Coach"
-                        value="Online"
-                        sub="disponível agora"
-                        trend="up"
-                        icon={MessageSquare}
-                        delay={0.15}
-                    />
-                    <KpiCard
-                        label="Sequência"
-                        value={`${totalSubmissions}d`}
-                        sub="consecutivos"
-                        trend={totalSubmissions >= 5 ? 'up' : 'neutral'}
-                        icon={Target}
-                        delay={0.2}
-                    />
-                </div>
+            {/* Agent Feedback */}
+            <div className="flex justify-end">
+                <AgentFeedbackButton defaultAgentType="ss" />
             </div>
 
-            {/* Performance Chart */}
-            {chartData.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25, duration: 0.35 }}
-                    className="bg-white border border-[#E5E7EB] rounded-xl p-6"
-                    style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-                >
-                    <div className="flex items-center justify-between mb-5">
-                        <div>
-                            <h3
-                                className="text-[16px] font-semibold"
-                                style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', color: '#1A1A1A' }}
-                            >
-                                Performance — últimos {chartData.length} dias
-                            </h3>
-                            <p className="text-[12px] mt-0.5" style={{ color: '#9CA3AF' }}>
-                                Score por check-in diário
-                            </p>
-                        </div>
-                        {avgScore != null && (
-                            <div className="text-right">
-                                <div
-                                    className="text-[22px] font-bold leading-none"
-                                    style={{
-                                        fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
-                                        color: '#1B2B4A',
-                                    }}
-                                >
-                                    {avgScore}
-                                </div>
-                                <div className="text-[11px] mt-0.5" style={{ color: '#9CA3AF' }}>
-                                    último score
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <ResponsiveContainer width="100%" height={180}>
-                        <BarChart
-                            data={chartData}
-                            barSize={32}
-                            margin={{ top: 4, right: 0, left: -16, bottom: 0 }}
-                        >
-                            <CartesianGrid
-                                stroke="#F3F4F6"
-                                strokeDasharray="0"
-                                vertical={false}
-                            />
-                            <XAxis
-                                dataKey="date"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fill: '#9CA3AF' }}
-                            />
-                            <YAxis
-                                domain={[0, 100]}
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fill: '#9CA3AF' }}
-                                width={32}
-                            />
-                            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F9FAFB', radius: 4 }} />
-                            <Bar dataKey="score" radius={[5, 5, 0, 0]}>
-                                {chartData.map((entry, index) => (
-                                    <Cell
-                                        key={index}
-                                        fill={
-                                            index === chartData.length - 1
-                                                ? '#E6B84D'
-                                                : entry.score >= 80
-                                                ? '#1B2B4A'
-                                                : entry.score >= 60
-                                                ? '#FDE68A'
-                                                : '#E5E7EB'
-                                        }
-                                    />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </motion.div>
-            )}
+            {/* Tabs: Dashboard vs CRM */}
+            <Tabs defaultValue="dashboard" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                    <TabsTrigger value="dashboard" className="gap-2">
+                        <LayoutDashboard className="h-3.5 w-3.5" />
+                        Dashboard
+                    </TabsTrigger>
+                    <TabsTrigger value="crm" className="gap-2">
+                        <Users className="h-3.5 w-3.5" />
+                        CRM
+                    </TabsTrigger>
+                </TabsList>
 
-            {/* Coach Feedback */}
-            {latestAnalysis && (
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35, duration: 0.35 }}
-                    className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden"
-                    style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-                >
-                    <div
-                        className="px-6 py-4 flex items-center justify-between"
-                        style={{ borderBottom: '1px solid #E5E7EB' }}
-                    >
-                        <div className="flex items-center gap-2">
-                            <TrendingUp size={15} strokeWidth={1.5} style={{ color: '#1B2B4A' }} />
-                            <h3
-                                className="text-[15px] font-semibold"
-                                style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', color: '#1A1A1A' }}
-                            >
-                                Último Feedback do Coach
-                            </h3>
-                        </div>
-                        {latestAnalysis.created_at && (
-                            <span className="text-[12px]" style={{ color: '#9CA3AF' }}>
-                                {formatDistanceToNow(new Date(latestAnalysis.created_at), {
-                                    addSuffix: true,
-                                    locale: ptBR,
-                                })}
-                            </span>
-                        )}
-                    </div>
-                    <div className="p-6 space-y-4">
-                        <p className="text-[14px] leading-relaxed line-clamp-3" style={{ color: '#6B7280' }}>
-                            {latestAnalysis.content}
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {latestAnalysis.strengths?.length > 0 && (
-                                <div
-                                    className="p-4 rounded-xl"
-                                    style={{ background: '#ECFDF5', border: '1px solid #A7F3D0' }}
-                                >
-                                    <p
-                                        className="text-[10px] font-semibold uppercase tracking-widest mb-2.5"
-                                        style={{ color: '#059669' }}
-                                    >
-                                        Forças
-                                    </p>
-                                    <ul className="space-y-1.5">
-                                        {latestAnalysis.strengths.slice(0, 3).map((s: string, i: number) => (
-                                            <li
-                                                key={i}
-                                                className="flex items-start gap-2 text-[13px]"
-                                                style={{ color: '#065F46' }}
-                                            >
-                                                <CheckCircle
-                                                    size={13}
-                                                    className="mt-0.5 flex-shrink-0"
-                                                    style={{ color: '#059669' }}
-                                                    strokeWidth={2}
-                                                />
-                                                {s}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            {latestAnalysis.improvements?.length > 0 && (
-                                <div
-                                    className="p-4 rounded-xl"
-                                    style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}
-                                >
-                                    <p
-                                        className="text-[10px] font-semibold uppercase tracking-widest mb-2.5"
-                                        style={{ color: '#D97706' }}
-                                    >
-                                        Melhorar
-                                    </p>
-                                    <ul className="space-y-1.5">
-                                        {latestAnalysis.improvements.slice(0, 3).map((s: string, i: number) => (
-                                            <li
-                                                key={i}
-                                                className="flex items-start gap-2 text-[13px]"
-                                                style={{ color: '#92400E' }}
-                                            >
-                                                <Target
-                                                    size={13}
-                                                    className="mt-0.5 flex-shrink-0"
-                                                    style={{ color: '#D97706' }}
-                                                    strokeWidth={2}
-                                                />
-                                                {s}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </motion.div>
-            )}
+                {/* TAB: Dashboard — metrics, progress, check-in, feedback */}
+                <TabsContent value="dashboard" className="space-y-6 mt-0">
 
-            {/* Timeline */}
-            {submissions.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.35 }}
-                    className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden"
-                    style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-                >
-                    <div
-                        className="px-6 py-4 flex items-center gap-2"
-                        style={{ borderBottom: '1px solid #E5E7EB' }}
-                    >
-                        <Calendar size={15} strokeWidth={1.5} style={{ color: '#1B2B4A' }} />
-                        <h3
-                            className="text-[15px] font-semibold"
-                            style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', color: '#1A1A1A' }}
+                    {/* AI Insights Banner */}
+                    {submissions.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.3 }}
                         >
-                            Histórico de Check-ins
-                        </h3>
-                    </div>
-                    <div className="p-6">
-                        <SubmissionTimeline
-                            submissions={submissions}
-                            scoreMap={scoreMap}
-                            onItemClick={(sub) => navigate(`/seller/report/${sub.id}`)}
-                        />
-                    </div>
-                </motion.div>
-            )}
+                            {(() => {
+                                const weeklyConversations = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.conversations_started || 0), 0);
+                                const weeklyFollowups = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.followups_done || 0), 0);
+                                const weeklyOpps = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.conversations_to_opportunity || 0), 0);
+
+                                let insightTitle = "Insight da IA";
+                                let insightMessage = "Seu ritmo está bom! Mantenha a consistência nos follow-ups para garantir o fechamento da semana.";
+                                let isWarning = false;
+
+                                if (weeklyConversations < 15) {
+                                    insightTitle = "⚠️ Volume de Conversas Baixo";
+                                    insightMessage = `Apenas ${weeklyConversations} conversas iniciadas esta semana. Aumente o volume de abordagens para manter o funil saudável!`;
+                                    isWarning = true;
+                                } else if (weeklyFollowups < 10) {
+                                    insightTitle = "⚠️ Follow-ups Insuficientes";
+                                    insightMessage = `Somente ${weeklyFollowups} follow-ups feitos. Leads esfriam rápido — consulte o Coach para técnicas de reaquecimento!`;
+                                    isWarning = true;
+                                } else if (weeklyOpps < 5) {
+                                    insightTitle = "⚠️ Poucas Oportunidades Geradas";
+                                    insightMessage = `Apenas ${weeklyOpps} conversas converteram em oportunidade. Vamos ajustar seu pitch no Consultoria de Bolso?`;
+                                    isWarning = true;
+                                }
+
+                                return (
+                                    <Card className={`nc-card-border overflow-hidden ${isWarning ? 'border-nc-warning/30 bg-nc-warning/5' : 'border-solar/30 bg-solar/5'}`}>
+                                        <CardContent className="p-4 flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isWarning ? 'bg-nc-warning/20' : 'bg-solar/20'}`}>
+                                                <Sparkles className={`h-5 w-5 ${isWarning ? 'text-nc-warning' : 'text-solar'} animate-pulse`} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className={`text-sm font-semibold ${isWarning ? 'text-nc-warning' : 'text-solar'}`}>{insightTitle}</h4>
+                                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                                    {insightMessage}
+                                                </p>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className={`text-xs ${isWarning ? 'border-nc-warning/30 hover:bg-nc-warning/10' : 'border-solar/30 hover:bg-solar/10'}`}
+                                                onClick={() => navigate('/training/coach')}
+                                            >
+                                                Consultar Coach
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })()}
+                        </motion.div>
+                    )}
+
+                    {/* Strategy A vs B Analytics */}
+                    <StrategyAnalytics />
+
+                    {/* Daily Progress vs. Yesterday */}
+                    {submissions.length >= 2 && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.35 }}
+                        >
+                            <DailyProgressCard submissions={submissions} />
+                        </motion.div>
+                    )}
+
+                    {/* Playbook: Scripts & Blacklist */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.38 }}
+                    >
+                        <SellerPlaybook />
+                    </motion.div>
+
+                    {/* Daily Submission CTA */}
+                    {!todaySubmitted && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                        >
+                            <Card className="nc-card-border nc-card-hover bg-card">
+                                <CardContent className="py-8 text-center">
+                                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-solar/10 mb-4">
+                                        <Send className="h-7 w-7 text-solar" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold mb-1">Check-in do Dia</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Registre seus números e envie prints de conversas
+                                    </p>
+                                    <Button
+                                        className="mt-4 nc-btn-primary"
+                                        onClick={() => navigate('/seller/report')}
+                                    >
+                                        Começar <ChevronRight className="h-4 w-4 ml-1" />
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* Latest Coach Feedback */}
+                    {latestAnalysis && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.5 }}
+                        >
+                            <Card className="nc-card-border bg-card">
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                            <TrendingUp className="h-4 w-4 text-solar" />
+                                            Último Feedback do Coach
+                                        </CardTitle>
+                                        {latestAnalysis.created_at && (
+                                            <span className="text-xs text-muted-foreground">
+                                                {formatDistanceToNow(new Date(latestAnalysis.created_at), { addSuffix: true, locale: ptBR })}
+                                            </span>
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    {/* Score */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-center px-4 py-2 rounded-lg bg-solar/10">
+                                            <p className="text-2xl font-mono font-bold text-solar">{latestAnalysis.score}</p>
+                                            <p className="text-xs text-muted-foreground">Score</p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground flex-1 line-clamp-3">
+                                            {latestAnalysis.content}
+                                        </p>
+                                    </div>
+
+                                    {/* Strengths & Improvements */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="p-3 rounded-lg bg-nc-success/10 border border-nc-success/20">
+                                            <p className="text-xs font-medium text-nc-success mb-2 uppercase">Forças</p>
+                                            <ul className="text-xs text-muted-foreground space-y-1">
+                                                {latestAnalysis.strengths?.slice(0, 3).map((s, i) => (
+                                                    <li key={i} className="flex items-start gap-1.5">
+                                                        <CheckCircle className="h-3 w-3 text-nc-success mt-0.5 shrink-0" />
+                                                        {s}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div className="p-3 rounded-lg bg-nc-warning/10 border border-nc-warning/20">
+                                            <p className="text-xs font-medium text-nc-warning mb-2 uppercase">Melhorar</p>
+                                            <ul className="text-xs text-muted-foreground space-y-1">
+                                                {latestAnalysis.improvements?.slice(0, 3).map((s, i) => (
+                                                    <li key={i} className="flex items-start gap-1.5">
+                                                        <Target className="h-3 w-3 text-nc-warning mt-0.5 shrink-0" />
+                                                        {s}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+                </TabsContent>
+
+                {/* TAB: CRM — submissions timeline */}
+                <TabsContent value="crm" className="space-y-6 mt-0">
+                    {/* Daily Submission CTA in CRM tab too */}
+                    {!todaySubmitted && (
+                        <Card className="nc-card-border nc-card-hover bg-card">
+                            <CardContent className="py-6 text-center">
+                                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-solar/10 mb-3">
+                                    <Send className="h-6 w-6 text-solar" />
+                                </div>
+                                <h3 className="text-base font-semibold mb-1">Check-in Pendente</h3>
+                                <Button
+                                    className="mt-3 nc-btn-primary"
+                                    size="sm"
+                                    onClick={() => navigate('/seller/report')}
+                                >
+                                    Fazer Check-in <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Submissions Timeline */}
+                    {submissions.length > 0 && (
+                        <Card className="nc-card-border bg-card">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <BarChart3 className="h-4 w-4 text-solar" />
+                                    Histórico de Submissões
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <SubmissionTimeline
+                                    submissions={submissions}
+                                    scoreMap={scoreMap}
+                                    onItemClick={(sub) => navigate(`/seller/report/${sub.id}`)}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {submissions.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                            <p>Nenhuma submissão encontrada</p>
+                            <p className="text-xs mt-1">Faça seu primeiro check-in para começar!</p>
+                        </div>
+                    )}
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

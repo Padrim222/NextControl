@@ -25,11 +25,10 @@ Deno.serve(async (req) => {
 
         // 1. Fetch the report
         const { data: report, error: reportError } = await supabase
-            .from('daily_reports')
+            .from('daily_submissions')
             .select(`
         *,
-        seller:users!seller_id(name),
-        client:clients!client_id(name, company)
+        seller:users!seller_id(id, name, seller_type, client_id)
       `)
             .eq('id', report_id)
             .single()
@@ -38,44 +37,103 @@ Deno.serve(async (req) => {
             throw new Error('Report not found')
         }
 
-        // 2. Fetch recent call logs for context (last 24h)
-        const { data: calls } = await supabase
-            .from('call_logs')
-            .select('*')
-            .eq('client_id', report.client_id)
-            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        // 2. Identify the client
+        let clientId = report.seller?.client_id;
+        let clientName = 'Cliente';
 
-        // 3. Prepare Prompt
+        if (!clientId) {
+            // Fallback: search in clients table where this seller is assigned
+            const { data: clientData } = await supabase
+                .from('clients')
+                .select('id, name')
+                .or(`assigned_seller_id.eq.${report.seller_id},assigned_closer_id.eq.${report.seller_id}`)
+                .maybeSingle();
+
+            if (clientData) {
+                clientId = clientData.id;
+                clientName = clientData.name;
+            }
+        } else {
+            // Get client name if we have the ID
+            const { data: clientData } = await supabase
+                .from('clients')
+                .select('name')
+                .eq('id', clientId)
+                .single();
+            if (clientData) clientName = clientData.name;
+        }
+
+        if (!clientId) {
+            console.warn('No client identified for this report/seller');
+        }
+
+        // 3. Fetch recent call logs for context (last 24h)
+        const { data: calls } = clientId
+            ? await supabase
+                .from('call_logs')
+                .select('*')
+                .eq('client_id', clientId)
+                .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+            : { data: [] };
+
+        // 4. Fetch RAG materials for context
+        let ragContext = '';
+        if (clientId) {
+            const { data: materials } = await supabase
+                .from('client_materials')
+                .select('title, description')
+                .eq('client_id', clientId)
+                .eq('is_rag_active', true);
+
+            if (materials && materials.length > 0) {
+                ragContext = `\n\n=== CONTEXTO DA BASE RAG DO CLIENTE (${clientName}) ===\n` +
+                    materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/RESUMO: ${m.description || 'Sem descrição detalhada'}`).join('\n\n') +
+                    "\n=======================================\n\nUse estritamente as informações do contexto acima para fundamentar falhas identificadas e estratégias novas.";
+            }
+        }
+
+        // 3.1 Fetch Seller Playbook (Scripts & Blacklist)
+        const { data: playbook } = await supabase
+            .from('seller_playbooks')
+            .select('type, title, content')
+            .eq('user_id', report.seller_id)
+
+        const playbookContext = playbook?.length ?
+            `=== PLAYBOOK DO CONSULTOR ===\n` +
+            playbook.map((p: any) => `[${p.type.toUpperCase()}] ${p.title}: ${p.content}`).join('\n') :
+            'Sem playbook cadastrado.'
+
+        // 4. Construct AI Prompt
         const prompt = `
-    Atue como um Head de Vendas experiente, analítico e focado em metodologia.
-    Analise os dados do consultor de vendas e forneça feedback estruturado.
+    VOCÊ É O HEAD-AGENT DA NEXT CONTROL.
+    Sua missão é dar feedback de alto nível para o consultor de vendas: ${report.seller?.name || 'Desconhecido'}.
     
-    DADOS DO RELATÓRIO:
-    Consultor: ${report.seller?.name}
-    Cliente: ${report.client?.name} (${report.client?.company})
+    DADOS DO CLIENTE VENDIDO (${clientName}):
+    ${ragContext}
     
-    METRICAS DO FUNIL (Hoje):
-    - Chat Ativo: ${report.chat_ativo}
-    - Boas Vindas: ${report.boas_vindas}
-    - Reaquecimento: ${report.reaquecimento}
-    - Nutrição: ${report.nutricao}
-    - Conexões: ${report.conexoes}
-    - Mapeamentos: ${report.mapeamentos}
-    - Pitchs: ${report.pitchs}
-    - Capturas (Vendas): ${report.capturas}
-    - Follow-ups: ${report.followups}
+    ${playbookContext}
+    
+    DADOS DO RELATÓRIO DO DIA (${report.submission_date}):
+    MÉTRICAS: ${JSON.stringify(report.metrics)}
+    PRINTS: ${report.conversation_prints?.length || 0} anexados
     
     NOTAS DO CONSULTOR:
-    "${report.notes}"
+    "${report.notes || 'Sem notas'}"
     
     CONTEXTO DE LIGAÇÕES (Últimas 24h):
     ${calls?.map((c: any) => `- [${c.outcome}] ${c.notes || ''}`).join('\n') || 'Nenhuma ligação registrada.'}
     
     TAREFA:
+    Analise o desempenho comparando o RAG do Cliente (o que deve ser vendido/como) com o que o consultor está fazendo (Relatório + Métricas).
+    Verifique se ele está seguindo o PLAYBOOK ou usando itens da BLACKLIST.
+    
     Forneça uma análise JSON com a seguinte estrutura:
     {
-      "operational_analysis": "Análise sobre volume, ritmo e organização (ex: gargalo em conexões, poucas boas vindas).",
-      "tactical_analysis": "Análise sobre a qualidade da abordagem e conversão (ex: seguiu o script? ofertou o produto certo?).",
+      "operational_analysis": "Análise sobre volume, ritmo e organização.",
+      "tactical_analysis": "Análise sobre a qualidade da abordagem e conversão. Se seguiu o Playbook.",
+      "errors_identified": "Liste pontos específicos onde o consultor falhou, desviou do RAG ou usou termos da BLACKLIST.",
+      "new_strategies": "Sugira estratégias de reaquecimento baseadas no Playbook e no RAG.",
+      "suggested_scripts": "Script sugerido para a situação atual.",
       "recommendations": ["Sugestão 1", "Sugestão 2", "Sugestão 3"],
       "score": number (0-10)
     }
@@ -98,7 +156,7 @@ Deno.serve(async (req) => {
                 'X-Title': 'LeadFlow Head Agent',
             },
             body: JSON.stringify({
-                model: 'openai/gpt-4o',
+                model: 'google/gemini-2.0-flash-001',
                 messages: [
                     { role: 'system', content: 'You are a helpful assistant that outputs only valid JSON.' },
                     { role: 'user', content: prompt }
@@ -121,7 +179,7 @@ Deno.serve(async (req) => {
             .insert({
                 report_id: report_id,
                 feedback_text: JSON.stringify(analysis),
-                model: 'gpt-4o',
+                model: 'gemini-2.0-flash',
                 generated_by: null // System generated
             })
 

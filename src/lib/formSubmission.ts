@@ -52,6 +52,26 @@ export async function submitPublicForm({
         .single();
 
     if (error) throw error;
+
+    // Post-submission: Handle individual calls for Closer
+    if (formType === 'closer_daily' && userId) {
+        const closerData = data as any;
+        if (closerData.individual_calls && Array.isArray(closerData.individual_calls)) {
+            const logs = closerData.individual_calls.map((call: any) => ({
+                closer_id: userId,
+                client_id: clientId || null,
+                prospect_name: call.prospect_name,
+                call_date: new Date().toISOString().split('T')[0],
+                outcome: call.outcome,
+                notes: call.notes || null,
+            }));
+
+            if (logs.length > 0) {
+                await (supabase as any).from('call_logs').insert(logs);
+            }
+        }
+    }
+
     return inserted;
 }
 
@@ -68,14 +88,29 @@ export async function uploadFormFiles(
 ): Promise<string[]> {
     if (!files.length) return [];
 
-    const formData = new FormData();
-    formData.append('type', type);
-    files.forEach((f) => formData.append('files', f));
+    const urls: string[] = [];
 
-    const { data, error } = await (supabase as any).functions.invoke('process-upload', {
-        body: formData,
-    });
+    for (const file of files) {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const filePath = `public-forms/${type}s/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-    if (error) throw error;
-    return data?.urls || [];
+        const { error: uploadError } = await (supabase as any).storage
+            .from('submissions')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Upload error:', uploadError);
+            continue; // Skip failed uploads instead of breaking
+        }
+
+        const { data } = (supabase as any).storage
+            .from('submissions')
+            .getPublicUrl(filePath);
+
+        if (data?.publicUrl) {
+            urls.push(data.publicUrl);
+        }
+    }
+
+    return urls;
 }

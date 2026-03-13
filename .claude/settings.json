@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "LS",
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(npx supabase functions serve *)",
+      "Bash(npx supabase gen types *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)",
+      "Bash(git log *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(npx supabase db push*)",
+      "Bash(npx supabase functions deploy*)",
+      "Bash(cat .env*)",
+      "Bash(cat *secret*)",
+      "Bash(cat *credentials*)",
+      "Bash(curl * | bash)",
+      "Bash(wget *)",
+      "Bash(npm install *)",
+      "Edit(.env*)",
+      "Edit(.env.local)"
+    ]
+  }
+}

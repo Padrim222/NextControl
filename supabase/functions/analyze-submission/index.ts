@@ -117,22 +117,43 @@ Deno.serve(async (req) => {
             throw new Error('Submission not found')
         }
 
-        const { count: analysisCount } = await supabase
-            .from('analyses')
-            .select('*', { count: 'exact', head: true })
-            .in('submission_id',
-                supabase
-                    .from('daily_submissions')
-                    .select('id')
-                    .eq('seller_id', submission.seller_id)
-                    .gte('submission_date', today)
-            )
+        // Fetch user info to check role
+        const { data: currentUser } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single()
 
-        if ((analysisCount || 0) >= 3) {
-            return new Response(
-                JSON.stringify({ error: 'Daily analysis limit reached (max 3)' }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
-            )
+        const isAdmin = currentUser?.role === 'admin'
+
+        if (!isAdmin) {
+            // Rate limit: max 3 analyses per day per seller
+            const today = new Date().toISOString().split('T')[0]
+
+            // Two-step query: first get today's submission IDs, then count analyses
+            const { data: todaySubs } = await supabase
+                .from('daily_submissions')
+                .select('id')
+                .eq('seller_id', submission.seller_id)
+                .gte('submission_date', today)
+
+            const todaySubIds = (todaySubs || []).map((s: any) => s.id)
+
+            const { count: analysisCount } = todaySubIds.length > 0
+                ? await supabase
+                    .from('analyses')
+                    .select('*', { count: 'exact', head: true })
+                    .in('submission_id', todaySubIds)
+                : { count: 0 }
+
+            if ((analysisCount || 0) >= 3) {
+                return new Response(
+                    JSON.stringify({ error: 'Daily analysis limit reached (max 3)' }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+                )
+            }
+        } else {
+            console.log(`Admin ${user.id} bypassing analysis limits for seller ${submission.seller_id}`)
         }
 
         // Fetch seller info
@@ -141,6 +162,29 @@ Deno.serve(async (req) => {
             .select('name, seller_type')
             .eq('id', submission.seller_id)
             .single()
+
+        // --- RAG CONTEXT FETCH ---
+        let ragContext = "";
+        const { data: clientData } = await supabase
+            .from('clients')
+            .select('id, name')
+            .or(`assigned_seller_id.eq.${submission.seller_id},assigned_closer_id.eq.${submission.seller_id}`)
+            .maybeSingle();
+
+        if (clientData) {
+            const { data: materials } = await supabase
+                .from('client_materials')
+                .select('title, description')
+                .eq('client_id', clientData.id)
+                .eq('is_rag_active', true);
+
+            if (materials && materials.length > 0) {
+                ragContext = "\n\n=== CONTEXTO RAG DO CLIENTE (" + clientData.name + ") ===\n" +
+                    materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/REGRAS: ${m.description || 'Sem descrição'}`).join('\n\n') +
+                    "\n=======================================\n\nUse este contexto para validar se o vendedor está seguindo o playbook e as regras do produto.";
+            }
+        }
+        // -------------------------
 
         const sellerType = seller?.seller_type || 'seller'
         const hasPrints = submission.conversation_prints?.length > 0
@@ -166,7 +210,7 @@ Deno.serve(async (req) => {
                 {
                     role: 'user',
                     content: [
-                        { type: 'text', text: `Vendedor: ${seller?.name || 'Desconhecido'} \nMétricas do dia: ${JSON.stringify(submission.metrics)}\nNotas: ${submission.notes || 'Nenhuma'} \n\nAnalise os prints de conversa abaixo: ` },
+                        { type: 'text', text: `Vendedor: ${seller?.name || 'Desconhecido'} \nMétricas do dia: ${JSON.stringify(submission.metrics)}\nNotas: ${submission.notes || 'Nenhuma'}${ragContext} \n\nAnalise os prints de conversa abaixo: ` },
                         ...imageContent,
                     ],
                 }
@@ -181,7 +225,7 @@ Deno.serve(async (req) => {
                 { role: 'system', content: systemPrompt },
                 {
                     role: 'user',
-                    content: `Closer: ${seller?.name || 'Desconhecido'} \nMétricas do dia: ${JSON.stringify(submission.metrics)}\nNotas: ${submission.notes || 'Nenhuma'} \nGravação de call: ${submission.call_recording} \n\nAnalise a performance com base nos dados disponíveis.`,
+                    content: `Closer: ${seller?.name || 'Desconhecido'} \nMétricas do dia: ${JSON.stringify(submission.metrics)}\nNotas: ${submission.notes || 'Nenhuma'} \nGravação de call: ${submission.call_recording}${ragContext} \n\nAnalise a performance com base nos dados disponíveis.`,
                 }
             )
         } else {
@@ -193,7 +237,7 @@ Deno.serve(async (req) => {
                 { role: 'system', content: systemPrompt },
                 {
                     role: 'user',
-                    content: `${sellerType === 'closer' ? 'Closer' : 'Vendedor'}: ${seller?.name || 'Desconhecido'} \nMétricas do dia: ${JSON.stringify(submission.metrics)}\nNotas: ${submission.notes || 'Nenhuma'} \n\nAnalise as métricas e forneça feedback.`,
+                    content: `${sellerType === 'closer' ? 'Closer' : 'Vendedor'}: ${seller?.name || 'Desconhecido'} \nMétricas do dia: ${JSON.stringify(submission.metrics)}\nNotas: ${submission.notes || 'Nenhuma'}${ragContext} \n\nAnalise as métricas e forneça feedback.`,
                 }
             )
         }
@@ -208,12 +252,12 @@ Deno.serve(async (req) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey} `,
+                'Authorization': `Bearer ${apiKey}`,
                 'HTTP-Referer': 'https://nextbase360.com',
                 'X-Title': 'Consultoria de Bolso',
             },
             body: JSON.stringify({
-                model: 'openai/gpt-4o',
+                model: 'google/gemini-2.0-flash-001',
                 messages: openAiMessages,
                 temperature: 0.5,
                 max_tokens: 1000,

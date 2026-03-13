@@ -3,7 +3,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
 import { RoleGuard } from "@/components/layout/RoleGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
@@ -19,11 +18,14 @@ import CallAnalysis from "@/pages/closer/CallAnalysis";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminManage from "@/pages/admin/AdminManage";
 import ClientDashboard from "@/pages/client/ClientDashboard";
-import OnboardingForm from "@/pages/client/OnboardingForm";
 import CSInbox from "@/pages/cs/CSInbox";
 import TrainingHub from "@/pages/training/TrainingHub";
 import CoachChat from "@/pages/training/CoachChat";
 import RagManager from "@/pages/admin/RagManager";
+import IntelligenceHub from "@/pages/admin/IntelligenceHub";
+import CallsPipeline from "@/pages/admin/CallsPipeline";
+import BetaManagement from "@/pages/admin/BetaManagement";
+import WeeklyReportPage from "@/pages/client/WeeklyReportPage";
 
 // Public Form Pages (no auth)
 import ExpertForm from "@/pages/forms/ExpertForm";
@@ -34,7 +36,6 @@ import FormSuccess from "@/pages/forms/FormSuccess";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <ThemeProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -149,6 +150,36 @@ const App = () => (
                 </RoleGuard>
               }
             />
+            <Route
+              path="/admin/hub"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <IntelligenceHub />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/admin/calls-pipeline"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <CallsPipeline />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/admin/beta-management"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <BetaManagement />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
 
             {/* Client Routes */}
             <Route
@@ -162,10 +193,12 @@ const App = () => (
               }
             />
             <Route
-              path="/client/onboarding"
+              path="/client/weekly-report"
               element={
                 <RoleGuard allowedRoles={['client', 'admin']}>
-                  <OnboardingForm />
+                  <DashboardLayout>
+                    <WeeklyReportPage />
+                  </DashboardLayout>
                 </RoleGuard>
               }
             />
@@ -211,7 +244,6 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-  </ThemeProvider>
 );
 
 export default App;
