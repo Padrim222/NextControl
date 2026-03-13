@@ -127,6 +127,7 @@ const NAV_GROUPS: Record<string, NavGroup[]> = {
             label: 'FAZER',
             items: [
                 { label: 'Meu Projeto', path: '/client' },
+                { label: 'Preencher Briefing', path: '/client/onboarding' },
             ],
         },
         {
@@ -166,6 +167,7 @@ const NAV_LINKS: Record<string, { label: string; path: string }[]> = {
     ],
     client: [
         { label: 'Dashboard', path: '/client' },
+        { label: 'Briefing', path: '/client/onboarding' },
         { label: 'Coach', path: '/training/coach' },
         { label: 'Materiais', path: '/training' },
     ],

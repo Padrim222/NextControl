@@ -29,6 +29,7 @@ import {
 } from 'recharts';
 import { SubmissionTimeline } from '@/components/seller/SubmissionTimeline';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
+import { AgentFeedbackButton } from '@/components/AgentFeedbackButton';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { DailySubmission, Analysis } from '@/types';
@@ -300,7 +301,7 @@ export default function SellerDashboard() {
                         )}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         onClick={() => navigate('/seller/evolution')}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150"
@@ -333,6 +334,7 @@ export default function SellerDashboard() {
                         <MessageSquare size={14} strokeWidth={1.5} />
                         Consultoria
                     </button>
+                    <AgentFeedbackButton defaultAgentType="ss" />
                     {!todaySubmitted && (
                         <button
                             onClick={() => navigate('/seller/report')}

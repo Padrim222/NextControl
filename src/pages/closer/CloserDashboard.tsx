@@ -18,6 +18,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { DailySubmission, Analysis, CloserMetrics } from '@/types';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
+import { AgentFeedbackButton } from '@/components/AgentFeedbackButton';
 
 const ds = {
     bg: '#FAFAFA',
@@ -238,6 +239,7 @@ export default function CloserDashboard() {
                         <MessageSquare size={16} strokeWidth={1.5} />
                         Consultoria
                     </button>
+                    <AgentFeedbackButton defaultAgentType="closer" />
                     {!todaySubmitted && (
                         <button style={primaryBtnStyle} onClick={() => navigate('/seller/report')}>
                             <CheckCircle size={16} strokeWidth={1.5} />

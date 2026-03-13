@@ -82,7 +82,7 @@ export default function AdminManage() {
 
     // New client form
     const [showClientForm, setShowClientForm] = useState(false);
-    const [newClient, setNewClient] = useState({ name: '', email: '', phone: '', company: '', segment: '' });
+    const [newClient, setNewClient] = useState({ name: '', email: '', phone: '', company: '', segment: '', password: '' });
     const [isCreatingClient, setIsCreatingClient] = useState(false);
 
     // Link user to client
@@ -182,27 +182,67 @@ export default function AdminManage() {
             toast.error('Nome é obrigatório');
             return;
         }
+        const hasLogin = newClient.email.trim() && newClient.password.trim();
         setIsCreatingClient(true);
         try {
-            const { error } = await (supabase as any).from('clients').insert({
-                name: newClient.name.trim(),
-                email: newClient.email.trim() || null,
-                phone: newClient.phone.trim() || null,
-                company: newClient.company.trim() || null,
-                segment: newClient.segment.trim() || null,
-                status: 'active',
-            });
+            // 1. Create client record
+            const { data: clientData, error: clientError } = await (supabase as any)
+                .from('clients')
+                .insert({
+                    name: newClient.name.trim(),
+                    email: newClient.email.trim() || null,
+                    phone: newClient.phone.trim() || null,
+                    company: newClient.company.trim() || null,
+                    segment: newClient.segment.trim() || null,
+                    status: 'active',
+                })
+                .select('id')
+                .single();
 
-            if (error) throw error;
+            if (clientError) throw clientError;
 
-            toast.success(`Cliente ${newClient.name} criado!`, {
-                description: 'Agora crie um usuário de acesso para ele na aba Equipe.'
-            });
-            setNewClient({ name: '', email: '', phone: '', company: '', segment: '' });
+            // 2. Optionally create auth user + link to client
+            if (hasLogin) {
+                const password = newClient.password.trim();
+                const email = newClient.email.trim().toLowerCase();
+
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: { data: { name: newClient.name.trim(), role: 'client' } },
+                });
+
+                if (authError) throw authError;
+                if (!authData.user) throw new Error('Falha ao criar usuário de acesso');
+
+                await (supabase as any).from('users').upsert([{
+                    id: authData.user.id,
+                    email,
+                    name: newClient.name.trim(),
+                    role: 'client',
+                    status: 'active',
+                    client_id: clientData.id,
+                }], { onConflict: 'id' });
+
+                setCreatedCredentials({ email, password });
+                toast.success(`✅ Cliente ${newClient.name} criado com acesso!`, {
+                    description: 'Copie as credenciais abaixo e envie para o cliente.'
+                });
+            } else {
+                toast.success(`Cliente ${newClient.name} criado!`, {
+                    description: 'Para criar o login, vá até a aba Equipe e selecione a função Cliente.'
+                });
+            }
+
+            setNewClient({ name: '', email: '', phone: '', company: '', segment: '', password: '' });
             setShowClientForm(false);
             fetchData();
         } catch (error: any) {
-            toast.error(error?.message || 'Erro ao criar cliente');
+            if (error?.message?.includes('already registered')) {
+                toast.error('Este email já está cadastrado no sistema.');
+            } else {
+                toast.error(error?.message || 'Erro ao criar cliente');
+            }
         } finally {
             setIsCreatingClient(false);
         }
@@ -323,11 +363,11 @@ export default function AdminManage() {
                     <div className="text-sm text-blue-800 space-y-1">
                         <p className="font-semibold">Como adicionar um cliente ao sistema:</p>
                         <ol className="list-decimal list-inside space-y-1 text-blue-700">
-                            <li>Na aba <strong>Clientes</strong>, clique em "Novo Cliente" e preencha os dados da empresa.</li>
-                            <li>Na aba <strong>Equipe</strong>, clique em "Novo Membro", selecione a função <strong>Cliente</strong> e vincule ao cliente criado no passo 1.</li>
-                            <li>Copie o email e senha gerados e envie para o cliente — ele já pode acessar o painel.</li>
+                            <li>Na aba <strong>Clientes</strong>, clique em "Novo Cliente" e preencha os dados + email/senha para criar o acesso de uma vez.</li>
+                            <li>Copie as credenciais geradas e envie para o cliente — ele já pode acessar o painel.</li>
+                            <li><em>Alternativa:</em> crie o cliente sem login e adicione o acesso depois na aba <strong>Equipe</strong>.</li>
                         </ol>
-                        <p className="mt-2 text-blue-600 font-medium">Para embedar material do cliente: menu lateral → <strong>Base de Conhecimento</strong></p>
+                        <p className="mt-2 text-blue-600 font-medium">Para subir material do cliente: menu lateral → <strong>Base de Conhecimento</strong></p>
                     </div>
                 </div>
             </div>
@@ -611,7 +651,7 @@ export default function AdminManage() {
                                     Adicionar Cliente
                                 </CardTitle>
                                 <CardDescription>
-                                    Após criar o cliente aqui, vá para a aba <strong>Equipe</strong> e crie o acesso de login para ele.
+                                    Preencha email e senha para criar o acesso de login junto com o cadastro — ou deixe em branco e crie depois na aba <strong>Equipe</strong>.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
@@ -635,15 +675,6 @@ export default function AdminManage() {
                                 </div>
                                 <div className="grid grid-cols-3 gap-3">
                                     <div>
-                                        <Label>Email</Label>
-                                        <Input
-                                            type="email"
-                                            placeholder="email@cliente.com"
-                                            value={newClient.email}
-                                            onChange={e => setNewClient(prev => ({ ...prev, email: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
                                         <Label>Telefone / WhatsApp</Label>
                                         <Input
                                             placeholder="(11) 99999-9999"
@@ -659,6 +690,35 @@ export default function AdminManage() {
                                             onChange={e => setNewClient(prev => ({ ...prev, segment: e.target.value }))}
                                         />
                                     </div>
+                                </div>
+                                {/* Login section */}
+                                <div className="rounded-lg border border-dashed border-border p-3 space-y-3">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Acesso ao painel (opcional)</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <Label>Email de login</Label>
+                                            <Input
+                                                type="email"
+                                                placeholder="email@cliente.com"
+                                                value={newClient.email}
+                                                onChange={e => setNewClient(prev => ({ ...prev, email: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label>Senha</Label>
+                                            <Input
+                                                type="text"
+                                                placeholder="Mínimo 6 caracteres"
+                                                value={newClient.password}
+                                                onChange={e => setNewClient(prev => ({ ...prev, password: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {newClient.email && newClient.password
+                                            ? '✅ O login será criado junto com o cadastro.'
+                                            : 'Deixe em branco para criar o login depois na aba Equipe.'}
+                                    </p>
                                 </div>
                                 <div className="flex gap-2 pt-2">
                                     <Button onClick={handleCreateClient} disabled={isCreatingClient}>
