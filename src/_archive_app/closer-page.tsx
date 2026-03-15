@@ -90,7 +90,7 @@ export default function CloserAgentPage() {
     <div className="flex h-screen bg-slate-100 p-4 gap-4">
       <div className="w-1/3 bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col space-y-4">
         <h2 className="text-xl font-bold text-slate-800">Mapeamento Lead (Closer)</h2>
-        
+
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
             <h3 className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Radar de Viabilidade (NPQC)</h3>
             <div className="flex flex-col space-y-2">
@@ -100,7 +100,7 @@ export default function CloserAgentPage() {
                   {k: 'problema', l: '3. Problema (Dor Crítica)'},
                   {k: 'fechamento', l: '4. Fechamento (Proposta)'}
                 ].map((s) => (
-                    <button 
+                    <button
                         key={s.k}
                         onClick={() => { setNpqcStage(s.k as any); setCapability('generate-npqc-questions'); }}
                         className={`text-left text-sm px-3 py-2 rounded-lg border font-semibold transition ${getStageColor(s.k)}`}
@@ -124,7 +124,7 @@ export default function CloserAgentPage() {
                 className={`px-3 py-1 rounded-full text-xs font-semibold ${channel === 'call' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}
               >VOZ / CALL</button>
           </div>
-          <select 
+          <select
             className="w-full text-sm mt-3 border-slate-300 rounded-md p-2 bg-slate-50"
             value={capability}
             onChange={(e) => setCapability(e.target.value as any)}
@@ -138,11 +138,11 @@ export default function CloserAgentPage() {
       </div>
 
       <div className="w-2/3 h-full pb-4">
-         <AgentChat 
+         <AgentChat
             agentName="Head de Bolso (Closer) — Encerramento Cirúrgico"
-            messages={messages} 
-            isLoading={isLoading} 
-            onSendMessage={handleSendMessage} 
+            messages={messages}
+            isLoading={isLoading}
+            onSendMessage={handleSendMessage}
          />
       </div>
     </div>

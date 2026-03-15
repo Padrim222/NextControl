@@ -6,7 +6,7 @@
 
 // ---- CORE ENUMS ----
 
-export type UserRole = 'admin' | 'seller' | 'closer' | 'client' | 'cs';
+export type UserRole = 'admin' | 'seller' | 'closer' | 'client' | 'cs' | 'team_member';
 export type UserStatus = 'pending' | 'active' | 'suspended';
 export type SellerType = 'seller' | 'closer';
 export type ReportStatus = 'pending' | 'approved' | 'rejected';
@@ -55,6 +55,8 @@ export interface ClientMaterial {
     file_type: string;
     is_rag_active: boolean;
     sent_to_client: boolean;
+    agent_target?: 'ss' | 'closer' | 'both';
+    category?: string;
     created_at: string;
     created_by: string;
 }

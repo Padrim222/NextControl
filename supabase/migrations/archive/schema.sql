@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   client_id UUID REFERENCES clients(id) NOT NULL,
   report_date DATE NOT NULL,
   status TEXT CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
-  
+
   -- Funnel metrics
   chat_ativo INT DEFAULT 0,
   boas_vindas INT DEFAULT 0,
@@ -48,10 +48,10 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   pitchs INT DEFAULT 0,
   capturas INT DEFAULT 0,
   followups INT DEFAULT 0,
-  
+
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
-  
+
   UNIQUE(seller_id, client_id, report_date)
 );
 
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS weekly_reports (
   client_id UUID REFERENCES clients(id) NOT NULL,
   week_start DATE NOT NULL,
   week_end DATE NOT NULL,
-  
+
   -- Aggregated metrics
   total_chat_ativo INT DEFAULT 0,
   total_boas_vindas INT DEFAULT 0,
@@ -91,16 +91,16 @@ CREATE TABLE IF NOT EXISTS weekly_reports (
   total_mapeamentos INT DEFAULT 0,
   total_pitchs INT DEFAULT 0,
   total_capturas INT DEFAULT 0,
-  
+
   -- Conversion rates (calculated)
   conv_bv_to_conexao DECIMAL(5,2),
   conv_conexao_to_map DECIMAL(5,2),
   conv_map_to_pitch DECIMAL(5,2),
   conv_pitch_to_captura DECIMAL(5,2),
-  
+
   summary TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
-  
+
   UNIQUE(client_id, week_start)
 );
 

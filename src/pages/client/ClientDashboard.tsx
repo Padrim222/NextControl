@@ -22,6 +22,12 @@ import {
     BarChart3,
     Plus,
     X,
+    FolderGit2,
+    Users,
+    Copy,
+    Eye,
+    EyeOff,
+    Shield,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -45,7 +51,15 @@ interface ClientReport {
     review_notes: string | null;
 }
 
-type Tab = 'plano' | 'relatorios' | 'perguntas' | 'calls';
+type Tab = 'plano' | 'conteudos' | 'relatorios' | 'perguntas' | 'calls' | 'time';
+
+interface TeamMemberInfo {
+    id: string;
+    email: string;
+    name: string;
+    status: string;
+    created_at: string;
+}
 
 interface ApprovedCall {
     id: string;
@@ -68,10 +82,19 @@ export default function ClientDashboard() {
     const [reports, setReports] = useState<ClientReport[]>([]);
     const [approvedCalls, setApprovedCalls] = useState<ApprovedCall[]>([]);
     const [materials, setMaterials] = useState<any[]>([]);
+    const [contents, setContents] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<Tab>('plano');
     const [newQuestion, setNewQuestion] = useState('');
     const [isSending, setIsSending] = useState(false);
+
+    // Team member state
+    const [teamMember, setTeamMember] = useState<TeamMemberInfo | null>(null);
+    const [teamForm, setTeamForm] = useState({ email: '', password: '', confirmPassword: '' });
+    const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+    const [showTeamPassword, setShowTeamPassword] = useState(false);
+    const [teamCredentials, setTeamCredentials] = useState<{ email: string; password: string } | null>(null);
+    const [teamLoading, setTeamLoading] = useState(false);
 
     const handleUploadMaterial = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -144,7 +167,7 @@ export default function ClientDashboard() {
             const clientId = userData.client_id;
 
             // Fetch client, questions, reports, and approved calls in parallel
-            const [clientRes, questionsRes, reportsRes, callsRes, materialsRes] = await Promise.all([
+            const [clientRes, questionsRes, reportsRes, callsRes, materialsRes, contentsRes] = await Promise.all([
                 (supabase as any).from('clients').select('*').eq('id', clientId).single(),
                 (supabase as any)
                     .from('client_questions')
@@ -154,6 +177,7 @@ export default function ClientDashboard() {
                 (supabase as any)
                     .from('reports')
                     .select('id, status, pdf_url, created_at, review_notes')
+                    .eq('client_id', clientId)
                     .eq('status', 'delivered')
                     .order('created_at', { ascending: false })
                     .limit(20),
@@ -170,12 +194,21 @@ export default function ClientDashboard() {
                     .eq('client_id', clientId)
                     .eq('sent_to_client', true)
                     .order('created_at', { ascending: false }),
+                (supabase as any)
+                    .from('content_outputs')
+                    .select('*')
+                    .eq('client_id', clientId)
+                    .order('created_at', { ascending: false }),
             ]);
 
-            if (clientRes.data) setClient(clientRes.data);
+            if (clientRes.data) {
+                setClient(clientRes.data);
+                fetchTeamMember(clientRes.data.id);
+            }
             if (questionsRes.data) setQuestions(questionsRes.data);
             if (reportsRes.data) setReports(reportsRes.data);
             if (materialsRes?.data) setMaterials(materialsRes.data);
+            if (contentsRes?.data) setContents(contentsRes.data);
 
             // Fetch evaluations for approved calls
             const calls = callsRes.data || [];
@@ -198,6 +231,79 @@ export default function ClientDashboard() {
             console.error('Error fetching client data:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchTeamMember = async (clientId: string) => {
+        setTeamLoading(true);
+        try {
+            const { data: teamData } = await (supabase as any)
+                .from('users')
+                .select('id, email, name, status, created_at')
+                .eq('client_id', clientId)
+                .eq('role', 'team_member')
+                .limit(1)
+                .maybeSingle();
+            if (teamData) setTeamMember(teamData);
+        } catch (err) {
+            console.error('Error fetching team member:', err);
+        } finally {
+            setTeamLoading(false);
+        }
+    };
+
+    const handleCreateTeamMember = async () => {
+        if (!client || !user) return;
+        if (!teamForm.email.trim()) {
+            toast.error('Email é obrigatório');
+            return;
+        }
+        if (!teamForm.password.trim() || teamForm.password.length < 8) {
+            toast.error('Senha deve ter no mínimo 8 caracteres');
+            return;
+        }
+        if (teamForm.password !== teamForm.confirmPassword) {
+            toast.error('Senhas não coincidem');
+            return;
+        }
+
+        setIsCreatingTeam(true);
+        try {
+            // 1. Create auth user
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: teamForm.email.trim().toLowerCase(),
+                password: teamForm.password,
+                options: {
+                    data: { name: `Time ${client.name}`, role: 'team_member' },
+                },
+            });
+            if (authError) throw authError;
+            if (!authData.user) throw new Error('Falha ao criar usuário');
+
+            // 2. Link to users table
+            await (supabase as any).from('users').upsert([{
+                id: authData.user.id,
+                email: teamForm.email.trim().toLowerCase(),
+                name: `Time ${client.name}`,
+                role: 'team_member',
+                client_id: client.id,
+                status: 'active',
+            }], { onConflict: 'id' });
+
+            setTeamCredentials({
+                email: teamForm.email.trim().toLowerCase(),
+                password: teamForm.password,
+            });
+            setTeamForm({ email: '', password: '', confirmPassword: '' });
+            toast.success('Login do time criado com sucesso!');
+
+            // Refresh team member info
+            await fetchTeamMember(client.id);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Erro ao criar login do time';
+            toast.error(message);
+        } finally {
+            setIsCreatingTeam(false);
         }
     };
 
@@ -294,9 +400,11 @@ export default function ClientDashboard() {
 
     const tabs: { key: Tab; label: string; icon: typeof FileText; count?: number }[] = [
         { key: 'plano', label: 'Meu Plano', icon: ClipboardList },
+        { key: 'conteudos', label: 'Conteúdos IA', icon: FolderGit2, count: contents.length },
         { key: 'calls', label: 'Calls', icon: Phone, count: approvedCalls.length },
         { key: 'relatorios', label: 'Relatórios', icon: FileText, count: reports.length },
         { key: 'perguntas', label: 'Perguntas', icon: MessageSquare, count: questions.length },
+        { key: 'time', label: 'Meu Time', icon: Users },
     ];
 
     const pendingQuestions = questions.filter(q => q.status === 'pending').length;
@@ -438,6 +546,7 @@ export default function ClientDashboard() {
                                             type="file"
                                             id="material-upload"
                                             className="hidden"
+                                            accept=".txt,.pdf,.docx,.mp4,.mp3,.wav,.csv"
                                             onChange={handleUploadMaterial}
                                             disabled={isSending}
                                         />
@@ -493,6 +602,55 @@ export default function ClientDashboard() {
                                     </div>
                                 )}
                             </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {activeTab === 'conteudos' && (
+                    <Card className="nc-card-border">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <FolderGit2 className="h-5 w-5 text-primary" />
+                                Conteúdos IA Gerados
+                            </CardTitle>
+                            <CardDescription>
+                                Estratégias, scripts e materiais criados pela nossa Inteligência Artificial para o seu negócio
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {contents.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <FolderGit2 className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                                    <h3 className="font-medium text-muted-foreground mb-1">Nenhum conteúdo gerado ainda</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Assim que a IA produzir materiais específicos para seu projeto, eles aparecerão aqui.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {contents.map(content => (
+                                        <div key={content.id} className="border border-border rounded-xl p-5 bg-card/50 hover:border-primary/30 transition-all">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h4 className="font-bold text-lg">{content.title}</h4>
+                                                        <Badge variant="outline" className="text-xs uppercase bg-primary/5 text-primary border-primary/20">
+                                                            {content.type}
+                                                        </Badge>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Criado em {new Date(content.created_at).toLocaleDateString('pt-BR')} 
+                                                        {content.status && ` • Status: ${content.status.toUpperCase()}`}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-background rounded-lg p-4 border border-border/50 max-h-60 overflow-y-auto whitespace-pre-wrap text-sm text-foreground/90">
+                                                {content.content}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -708,6 +866,160 @@ export default function ClientDashboard() {
                                                 )}
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {activeTab === 'time' && (
+                    <div className="space-y-6">
+                        {/* Team Credentials Card */}
+                        {teamCredentials && (
+                            <Card className="nc-card-border border-emerald-500/30 bg-emerald-500/5">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-emerald-500">✅ Login do time criado!</p>
+                                            <p className="text-sm font-mono mt-1">
+                                                Login: <strong>{teamCredentials.email}</strong> • Senha: <strong>{teamCredentials.password}</strong>
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button size="sm" variant="outline" onClick={() => {
+                                                navigator.clipboard.writeText(`Login: ${teamCredentials.email}\nSenha: ${teamCredentials.password}`);
+                                                toast.success('Credenciais copiadas!');
+                                            }}>
+                                                <Copy className="h-3 w-3 mr-1" /> Copiar
+                                            </Button>
+                                            <Button size="sm" variant="ghost" onClick={() => setTeamCredentials(null)}>✕</Button>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        <Card className="nc-card-border">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Users className="h-5 w-5 text-primary" />
+                                    Login do Time de Vendas
+                                </CardTitle>
+                                <CardDescription>
+                                    Crie um login compartilhado para seu time de vendas acessar os agentes SS e Closer, fazer check-in diário e análise de calls.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                {teamLoading ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                    </div>
+                                ) : teamMember ? (
+                                    /* Existing team member info */
+                                    <div className="space-y-4">
+                                        <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-500/5 to-green-500/5 border border-emerald-500/20">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                                                    <Shield className="h-5 w-5 text-emerald-500" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold">Login do Time Ativo</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Criado em {new Date(teamMember.created_at).toLocaleDateString('pt-BR')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div className="p-3 rounded-lg bg-background/50 border border-border">
+                                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Email de Acesso</p>
+                                                    <p className="text-sm font-mono">{teamMember.email}</p>
+                                                </div>
+                                                <div className="p-3 rounded-lg bg-background/50 border border-border">
+                                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Status</p>
+                                                    <p className="text-sm">
+                                                        {teamMember.status === 'active' ? '✅ Ativo' : '⚠️ ' + teamMember.status}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 rounded-lg bg-muted/30 border border-border">
+                                            <h4 className="text-sm font-semibold mb-2">O que seu time pode fazer:</h4>
+                                            <ul className="space-y-1.5 text-sm text-muted-foreground">
+                                                <li className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Consultoria de Bolso (Agente SS e Closer)</li>
+                                                <li className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Check-in Diário de Métricas</li>
+                                                <li className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Análise de Calls com IA</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* Create team member form */
+                                    <div className="space-y-4">
+                                        <div className="p-4 rounded-lg bg-muted/30 border border-border">
+                                            <p className="text-sm text-muted-foreground">
+                                                💡 <strong>1 login compartilhado</strong> para todo o time. Seus sellers e closers usam o mesmo acesso para interagir com os agentes de IA.
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-sm font-medium mb-1.5 block">Email do time *</label>
+                                                <Input
+                                                    type="email"
+                                                    placeholder="time@suaempresa.com"
+                                                    value={teamForm.email}
+                                                    onChange={e => setTeamForm(prev => ({ ...prev, email: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-sm font-medium mb-1.5 block">Senha *</label>
+                                                    <div className="relative">
+                                                        <Input
+                                                            type={showTeamPassword ? 'text' : 'password'}
+                                                            placeholder="Mín. 8 caracteres"
+                                                            value={teamForm.password}
+                                                            onChange={e => setTeamForm(prev => ({ ...prev, password: e.target.value }))}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowTeamPassword(v => !v)}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                        >
+                                                            {showTeamPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                        </button>
+                                                    </div>
+                                                    {teamForm.password.length > 0 && teamForm.password.length < 8 && (
+                                                        <p className="text-xs text-destructive mt-1">Mínimo 8 caracteres</p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <label className="text-sm font-medium mb-1.5 block">Confirmar senha *</label>
+                                                    <Input
+                                                        type={showTeamPassword ? 'text' : 'password'}
+                                                        placeholder="Repita a senha"
+                                                        value={teamForm.confirmPassword}
+                                                        onChange={e => setTeamForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                                    />
+                                                    {teamForm.confirmPassword.length > 0 && teamForm.password !== teamForm.confirmPassword && (
+                                                        <p className="text-xs text-destructive mt-1">Senhas não coincidem</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <Button
+                                            onClick={handleCreateTeamMember}
+                                            disabled={isCreatingTeam}
+                                            className="w-full sm:w-auto"
+                                        >
+                                            {isCreatingTeam ? (
+                                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Criando...</>
+                                            ) : (
+                                                <><Users className="h-4 w-4 mr-2" /> Criar Login do Time</>
+                                            )}
+                                        </Button>
                                     </div>
                                 )}
                             </CardContent>

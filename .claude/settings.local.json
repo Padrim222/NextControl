@@ -4,7 +4,8 @@
       "Bash(gh search:*)",
       "Bash(gh auth:*)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:glama.ai)"
+      "WebFetch(domain:glama.ai)",
+      "Bash(python3:*)"
     ]
   }
 }
