@@ -11,7 +11,7 @@ import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { submitPublicForm, triggerFormAnalysis, uploadFormFiles } from '@/lib/formSubmission';
 import type { SellerDailyData } from '@/types/forms';
-import { MessageSquare, Camera, CheckCircle, X } from 'lucide-react';
+import { MessageSquare, Camera, CheckCircle, X } from '@/components/ui/icons';
 
 const STEPS = [
     { id: 'identify', title: 'Identificação', emoji: '👤' },

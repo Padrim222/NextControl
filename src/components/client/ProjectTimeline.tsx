@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Clock, CalendarDays, FileText } from 'lucide-react';
+import { Clock, CalendarDays, FileText } from '@/components/ui/icons';
 import type { DailySubmission, SellerMetrics, CloserMetrics } from '@/types';
 
 interface ProjectTimelineProps {

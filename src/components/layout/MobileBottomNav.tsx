@@ -11,7 +11,7 @@ import {
   BookOpen,
   type LucideIcon,
   Circle,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
 const NAV_ICONS: Record<string, LucideIcon> = {
   '/seller': LayoutDashboard,

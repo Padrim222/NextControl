@@ -11,7 +11,7 @@ import {
     AlertTriangle,
     CheckCircle,
     TrendingUp,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import type { DailyReport, CallLog, HeadAgentAnalysis } from '@/types';
 
 interface HeadAgentPanelProps {

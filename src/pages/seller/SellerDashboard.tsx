@@ -30,6 +30,7 @@ import { StrategyAnalytics } from '@/components/seller/StrategyAnalytics';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { DailySubmission, Analysis } from '@/types';
+import { AgentFeedbackButton } from '@/components/AgentFeedbackButton';
 
 export default function SellerDashboard() {
     const { user } = useAuth();
@@ -221,6 +222,11 @@ export default function SellerDashboard() {
 
             {/* Pending Form Banner */}
             <FormPendingBanner formType="seller_daily" />
+
+            {/* Agent Feedback */}
+            <div className="flex justify-end">
+                <AgentFeedbackButton defaultAgentType="ss" />
+            </div>
 
             {/* Tabs: Dashboard vs CRM */}
             <Tabs defaultValue="dashboard" className="space-y-6">

@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import type { DailySubmission, Analysis, CloserMetrics } from '@/types';
 import { FormPendingBanner } from '@/components/forms/FormPendingBanner';
 import { CloserInsightsWidget } from '@/components/closer/CloserInsightsWidget';
+import { AgentFeedbackButton } from '@/components/AgentFeedbackButton';
 
 export default function CloserDashboard() {
     const { user } = useAuth();
@@ -229,6 +230,11 @@ export default function CloserDashboard() {
 
             {/* Pending Form Banner */}
             <FormPendingBanner formType="closer_daily" />
+
+            {/* Agent Feedback */}
+            <div className="flex justify-end">
+                <AgentFeedbackButton defaultAgentType="closer" />
+            </div>
 
             {/* FUP Insights Widget */}
             <CloserInsightsWidget />

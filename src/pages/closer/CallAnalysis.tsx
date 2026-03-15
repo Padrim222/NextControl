@@ -20,7 +20,9 @@ import {
     FileText,
     Award,
     ArrowLeft,
-} from 'lucide-react';
+    Sparkles,
+    RefreshCw,
+} from '@/components/ui/icons';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -118,6 +120,8 @@ export default function CallAnalysis() {
     const [history, setHistory] = useState<CallEvaluation[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(true);
     const [showForm, setShowForm] = useState(true);
+    const [generatingSuggestion, setGeneratingSuggestion] = useState(false);
+    const [suggestionSent, setSuggestionSent] = useState(false);
 
     useEffect(() => {
         fetchHistory();
@@ -178,7 +182,8 @@ export default function CallAnalysis() {
             }
 
             const data = await response.json();
-            setResult(data.evaluation);
+            // analyze-call returns the evaluation object at the root level
+            setResult(data.evaluation ?? data);
             setShowForm(false);
             toast.success('Análise concluída!');
             fetchHistory();
@@ -195,6 +200,47 @@ export default function CallAnalysis() {
         setProspectName('');
         setDuration('');
         setShowForm(true);
+        setSuggestionSent(false);
+    }
+
+    async function handleGenerateSuggestion() {
+        if (!user || !result) return;
+
+        setGeneratingSuggestion(true);
+        try {
+            const title = `Melhoria Closer — ${new Date().toLocaleDateString('pt-BR')}`;
+
+            // Build suggestion text from melhorias and feedback_detalhado
+            const melhoriasList = (result.melhorias || []).map((m, i) => `${i + 1}. ${m}`).join('\n');
+            const suggestionText = [
+                melhoriasList ? `Áreas de melhoria identificadas:\n${melhoriasList}` : '',
+                result.feedback_detalhado ? `\nFeedback detalhado:\n${result.feedback_detalhado}` : '',
+            ]
+                .filter(Boolean)
+                .join('\n')
+                .trim() || 'Análise de call sem melhorias específicas identificadas.';
+
+            await (supabase as any).from('agent_suggestions').insert({
+                user_id: user.id,
+                client_id: user.client_id || null,
+                agent_type: 'closer',
+                title,
+                suggestion_text: suggestionText,
+                context_note: result.prospect_name
+                    ? `Call com ${result.prospect_name} — Score geral: ${result.score_geral}/10`
+                    : `Score geral: ${result.score_geral}/10`,
+                source: 'call_analysis',
+                status: 'pending',
+            });
+
+            setSuggestionSent(true);
+            toast.success('Sugestão gerada e enviada para revisão!');
+        } catch (error) {
+            console.error('Error generating suggestion:', error);
+            toast.error('Erro ao gerar sugestão. Tente novamente.');
+        } finally {
+            setGeneratingSuggestion(false);
+        }
     }
 
     const scoreCategories: ScoreCategory[] = result
@@ -425,6 +471,53 @@ export default function CallAnalysis() {
                             </CardContent>
                         </Card>
                     )}
+
+                    {/* Agent Suggestion Section */}
+                    <Card className="border-primary/20 bg-primary/5">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <RefreshCw className="h-4 w-4 text-primary" />
+                                Atualizar Agente com esta Análise
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {suggestionSent ? (
+                                <div className="flex items-center gap-3 py-2">
+                                    <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
+                                    <p className="text-sm text-emerald-400 font-medium">
+                                        Sugestão gerada e enviada para revisão!
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-3">
+                                        <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                                        <p className="text-sm text-muted-foreground">
+                                            Baseado nessa análise, gerar uma sugestão de melhoria para o Agente Closer?
+                                        </p>
+                                    </div>
+                                    <Button
+                                        onClick={handleGenerateSuggestion}
+                                        disabled={generatingSuggestion}
+                                        size="sm"
+                                        className="nc-gradient text-deep-space font-semibold shrink-0"
+                                    >
+                                        {generatingSuggestion ? (
+                                            <>
+                                                <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                                                Gerando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="h-3.5 w-3.5 mr-2" />
+                                                Gerar Sugestão Automática
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
             )}
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ClipboardList, CheckCircle2 } from 'lucide-react';
+import { ClipboardList, CheckCircle2 } from '@/components/ui/icons';
 import type { ChecklistItem } from '@/types';
 
 interface ImprovementChecklistProps {
