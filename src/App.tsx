@@ -194,23 +194,17 @@ const App = () => (
               }
             />
 
-            {/* Client Routes */}
+            {/* Client Routes — redirect to /agent (client sees only the consulting chat) */}
+            <Route path="/client" element={<Navigate to="/agent" replace />} />
+            <Route path="/client/weekly-report" element={<Navigate to="/agent" replace />} />
+
+            {/* Admin-only: ClientDashboard accessible via /admin/client/:id */}
             <Route
-              path="/client"
+              path="/admin/client/:id"
               element={
-                <RoleGuard allowedRoles={['client', 'admin']}>
+                <RoleGuard allowedRoles={['admin', 'cs']}>
                   <DashboardLayout>
                     <ClientDashboard />
-                  </DashboardLayout>
-                </RoleGuard>
-              }
-            />
-            <Route
-              path="/client/weekly-report"
-              element={
-                <RoleGuard allowedRoles={['client', 'admin']}>
-                  <DashboardLayout>
-                    <WeeklyReportPage />
                   </DashboardLayout>
                 </RoleGuard>
               }
@@ -232,7 +226,7 @@ const App = () => (
             <Route
               path="/training"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'client', 'admin', 'team_member']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <TrainingHub />
                   </DashboardLayout>
@@ -242,7 +236,7 @@ const App = () => (
             <Route
               path="/training/coach"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'client', 'admin', 'team_member']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <CoachChat />
                   </DashboardLayout>

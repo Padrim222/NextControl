@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, User, MessageSquare, RefreshCw, ChevronRight, Briefcase, HeadphonesIcon } from 'lucide-react'
+import { Send, User, MessageSquare, RefreshCw, ChevronRight, Briefcase, HeadphonesIcon, Phone, Instagram } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,6 +16,38 @@ interface Message {
 
 const ONBOARDING_KEY = 'consultoria_onboarding_done'
 
+const modeConfig: Record<AgentMode, {
+  label: string
+  sublabel: string
+  icon: React.ReactNode
+  placeholder: string
+  emptyTitle: string
+  emptyBody: string
+  color: string
+  activeColor: string
+}> = {
+  closer: {
+    label: 'Calls',
+    sublabel: 'Suporte durante reuniões de vendas',
+    icon: <Phone className="w-4 h-4" />,
+    placeholder: 'Descreva a situação da reunião ou objeção do lead...',
+    emptyTitle: 'Suporte para suas reuniões',
+    emptyBody: 'Descreva a situação do lead, objeção recebida ou estágio da negociação para receber orientação personalizada.',
+    color: 'bg-violet-600',
+    activeColor: 'bg-violet-600 text-white',
+  },
+  ss: {
+    label: 'Social Selling',
+    sublabel: 'Análise de DMs e estratégia de prospecção',
+    icon: <Instagram className="w-4 h-4" />,
+    placeholder: 'Cole a conversa do DM ou descreva o estágio do lead...',
+    emptyTitle: 'Estratégia de prospecção',
+    emptyBody: 'Cole uma conversa do Instagram ou WhatsApp, descreva o perfil do lead e receba orientação estratégica de abordagem.',
+    color: 'bg-blue-600',
+    activeColor: 'bg-blue-600 text-white',
+  },
+}
+
 const OnboardingWizard = ({ onDone }: { onDone: () => void }) => {
   const [step, setStep] = useState(0)
 
@@ -23,17 +55,22 @@ const OnboardingWizard = ({ onDone }: { onDone: () => void }) => {
     {
       icon: <Briefcase className="w-8 h-8 text-blue-400" />,
       title: 'Bem-vindo à Consultoria Next Control',
-      body: 'Aqui você tem acesso direto à nossa base de conhecimento estratégico. Nossa equipe de consultores preparou respostas para as principais dúvidas sobre processos comerciais, scripts e estratégias de vendas.',
+      body: 'Aqui você tem acesso direto à nossa base de conhecimento estratégico. Nossa equipe de consultores preparou orientações para as principais situações do seu processo comercial.',
     },
     {
-      icon: <HeadphonesIcon className="w-8 h-8 text-blue-400" />,
-      title: 'Consultores disponíveis 24/7',
-      body: 'Nossa base de consultoria está disponível a qualquer hora. Tire dúvidas sobre sua estratégia comercial, processos de vendas, abordagem com leads e muito mais — sem precisar aguardar horário comercial.',
+      icon: <Phone className="w-8 h-8 text-violet-400" />,
+      title: 'Suporte em Calls',
+      body: 'Use a aba "Calls" para suporte durante reuniões de vendas. Descreva a objeção do lead ou o estágio da negociação e receba scripts e abordagens recomendadas pela nossa equipe.',
     },
     {
-      icon: <MessageSquare className="w-8 h-8 text-blue-400" />,
-      title: 'Como aproveitar ao máximo',
-      body: 'Descreva sua situação com detalhes. Quanto mais contexto você compartilhar, mais precisa e personalizada será a orientação. Por exemplo: "Meu lead disse que precisa pensar" — receba uma abordagem consultiva calibrada para o seu caso.',
+      icon: <Instagram className="w-8 h-8 text-blue-400" />,
+      title: 'Social Selling',
+      body: 'Use a aba "Social Selling" para estratégia de prospecção. Cole conversas do Instagram ou WhatsApp e receba orientações de follow-up, aquecimento de lead e diagnóstico de funil.',
+    },
+    {
+      icon: <HeadphonesIcon className="w-8 h-8 text-emerald-400" />,
+      title: 'Disponível 24/7',
+      body: 'Nossa base de consultoria está disponível a qualquer hora. Quanto mais contexto você compartilhar, mais precisa será a orientação. Comece agora.',
     },
   ]
 
@@ -85,11 +122,14 @@ const OnboardingWizard = ({ onDone }: { onDone: () => void }) => {
   )
 }
 
-const ConsultorAvatar = ({ size = 'sm' }: { size?: 'sm' | 'md' }) => {
+const ConsultorAvatar = ({ size = 'sm', mode = 'closer' }: { size?: 'sm' | 'md'; mode?: AgentMode }) => {
   const dim = size === 'md' ? 'w-12 h-12' : 'w-7 h-7'
-  const icon = size === 'md' ? 'w-6 h-6' : 'w-3.5 h-3.5'
+  const icon = size === 'md' ? 'w-5 h-5' : 'w-3.5 h-3.5'
+  const gradient = mode === 'closer'
+    ? 'bg-gradient-to-br from-violet-600 to-violet-800'
+    : 'bg-gradient-to-br from-blue-600 to-blue-800'
   return (
-    <div className={`${dim} rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center flex-shrink-0`}>
+    <div className={`${dim} rounded-full ${gradient} flex items-center justify-center flex-shrink-0`}>
       <Briefcase className={`${icon} text-white`} />
     </div>
   )
@@ -97,7 +137,7 @@ const ConsultorAvatar = ({ size = 'sm' }: { size?: 'sm' | 'md' }) => {
 
 export default function AgentPage() {
   const { user } = useAuth()
-  const [mode] = useState<AgentMode>('closer')
+  const [mode, setMode] = useState<AgentMode>('closer')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -113,6 +153,11 @@ export default function AgentPage() {
     setMessages([])
     setConversationId(null)
     setInput('')
+  }
+
+  const switchMode = (newMode: AgentMode) => {
+    setMode(newMode)
+    resetChat()
   }
 
   const sendMessage = async () => {
@@ -156,7 +201,7 @@ export default function AgentPage() {
       const msg = err instanceof Error ? err.message : 'Erro ao contatar o consultor'
       setMessages(prev => [
         ...prev,
-        { role: 'assistant', content: `Desculpe, ocorreu um erro: ${msg}. Tente novamente.` },
+        { role: 'assistant', content: `Desculpe, ocorreu um problema: ${msg}. Tente novamente.` },
       ])
     } finally {
       setLoading(false)
@@ -170,6 +215,8 @@ export default function AgentPage() {
     }
   }
 
+  const cfg = modeConfig[mode]
+
   return (
     <>
       {showOnboarding && <OnboardingWizard onDone={() => setShowOnboarding(false)} />}
@@ -178,14 +225,35 @@ export default function AgentPage() {
         {/* Header */}
         <div className="flex items-center justify-between py-3 px-1 border-b border-zinc-800">
           <div className="flex items-center gap-3">
-            <ConsultorAvatar />
+            <ConsultorAvatar mode={mode} />
             <div>
               <h1 className="text-white font-semibold text-sm">Consultoria Next Control</h1>
-              <p className="text-zinc-500 text-xs">Consultores disponíveis 24/7</p>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                <p className="text-zinc-500 text-xs">Consultores online</p>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            {/* Mode selector */}
+            <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
+              {(['closer', 'ss'] as AgentMode[]).map(m => (
+                <button
+                  key={m}
+                  onClick={() => switchMode(m)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                    mode === m
+                      ? modeConfig[m].activeColor
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {modeConfig[m].icon}
+                  {modeConfig[m].label}
+                </button>
+              ))}
+            </div>
+
             <button
               onClick={resetChat}
               className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
@@ -204,25 +272,19 @@ export default function AgentPage() {
           </div>
         </div>
 
-        {/* Status indicator */}
-        <div className="px-1 py-2 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-          <p className="text-xs text-zinc-600">Consultores online</p>
+        {/* Mode hint */}
+        <div className="px-1 py-2">
+          <p className="text-xs text-zinc-600">{cfg.sublabel}</p>
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto space-y-4 py-2 px-1">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center gap-4 py-12">
-              <ConsultorAvatar size="md" />
+              <ConsultorAvatar size="md" mode={mode} />
               <div>
-                <p className="text-zinc-300 font-medium">Sua consultoria está pronta</p>
-                <p className="text-zinc-600 text-sm mt-1">
-                  Tire dúvidas sobre estratégia, processos de vendas ou abordagens com leads
-                </p>
-              </div>
-              <div className="mt-2 text-xs text-zinc-700 max-w-xs">
-                Descreva sua situação e receba orientação personalizada da nossa equipe.
+                <p className="text-zinc-300 font-medium">{cfg.emptyTitle}</p>
+                <p className="text-zinc-600 text-sm mt-1 max-w-xs mx-auto">{cfg.emptyBody}</p>
               </div>
             </div>
           )}
@@ -232,12 +294,12 @@ export default function AgentPage() {
               key={i}
               className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {msg.role === 'assistant' && <ConsultorAvatar />}
+              {msg.role === 'assistant' && <ConsultorAvatar mode={mode} />}
 
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
                   msg.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-tr-sm'
+                    ? `${mode === 'closer' ? 'bg-violet-600' : 'bg-blue-600'} text-white rounded-tr-sm`
                     : 'bg-zinc-800 text-zinc-100 rounded-tl-sm'
                 }`}
               >
@@ -259,14 +321,14 @@ export default function AgentPage() {
 
           {loading && (
             <div className="flex gap-3">
-              <ConsultorAvatar />
+              <ConsultorAvatar mode={mode} />
               <div className="bg-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3">
                 <div className="flex gap-1 items-center">
                   <span className="text-zinc-500 text-xs mr-1">Consultando</span>
                   {[0, 1, 2].map(i => (
                     <div
                       key={i}
-                      className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
+                      className={`w-1.5 h-1.5 rounded-full animate-bounce ${mode === 'closer' ? 'bg-violet-400' : 'bg-blue-400'}`}
                       style={{ animationDelay: `${i * 0.15}s` }}
                     />
                   ))}
@@ -285,14 +347,14 @@ export default function AgentPage() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Faça sua pergunta para o consultor..."
+              placeholder={cfg.placeholder}
               className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder-zinc-600 resize-none min-h-[52px] max-h-36 text-sm"
               rows={2}
             />
             <Button
               onClick={sendMessage}
               disabled={!input.trim() || loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 h-[52px] px-4"
+              className={`${mode === 'closer' ? 'bg-violet-600 hover:bg-violet-700' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-40 h-[52px] px-4`}
             >
               <Send className="w-4 h-4" />
             </Button>
