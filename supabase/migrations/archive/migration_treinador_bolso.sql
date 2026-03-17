@@ -2,7 +2,7 @@
 -- TREINADOR DE BOLSO — Database Schema Migration
 -- Version: 1.0 (MVP)
 -- Date: 2026-02-18
--- 
+--
 -- New tables per PRD Section 5.1
 -- Non-destructive: existing tables preserved
 -- ============================================
@@ -18,23 +18,23 @@ CREATE TABLE IF NOT EXISTS public.daily_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   seller_id UUID REFERENCES public.users(id) NOT NULL,
   submission_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  
+
   -- Metrics (JSONB for flexibility: sellers vs closers have different fields)
   metrics JSONB DEFAULT '{}',
   -- Seller metrics: { approaches, followups, proposals, sales }
   -- Closer metrics: { calls_made, conversion_rate, main_objections }
-  
+
   -- Conversation prints (up to 5 image URLs)
   conversation_prints TEXT[] DEFAULT '{}',
-  
+
   -- Call recording URL (closers only)
   call_recording TEXT,
-  
+
   -- Free-text notes
   notes TEXT,
-  
+
   created_at TIMESTAMPTZ DEFAULT now(),
-  
+
   UNIQUE(seller_id, submission_date)
 );
 
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS public.analyses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   submission_id UUID REFERENCES public.daily_submissions(id) NOT NULL,
   agent_type TEXT CHECK (agent_type IN ('social_selling', 'call_analysis', 'metrics')) NOT NULL,
-  
+
   -- Analysis content
   content TEXT NOT NULL,
   strengths TEXT[] DEFAULT '{}',
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.analyses (
   patterns JSONB DEFAULT '{}',
   next_steps TEXT[] DEFAULT '{}',
   score INT CHECK (score >= 0 AND score <= 100),
-  
+
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -61,17 +61,17 @@ CREATE TABLE IF NOT EXISTS public.reports (
   seller_id UUID REFERENCES public.users(id) NOT NULL,
   submission_id UUID REFERENCES public.daily_submissions(id),
   analysis_id UUID REFERENCES public.analyses(id),
-  
+
   -- Generated PDF
   pdf_url TEXT,
-  
+
   -- Approval workflow: pending → approved → delivered
   status TEXT CHECK (status IN ('pending', 'approved', 'delivered')) DEFAULT 'pending',
-  
+
   -- CS review
   reviewed_by UUID REFERENCES public.users(id),
   review_notes TEXT,
-  
+
   sent_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -80,14 +80,14 @@ CREATE TABLE IF NOT EXISTS public.reports (
 CREATE TABLE IF NOT EXISTS public.coach_interactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   seller_id UUID REFERENCES public.users(id) NOT NULL,
-  
+
   question TEXT NOT NULL,
   answer TEXT,
-  
+
   -- Context snapshot for personalization
   context JSONB DEFAULT '{}',
   -- { recent_scores, strengths, weaknesses, seller_type, tenure_months }
-  
+
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

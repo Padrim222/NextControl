@@ -1,0 +1,5 @@
+﻿COMMIT: b65ca3c | 2026-03-12 12:40:25 -0300 | feat(chat): Add clipboard paste support for image prints in Coach Chat
+COMMIT: 9ce51c3 | 2026-03-12 12:13:10 -0300 | style: Prioritize Solar Gold over Navy for active states
+COMMIT: 34092dd | 2026-03-12 12:04:47 -0300 | feat(design-system): Migrate to new Light Mode Navy/Gold design system
+COMMIT: 1ca7a69 | 2026-03-10 23:33:12 -0300 | test: Plano V3 Sprint 7 - Hardening, Teste E2E da Jornada e RLS Audit
+COMMIT: cfa7055 | 2026-03-10 23:10:03 -0300 | feat: Plano V3 Sprint 6 - UI Global, Onboarding Methodologico e Boilerplate de Scripts do Vendedor

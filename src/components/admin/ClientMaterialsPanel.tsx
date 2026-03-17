@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { FileText, Link as LinkIcon, Upload, Search, Library, FileVideo, EyeOff, LayoutGrid, CheckCircle } from 'lucide-react';
+import { FileText, Link as LinkIcon, Upload, Search, Library, FileVideo, EyeOff, LayoutGrid, CheckCircle, Bot } from 'lucide-react';
 import type { Client, ClientMaterial } from '@/types';
 
 export function ClientMaterialsPanel() {
@@ -27,6 +27,7 @@ export function ClientMaterialsPanel() {
     const [sentToClient, setSentToClient] = useState(true); // Se visivel pro cliente na aba "Meu Plano" / onboarding
     const [category, setCategory] = useState<string>('methodology');
     const [isUploading, setIsUploading] = useState(false);
+    const [agentTarget, setAgentTarget] = useState<'ss' | 'closer' | 'both'>('both');
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -107,6 +108,7 @@ export function ClientMaterialsPanel() {
                 is_rag_active: isRagActive,
                 sent_to_client: sentToClient,
                 category,
+                agent_target: agentTarget,
                 created_by: userAuth.user?.id
             });
 
@@ -119,6 +121,7 @@ export function ClientMaterialsPanel() {
             setDescription('');
             setFileUrl('');
             setFile(null);
+            setAgentTarget('both');
 
             // Refresh list
             const { data: newMaterials } = await (supabase as any)
@@ -214,6 +217,20 @@ export function ClientMaterialsPanel() {
                                         <SelectItem value="sales_pitch">Pitch de Vendas</SelectItem>
                                         <SelectItem value="methodology">Metodologia</SelectItem>
                                         <SelectItem value="objection_handling">Contorno de Objeções</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Agente Destino</Label>
+                                <Select value={agentTarget} onValueChange={(v: 'ss' | 'closer' | 'both') => setAgentTarget(v)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ss">🤖 Agente SS (Social Selling)</SelectItem>
+                                        <SelectItem value="closer">🤖 Agente Closer</SelectItem>
+                                        <SelectItem value="both">Ambos os Agentes</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -342,6 +359,12 @@ export function ClientMaterialsPanel() {
                                             <span className="flex items-center gap-1">
                                                 {mat.sent_to_client ? <CheckCircle className="h-3 w-3 text-nc-info" /> : <EyeOff className="h-3 w-3" />}
                                                 {mat.sent_to_client ? 'App do Cliente' : 'Docs Internos'}
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <Bot className="h-3 w-3" />
+                                                {mat.agent_target === 'ss' ? 'SS'
+                                                    : mat.agent_target === 'closer' ? 'Closer'
+                                                    : 'Ambos'}
                                             </span>
                                         </div>
 

@@ -1,0 +1,41 @@
+﻿commit b65ca3c3682a824206c309a197bc7342c58205ac
+Author: Cigano.agi <brufab222@gmail.com>
+Date:   Thu Mar 12 12:40:25 2026 -0300
+
+    feat(chat): Add clipboard paste support for image prints in Coach Chat
+
+ src/pages/training/CoachChat.tsx | 31 ++++++++++++++++++++++++++-----
+ 1 file changed, 26 insertions(+), 5 deletions(-)
+
+commit 9ce51c32d72926dd2b1354d3fd8b2074f85f765f
+Author: Cigano.agi <brufab222@gmail.com>
+Date:   Thu Mar 12 12:13:10 2026 -0300
+
+    style: Prioritize Solar Gold over Navy for active states
+
+ src/components/AppSidebar.tsx |  6 +++---
+ src/components/ui/icons.tsx   |  3 +++
+ src/index.css                 | 37 +++++++++++++++++++------------------
+ 3 files changed, 25 insertions(+), 21 deletions(-)
+
+commit 34092dddbb7b877c15dc7c3202f95e11bff3c715
+Author: Cigano.agi <brufab222@gmail.com>
+Date:   Thu Mar 12 12:04:47 2026 -0300
+
+    feat(design-system): Migrate to new Light Mode Navy/Gold design system
+    
+    This commit reflects changes made automatically across 36 files to replace the existing dark mode with a new Light Mode featuring the #1B2B4A Navy and #E6B84D Gold color palette. It includes updates to index.html, index.css, tailwind.config.ts, DashboardLayout, AppSidebar, and the introduction of a new Heroicons wrapper in icons.tsx. It also covers the rewritten pages and components to adhere to the new design rules.
+
+ .env                                         |   4 +-
+ index.html                                   |   5 +-
+ src/app/closer/page.tsx                      |  84 ++--
+ src/app/scripts/page.tsx                     | 287 +++++++++++---
+ src/app/ss/page.tsx                          |  55 +--
+ src/components/AppSidebar.tsx                |  67 ++--
+ src/components/DashboardLayout.tsx           |   6 +-
+ src/components/seller/DailyCheckinWizard.tsx |   4 +-
+ src/components/seller/SellerPlaybook.tsx     |   6 +-
+ src/components/ui/icons.tsx                  |  96 +++++
+ src/index.css                                | 574 +++++++--------------------
+ tailwind.config.ts                           |  64 +--
+ 12 files changed, 616 insertions(+), 636 deletions(-)

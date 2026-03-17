@@ -1,4 +1,4 @@
-﻿CREATE TABLE IF NOT EXISTS client_materials (
+CREATE TABLE IF NOT EXISTS client_materials (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id UUID REFERENCES clients(id) NOT NULL,
   title TEXT NOT NULL,

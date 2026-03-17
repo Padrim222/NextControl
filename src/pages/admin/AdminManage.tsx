@@ -20,6 +20,10 @@ import {
     Shield,
     Phone,
     Mail,
+    Pencil,
+    Eye,
+    EyeOff,
+    Trash2,
 } from 'lucide-react';
 
 type UserRole = 'seller' | 'closer' | 'cs' | 'client' | 'admin';
@@ -97,8 +101,11 @@ export default function AdminManage() {
         team_status: '',
         operational_processes: '',
         password: '',
+        confirmPassword: '',
     });
     const [isSubmittingClient, setIsSubmittingClient] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [clientCredentials, setClientCredentials] = useState<{ email: string; password: string } | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -166,11 +173,44 @@ export default function AdminManage() {
         }
     };
 
+    const resetClientForm = () => {
+        setClientForm({
+            name: '', email: '', phone: '', company: '', segment: '',
+            project_summary: '', current_phase: '', next_step: '',
+            team_status: '', operational_processes: '', password: '', confirmPassword: '',
+        });
+        setEditingClientId(null);
+        setShowClientForm(false);
+        setShowPassword(false);
+    };
+
     const handleSaveClient = async () => {
         if (!clientForm.name.trim()) {
             toast.error('Nome é obrigatório');
             return;
         }
+
+        const isCreating = !editingClientId;
+
+        if (isCreating) {
+            if (!clientForm.email.trim()) {
+                toast.error('Email é obrigatório para criar login');
+                return;
+            }
+            if (!clientForm.password.trim()) {
+                toast.error('Senha é obrigatória para criar login');
+                return;
+            }
+            if (clientForm.password.length < 8) {
+                toast.error('Senha deve ter no mínimo 8 caracteres');
+                return;
+            }
+            if (clientForm.password !== clientForm.confirmPassword) {
+                toast.error('Senhas não coincidem');
+                return;
+            }
+        }
+
         setIsSubmittingClient(true);
         try {
             const payload = {
@@ -195,53 +235,48 @@ export default function AdminManage() {
                 if (error) throw error;
                 toast.success('Cliente atualizado!');
             } else {
-                const { data: clientData, error: clientError } = await (supabase as any)
+                // 1. Create client record
+                const { data: clientRecord, error: clientError } = await (supabase as any)
                     .from('clients')
                     .insert(payload)
                     .select('id')
                     .single();
                 if (clientError) throw clientError;
 
-                // Optionally create auth user for client panel access
-                const hasLogin = clientForm.email.trim() && clientForm.password.trim();
-                if (hasLogin) {
-                    const email = clientForm.email.trim().toLowerCase();
-                    const password = clientForm.password.trim();
-                    const { data: authData, error: authError } = await supabase.auth.signUp({
-                        email,
-                        password,
-                        options: { data: { name: clientForm.name.trim(), role: 'client' } },
-                    });
-                    if (authError) throw authError;
-                    if (authData.user) {
-                        await (supabase as any).from('users').upsert([{
-                            id: authData.user.id,
-                            email,
-                            name: clientForm.name.trim(),
-                            role: 'client',
-                            status: 'active',
-                            client_id: clientData.id,
-                        }], { onConflict: 'id' });
-                        setCreatedCredentials({ email, password });
-                        toast.success(`✅ Cliente ${clientForm.name} criado com acesso ao painel!`, {
-                            description: 'Copie as credenciais abaixo e envie para o cliente.'
-                        });
-                    }
-                } else {
-                    toast.success('Cliente criado!');
-                }
+                // 2. Create auth user
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: clientForm.email.trim().toLowerCase(),
+                    password: clientForm.password,
+                    options: {
+                        data: { name: clientForm.name.trim(), role: 'client' },
+                    },
+                });
+                if (authError) throw authError;
+                if (!authData.user) throw new Error('Falha ao criar usuário auth');
+
+                // 3. Link auth user to users table with client_id
+                await (supabase as any).from('users').upsert([{
+                    id: authData.user.id,
+                    email: clientForm.email.trim().toLowerCase(),
+                    name: clientForm.name.trim(),
+                    role: 'client',
+                    client_id: clientRecord.id,
+                    status: 'active',
+                }], { onConflict: 'id' });
+
+                setClientCredentials({
+                    email: clientForm.email.trim().toLowerCase(),
+                    password: clientForm.password,
+                });
+
+                toast.success(`Cliente e login criados! Email: ${clientForm.email.trim()}`);
             }
 
-            setClientForm({
-                name: '', email: '', phone: '', company: '', segment: '',
-                project_summary: '', current_phase: '', next_step: '',
-                team_status: '', operational_processes: '', password: '',
-            });
-            setEditingClientId(null);
-            setShowClientForm(false);
+            resetClientForm();
             fetchData();
-        } catch (error: any) {
-            toast.error(error?.message || 'Erro ao processar cliente');
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Erro ao processar cliente';
+            toast.error(message);
         } finally {
             setIsSubmittingClient(false);
         }
@@ -260,10 +295,24 @@ export default function AdminManage() {
             team_status: c.team_status || '',
             operational_processes: c.operational_processes || '',
             password: '',
+            confirmPassword: '',
         });
         setEditingClientId(c.id);
         setShowClientForm(true);
         setActiveTab('clients');
+    };
+
+    const handleDeleteClient = async (clientId: string, clientName: string) => {
+        if (!confirm(`Tem certeza que deseja excluir o cliente "${clientName}"?`)) return;
+        try {
+            const { error } = await (supabase as any).from('clients').delete().eq('id', clientId);
+            if (error) throw error;
+            toast.success('Cliente excluído!');
+            fetchData();
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Erro ao excluir';
+            toast.error(message);
+        }
     };
 
     const copyCredentials = () => {
@@ -288,7 +337,7 @@ export default function AdminManage() {
                 </div>
             </div>
 
-            {/* Credentials Card */}
+            {/* Credentials Card — User */}
             {createdCredentials && (
                 <Card className="nc-card-border border-nc-success/30 bg-nc-success/5">
                     <CardContent className="p-4">
@@ -304,6 +353,31 @@ export default function AdminManage() {
                                     <Copy className="h-3 w-3 mr-1" /> Copiar
                                 </Button>
                                 <Button size="sm" variant="ghost" onClick={() => setCreatedCredentials(null)}>✕</Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Credentials Card — Client */}
+            {clientCredentials && (
+                <Card className="nc-card-border border-nc-success/30 bg-nc-success/5">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-nc-success">✅ Cliente e login criados!</p>
+                                <p className="text-sm font-mono mt-1">
+                                    Login: <strong>{clientCredentials.email}</strong> • Senha: <strong>{clientCredentials.password}</strong>
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => {
+                                    navigator.clipboard.writeText(`Login: ${clientCredentials.email}\nSenha: ${clientCredentials.password}`);
+                                    toast.success('Credenciais copiadas!');
+                                }}>
+                                    <Copy className="h-3 w-3 mr-1" /> Copiar
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setClientCredentials(null)}>✕</Button>
                             </div>
                         </div>
                     </CardContent>
@@ -519,30 +593,44 @@ export default function AdminManage() {
                                     </div>
                                 </div>
 
-                                {/* Acesso ao painel — only shown when creating a new client */}
+                                {/* Password fields — only when creating */}
                                 {!editingClientId && (
                                     <div className="pt-2 border-t border-border/50">
-                                        <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 px-1 flex items-center gap-1">
-                                            <Shield className="h-3 w-3" /> Acesso ao Painel (opcional)
-                                        </h4>
-                                        <p className="text-xs text-muted-foreground mb-2 px-1">Preencha email e senha para criar login de acesso ao painel do cliente.</p>
+                                        <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 px-1">🔐 Credenciais de Acesso</h4>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <Label>Senha de acesso</Label>
-                                                <Input
-                                                    type="text"
-                                                    placeholder="Deixe em branco para não criar login"
-                                                    value={clientForm.password}
-                                                    onChange={e => setClientForm(prev => ({ ...prev, password: e.target.value }))}
-                                                />
-                                            </div>
-                                            {clientForm.email && clientForm.password && (
-                                                <div className="flex items-end">
-                                                    <p className="text-xs text-nc-success pb-2">
-                                                        ✓ Login será criado: <strong>{clientForm.email}</strong>
-                                                    </p>
+                                                <Label>Senha *</Label>
+                                                <div className="relative">
+                                                    <Input
+                                                        type={showPassword ? 'text' : 'password'}
+                                                        placeholder="Mín. 8 caracteres"
+                                                        value={clientForm.password}
+                                                        onChange={e => setClientForm(prev => ({ ...prev, password: e.target.value }))}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowPassword(v => !v)}
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                    </button>
                                                 </div>
-                                            )}
+                                                {clientForm.password.length > 0 && clientForm.password.length < 8 && (
+                                                    <p className="text-xs text-destructive mt-1">Mínimo 8 caracteres</p>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <Label>Confirmar Senha *</Label>
+                                                <Input
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    placeholder="Repita a senha"
+                                                    value={clientForm.confirmPassword}
+                                                    onChange={e => setClientForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                                />
+                                                {clientForm.confirmPassword.length > 0 && clientForm.password !== clientForm.confirmPassword && (
+                                                    <p className="text-xs text-destructive mt-1">Senhas não coincidem</p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -600,17 +688,9 @@ export default function AdminManage() {
 
                                 <div className="flex gap-2 pt-4">
                                     <Button onClick={handleSaveClient} disabled={isSubmittingClient}>
-                                        {isSubmittingClient ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Salvando...</> : 'Salvar Cliente'}
+                                        {isSubmittingClient ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Salvando...</> : (editingClientId ? 'Salvar Alterações' : 'Criar Cliente + Login')}
                                     </Button>
-                                    <Button variant="ghost" onClick={() => {
-                                        setShowClientForm(false);
-                                        setEditingClientId(null);
-                                        setClientForm({
-                                            name: '', email: '', phone: '', company: '', segment: '',
-                                            project_summary: '', current_phase: '', next_step: '',
-                                            team_status: '', operational_processes: '', password: '',
-                                        });
-                                    }}>Cancelar</Button>
+                                    <Button variant="ghost" onClick={resetClientForm}>Cancelar</Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -644,8 +724,11 @@ export default function AdminManage() {
                                                 {c.segment && (
                                                     <Badge variant="secondary" className="text-xs">{c.segment}</Badge>
                                                 )}
-                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleEditClient(c)}>
-                                                    <Plus className="h-4 w-4 rotate-45" />
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleEditClient(c)} title="Editar">
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteClient(c.id, c.name)} title="Excluir">
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </div>

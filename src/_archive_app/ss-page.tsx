@@ -82,7 +82,7 @@ export default function SSAgentPage() {
     <div className="flex h-screen bg-slate-100 p-4 gap-4">
       <div className="w-1/3 bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col space-y-4">
         <h2 className="text-xl font-bold text-slate-800">Contexto (SS)</h2>
-        
+
         <div className="space-y-2">
           <label className="text-sm font-semibold text-slate-600 block">Canal Base:</label>
           <div className="flex gap-2">
@@ -100,7 +100,7 @@ export default function SSAgentPage() {
 
         <div className="space-y-2">
           <label className="text-sm font-semibold text-slate-600 block">Forçar Capability Ativa:</label>
-          <select 
+          <select
             className="w-full text-sm border-slate-300 rounded-md p-2 bg-slate-50"
             value={capability}
             onChange={(e) => setCapability(e.target.value as any)}
@@ -112,18 +112,18 @@ export default function SSAgentPage() {
             <option value="post-dispatch">Condução Pós-Disparo</option>
           </select>
         </div>
-        
+
         <div className="mt-8 p-3 bg-blue-50 text-blue-800 text-xs rounded-xl border border-blue-200">
           <strong>Lembrete do Mestre:</strong> O SS prospecta. Respeite as restrições de formatação do LinkedIn e WhatsApp para não soar como robô.
         </div>
       </div>
 
       <div className="w-2/3 h-full pb-4">
-         <AgentChat 
+         <AgentChat
             agentName="Head de Bolso (SS) — Prospecção Ativa"
-            messages={messages} 
-            isLoading={isLoading} 
-            onSendMessage={handleSendMessage} 
+            messages={messages}
+            isLoading={isLoading}
+            onSendMessage={handleSendMessage}
          />
       </div>
     </div>

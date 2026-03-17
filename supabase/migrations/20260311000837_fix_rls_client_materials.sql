@@ -1,0 +1,2 @@
+-- Migration vazia — criada acidentalmente. Não remove.
+-- Substituída por 20260311000858_fix_rls_client_materials.sql

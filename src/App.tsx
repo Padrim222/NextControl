@@ -58,7 +58,7 @@ const App = () => (
             <Route
               path="/seller"
               element={
-                <RoleGuard allowedRoles={['seller', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <SellerDashboard />
                   </DashboardLayout>
@@ -68,7 +68,7 @@ const App = () => (
             <Route
               path="/seller/report"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <DailyReport />
                   </DashboardLayout>
@@ -78,7 +78,7 @@ const App = () => (
             <Route
               path="/seller/report/:clientId"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <DailyReport />
                   </DashboardLayout>
@@ -89,7 +89,7 @@ const App = () => (
             <Route
               path="/seller/evolution"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <WeeklyEvolution />
                   </DashboardLayout>
@@ -112,7 +112,7 @@ const App = () => (
             <Route
               path="/closer/call-analysis"
               element={
-                <RoleGuard allowedRoles={['closer', 'admin']}>
+                <RoleGuard allowedRoles={['closer', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <CallAnalysis />
                   </DashboardLayout>
@@ -232,7 +232,7 @@ const App = () => (
             <Route
               path="/training"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'client', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'client', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <TrainingHub />
                   </DashboardLayout>
@@ -242,7 +242,7 @@ const App = () => (
             <Route
               path="/training/coach"
               element={
-                <RoleGuard allowedRoles={['seller', 'closer', 'client', 'admin']}>
+                <RoleGuard allowedRoles={['seller', 'closer', 'client', 'admin', 'team_member']}>
                   <DashboardLayout>
                     <CoachChat />
                   </DashboardLayout>

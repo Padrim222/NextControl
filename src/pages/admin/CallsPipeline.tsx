@@ -319,7 +319,7 @@ export default function CallsPipeline() {
                             try {
                                 // 1. Upload audio to Supabase Storage
                                 const filename = `calls/${Date.now()}_${audioFile.name}`;
-                                const { data: uploadData, error: uploadError } = await supabase.storage
+                                const { error: uploadError } = await supabase.storage
                                     .from('call-recordings')
                                     .upload(filename, audioFile, { contentType: 'audio/mpeg' });
 
@@ -330,29 +330,71 @@ export default function CallsPipeline() {
                                     .getPublicUrl(filename);
 
                                 // 2. Create call_upload record
-                                const { error: insertError } = await (supabase as any)
+                                const { data: insertData, error: insertError } = await (supabase as any)
                                     .from('call_uploads')
                                     .insert({
                                         upload_source: 'manual',
                                         mp3_url: urlData?.publicUrl || null,
-                                        status: 'uploaded',
+                                        status: 'transcribing',
                                         call_date: new Date().toISOString().split('T')[0],
                                         prospect_name: meta.originalName.replace(/\.[^.]+$/, ''),
                                         duration_minutes: null,
-                                    });
+                                    })
+                                    .select()
+                                    .single();
 
                                 if (insertError) throw insertError;
 
-                                toast.success(`✅ Call enviada! ${meta.wasVideo ? `(${meta.originalSizeMB.toFixed(0)}MB → ${meta.compressedSizeMB.toFixed(1)}MB)` : ''}`);
+                                toast.success(`✅ Call enviada! Iniciando transcrição com IA...`);
                                 setShowUploader(false);
                                 fetchCallUploads();
-                            } catch (err) {
-                                console.error('Upload error:', err);
-                                toast.error('Erro ao enviar áudio. Tente novamente.');
+                                
+                                // 3. Invoke transcribe-audio
+                                const formData = new FormData();
+                                formData.append('file', audioFile, audioFile.name);
+                                
+                                const session = (await supabase.auth.getSession()).data.session;
+                                const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://mldbflihdejmddmapwnz.supabase.co'}/functions/v1/transcribe-audio`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${session?.access_token}`,
+                                    },
+                                    body: formData,
+                                });
+                                
+                                const data = await response.json();
+                                if (!response.ok || data?.error) {
+                                  // Fallback to uploaded status if transcription fails
+                                  await (supabase as any).from('call_uploads').update({ status: 'uploaded' }).eq('id', insertData.id);
+                                  throw new Error(data?.error || `HTTP ${response.status}`);
+                                }
+                                
+                                // 4. Update status to ready
+                                await (supabase as any)
+                                  .from('call_uploads')
+                                  .update({ 
+                                    status: 'ready', 
+                                    transcription_text: data.text 
+                                  })
+                                  .eq('id', insertData.id);
+                                  
+                                toast.success('🎤 Transcrição concluída com sucesso!');
+                                fetchCallUploads();
+                                
+                            } catch (err: any) {
+                                console.error('Upload/Transcription error:', err);
+                                const msg = err?.message || '';
+                                if (msg.includes('GROQ_API_KEY')) {
+                                    toast.error('⚠️ A transcrição requer a GROQ_API_KEY configurada nos Secrets do Supabase.');
+                                } else {
+                                    toast.error(`Erro: ${msg || 'tente novamente.'}`);
+                                }
+                                fetchCallUploads();
                             } finally {
                                 setIsUploading(false);
                             }
                         }}
+
                     />
                 )}
 

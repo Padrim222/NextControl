@@ -38,6 +38,7 @@ export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) 
             closer: '/closer',
             client: '/client',
             cs: '/cs',
+            team_member: '/seller',
         };
 
         return <Navigate to={roleRoutes[user?.role || 'client']} replace />;

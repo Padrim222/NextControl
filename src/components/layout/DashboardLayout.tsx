@@ -2,11 +2,31 @@ import { ReactNode, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Sparkles, Menu, X, ChevronRight } from '@/components/ui/icons';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import {
+    LogOut,
+    Sparkles,
+    LayoutDashboard,
+    Users,
+    Phone,
+    Database,
+    Inbox,
+    BookOpen,
+    MessageSquare,
+    TrendingUp,
+    ClipboardCheck,
+    BarChart3,
+    Lightbulb,
+    HelpCircle,
+    PanelLeftClose,
+    PanelLeftOpen,
+    type LucideIcon,
+    FlaskConical,
+} from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PageTransition } from './PageTransition';
+import { AppNavigator } from './AppNavigator';
+import { OnboardingWizard } from '../wizard/OnboardingWizard';
 import type { UserRole } from '@/types';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -15,14 +35,7 @@ const ROLE_LABELS: Record<string, string> = {
     closer: 'Closer',
     client: 'Cliente',
     cs: 'CS de Vendas',
-};
-
-const ROLE_COLORS: Record<string, string> = {
-    admin: 'bg-red-500/15 text-red-400 border-red-500/30',
-    seller: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-    closer: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-    client: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-    cs: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    team_member: 'Time',
 };
 
 const ROLE_HOME: Record<UserRole, string> = {
@@ -31,136 +44,55 @@ const ROLE_HOME: Record<UserRole, string> = {
     closer: '/closer',
     client: '/agent',
     cs: '/cs',
+    team_member: '/seller',
 };
 
-interface NavGroup {
+interface NavItem {
     label: string;
-    items: { label: string; path: string; icon?: string }[];
+    path: string;
+    icon: LucideIcon;
 }
 
-const NAV_GROUPS: Record<string, NavGroup[]> = {
+const NAV_CONFIG: Record<string, NavItem[]> = {
     admin: [
-        {
-            label: 'FAZER',
-            items: [
-                { label: 'Painel Geral', path: '/admin' },
-                { label: 'Gestão da Equipe', path: '/admin/manage' },
-            ],
-        },
-        {
-            label: 'REVISAR',
-            items: [
-                { label: 'CS Inbox', path: '/cs' },
-                { label: 'Treinamentos', path: '/training' },
-                { label: 'Análise de Calls', path: '/closer/call-analysis' },
-            ],
-        },
-        {
-            label: 'CONFIGURAR',
-            items: [
-                { label: 'Base de Conhecimento', path: '/admin/rag' },
-            ],
-        },
+        { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+        { label: 'Clientes', path: '/admin/manage', icon: Users },
+        { label: 'Pipeline de Calls', path: '/training/coach', icon: Phone },
+        { label: 'Formulários', path: '/seller/report', icon: ClipboardCheck },
+        { label: 'Base RAG', path: '/admin/rag', icon: Database },
+        { label: 'Beta', path: '/training', icon: FlaskConical },
     ],
     seller: [
-        {
-            label: 'FAZER',
-            items: [
-                { label: 'Dashboard', path: '/seller' },
-                { label: 'Check-in do Dia', path: '/seller/report' },
-            ],
-        },
-        {
-            label: 'REVISAR',
-            items: [
-                { label: 'Meu Desempenho', path: '/seller/evolution' },
-                { label: 'Histórico', path: '/seller' },
-            ],
-        },
-        {
-            label: 'SUPORTE',
-            items: [
-                { label: 'Consultoria IA', path: '/training/coach' },
-                { label: 'Treinamentos', path: '/training' },
-            ],
-        },
+        { label: 'Dashboard', path: '/seller', icon: LayoutDashboard },
+        { label: 'Relatório Diário', path: '/seller/report', icon: ClipboardCheck },
+        { label: 'Evolução Semanal', path: '/seller/evolution', icon: TrendingUp },
+        { label: 'Consultoria de Bolso', path: '/training/coach', icon: MessageSquare },
     ],
     closer: [
-        {
-            label: 'FAZER',
-            items: [
-                { label: 'Dashboard', path: '/closer' },
-                { label: 'Check-in do Dia', path: '/seller/report' },
-            ],
-        },
-        {
-            label: 'REVISAR',
-            items: [
-                { label: 'Análise de Calls', path: '/closer/call-analysis' },
-                { label: 'Evolução', path: '/seller/evolution' },
-            ],
-        },
-        {
-            label: 'SUPORTE',
-            items: [
-                { label: 'Consultoria IA', path: '/training/coach' },
-                { label: 'Treinamentos', path: '/training' },
-            ],
-        },
-    ],
-    cs: [
-        {
-            label: 'FAZER',
-            items: [
-                { label: 'CS Inbox', path: '/cs' },
-            ],
-        },
-        {
-            label: 'REVISAR',
-            items: [
-                { label: 'Treinamentos', path: '/training' },
-            ],
-        },
+        { label: 'Dashboard', path: '/closer', icon: LayoutDashboard },
+        { label: 'Análise de Call', path: '/closer/call-analysis', icon: Phone },
+        { label: 'Insights', path: '/seller/evolution', icon: Lightbulb },
     ],
     client: [
-        {
-            label: 'CONSULTORIA',
-            items: [
-                { label: '💬 Consultoria', path: '/agent' },
-            ],
-        },
+        { label: 'Consultoria', path: '/agent', icon: MessageSquare },
+    ],
+    cs: [
+        { label: 'Inbox', path: '/cs', icon: Inbox },
+    ],
+    team_member: [
+        { label: 'Consultoria de Bolso', path: '/training/coach', icon: MessageSquare },
+        { label: 'Check-in Diário', path: '/seller/report', icon: ClipboardCheck },
+        { label: 'Análise de Call', path: '/closer/call-analysis', icon: Phone },
     ],
 };
 
-// Flat nav for mobile bottom nav
-const NAV_LINKS: Record<string, { label: string; path: string }[]> = {
-    admin: [
-        { label: 'Dashboard', path: '/admin' },
-        { label: 'Gestão', path: '/admin/manage' },
-        { label: 'Base RAG', path: '/admin/rag' },
-        { label: 'CS Inbox', path: '/cs' },
-        { label: 'Treinamento', path: '/training' },
-    ],
-    seller: [
-        { label: 'Dashboard', path: '/seller' },
-        { label: 'Check-in', path: '/seller/report' },
-        { label: 'Evolução', path: '/seller/evolution' },
-        { label: 'Coach', path: '/training/coach' },
-    ],
-    closer: [
-        { label: 'Dashboard', path: '/closer' },
-        { label: 'Análise de Calls', path: '/closer/call-analysis' },
-        { label: 'Check-in', path: '/seller/report' },
-        { label: 'Coach', path: '/training/coach' },
-    ],
-    cs: [
-        { label: 'Inbox', path: '/cs' },
-        { label: 'Treinamento', path: '/training' },
-    ],
-    client: [
-        { label: 'Consultoria', path: '/agent' },
-    ],
-};
+// Legacy nav links for MobileBottomNav compatibility
+const NAV_LINKS: Record<string, { label: string; path: string }[]> = Object.fromEntries(
+    Object.entries(NAV_CONFIG).map(([role, items]) => [
+        role,
+        items.map(({ label, path }) => ({ label, path })),
+    ]),
+);
 
 interface DashboardLayoutProps {
     children: ReactNode;
@@ -169,167 +101,164 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
     const { user, logout } = useAuth();
     const location = useLocation();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
 
-    const navGroups = user ? NAV_GROUPS[user.role] || [] : [];
+    const navItems = user ? NAV_CONFIG[user.role] || [] : [];
     const navLinks = user ? NAV_LINKS[user.role] || [] : [];
-    const homePath = user ? ROLE_HOME[user.role as UserRole] || '/' : '/';
+    const homePath = user ? ROLE_HOME[user.role] || '/' : '/';
 
-    const isActive = (path: string) => location.pathname === path;
-
-    const SidebarContent = () => (
-        <div className="flex flex-col h-full">
-            {/* Logo */}
-            <div className="h-14 flex items-center px-4 border-b border-border/50 flex-shrink-0">
-                <Link
-                    to={homePath}
-                    className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-                    onClick={() => setSidebarOpen(false)}
-                >
-                    <div className="w-7 h-7 rounded-md nc-gradient flex items-center justify-center flex-shrink-0">
-                        <Sparkles className="h-3.5 w-3.5 text-deep-space" />
-                    </div>
-                    <span className="text-lg font-display font-bold nc-gradient-text select-none">
-                        Next Control
-                    </span>
-                </Link>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-6">
-                {navGroups.map((group) => (
-                    <div key={group.label}>
-                        <p className="text-[10px] font-bold tracking-widest text-muted-foreground/60 px-3 mb-1.5 uppercase">
-                            {group.label}
-                        </p>
-                        <div className="space-y-0.5">
-                            {group.items.map((item) => (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    onClick={() => setSidebarOpen(false)}
-                                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all group ${
-                                        isActive(item.path)
-                                            ? 'bg-primary/10 text-primary font-medium'
-                                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                                    }`}
-                                >
-                                    <span>{item.label}</span>
-                                    {isActive(item.path) && (
-                                        <ChevronRight className="h-3.5 w-3.5 text-primary/60" />
-                                    )}
-                                </Link>
-                            ))}
+    return (
+        <div className="min-h-screen bg-background flex">
+            {/* ─── Desktop Sidebar ─── */}
+            <aside
+                className={`hidden md:flex flex-col fixed top-0 left-0 h-screen z-50 border-r border-border/50 bg-card transition-all duration-300 ${
+                    collapsed ? 'w-16' : 'w-64'
+                }`}
+            >
+                {/* Logo */}
+                <div className="flex items-center justify-between h-14 px-3 border-b border-border/50 shrink-0">
+                    <Link to={homePath} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity overflow-hidden">
+                        <div className="w-8 h-8 rounded-md nc-gradient flex items-center justify-center shrink-0">
+                            <Sparkles className="h-4 w-4 text-deep-space" />
                         </div>
-                    </div>
-                ))}
-            </nav>
-
-            {/* User + Logout */}
-            {user && (
-                <div className="px-3 py-3 border-t border-border/50 flex-shrink-0">
-                    <div className="flex items-center gap-2.5 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-solar/15 flex items-center justify-center flex-shrink-0">
-                            <span className="text-solar text-xs font-bold">
-                                {user.name?.charAt(0)?.toUpperCase()}
+                        {!collapsed && (
+                            <span className="text-lg font-display font-bold nc-gradient-text select-none whitespace-nowrap">
+                                Next Control
                             </span>
+                        )}
+                    </Link>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => setCollapsed(v => !v)}
+                    >
+                        {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                    </Button>
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+                    {navItems.map((item) => {
+                        const isActive = location.pathname === item.path;
+                        const Icon = item.icon;
+                        return (
+                            <Link
+                                key={item.path + item.label}
+                                to={item.path}
+                                title={collapsed ? item.label : undefined}
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                                    isActive
+                                        ? 'bg-solar/15 text-solar'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                }`}
+                            >
+                                <Icon
+                                    className={`h-[18px] w-[18px] shrink-0 transition-colors ${
+                                        isActive ? 'text-solar' : 'text-muted-foreground group-hover:text-foreground'
+                                    }`}
+                                    strokeWidth={isActive ? 2.5 : 2}
+                                />
+                                {!collapsed && (
+                                    <span className="whitespace-nowrap">{item.label}</span>
+                                )}
+                                {isActive && !collapsed && (
+                                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-solar" />
+                                )}
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                {/* User info + Logout */}
+                <div className="border-t border-border/50 p-3 shrink-0 space-y-2">
+                    {user && !collapsed && (
+                        <div className="flex items-center gap-2 px-1">
+                            <div className="w-8 h-8 rounded-full bg-solar/10 flex items-center justify-center text-solar font-bold text-xs shrink-0">
+                                {user.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="overflow-hidden">
+                                <p className="text-sm font-medium truncate">{user.name}</p>
+                                <Badge
+                                    variant="outline"
+                                    className="bg-solar/15 text-solar border-solar/30 text-[10px] uppercase tracking-wider"
+                                >
+                                    {ROLE_LABELS[user.role] || user.role}
+                                </Badge>
+                            </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{user.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    )}
+                    {user && collapsed && (
+                        <div className="flex justify-center">
+                            <div className="w-8 h-8 rounded-full bg-solar/10 flex items-center justify-center text-solar font-bold text-xs">
+                                {user.name.charAt(0).toUpperCase()}
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <Badge
-                            variant="outline"
-                            className={`text-xs uppercase tracking-wider ${ROLE_COLORS[user.role] || ''}`}
-                        >
-                            {ROLE_LABELS[user.role] || user.role}
-                        </Badge>
-                        <div className="flex items-center gap-1">
-                            <ThemeToggle />
+                    )}
+                    <Button
+                        variant="ghost"
+                        size={collapsed ? 'icon' : 'sm'}
+                        onClick={logout}
+                        className={`text-muted-foreground hover:text-destructive ${
+                            collapsed ? 'w-full justify-center' : 'w-full justify-start'
+                        }`}
+                        title="Sair"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        {!collapsed && <span className="ml-2">Sair</span>}
+                    </Button>
+                </div>
+            </aside>
+
+            {/* ─── Main Content ─── */}
+            <main
+                className={`flex-1 min-h-screen transition-all duration-300 pb-20 md:pb-6 ${
+                    collapsed ? 'md:ml-16' : 'md:ml-64'
+                }`}
+            >
+                {/* Mobile top bar (simplified — just logo + user) */}
+                <header className="md:hidden sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">
+                    <div className="flex items-center justify-between h-14 px-4">
+                        <Link to={homePath} className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-md nc-gradient flex items-center justify-center">
+                                <Sparkles className="h-3.5 w-3.5 text-deep-space" />
+                            </div>
+                            <span className="text-lg font-display font-bold nc-gradient-text select-none">
+                                Next Control
+                            </span>
+                        </Link>
+                        <div className="flex items-center gap-2">
+                            {user && (
+                                <Badge
+                                    variant="outline"
+                                    className="bg-solar/15 text-solar border-solar/30 text-xs uppercase tracking-wider"
+                                >
+                                    {ROLE_LABELS[user.role] || user.role}
+                                </Badge>
+                            )}
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={logout}
-                                className="text-muted-foreground hover:text-destructive h-7 px-2 text-xs"
+                                className="text-muted-foreground hover:text-destructive"
                             >
-                                <LogOut className="h-3.5 w-3.5 mr-1" />
-                                Sair
+                                <LogOut className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
-    );
-
-    return (
-        <div className="min-h-screen bg-background flex">
-            {/* Desktop Sidebar */}
-            <aside className="hidden md:flex flex-col w-56 lg:w-60 border-r border-border/50 bg-card/50 flex-shrink-0 sticky top-0 h-screen">
-                <SidebarContent />
-            </aside>
-
-            {/* Mobile Overlay Sidebar */}
-            {sidebarOpen && (
-                <div className="md:hidden fixed inset-0 z-50 flex">
-                    <div
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                        onClick={() => setSidebarOpen(false)}
-                    />
-                    <aside className="relative w-64 h-full bg-background border-r border-border/50 flex flex-col z-10">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-3 right-3 h-8 w-8"
-                            onClick={() => setSidebarOpen(false)}
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
-                        <SidebarContent />
-                    </aside>
-                </div>
-            )}
-
-            {/* Main content */}
-            <div className="flex-1 flex flex-col min-w-0">
-                {/* Mobile top bar */}
-                <header className="md:hidden sticky top-0 z-40 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">
-                    <div className="flex items-center justify-between h-14 px-4">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={() => setSidebarOpen(true)}
-                        >
-                            <Menu className="h-5 w-5" />
-                        </Button>
-                        <Link to={homePath} className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-md nc-gradient flex items-center justify-center">
-                                <Sparkles className="h-3 w-3 text-deep-space" />
-                            </div>
-                            <span className="font-display font-bold nc-gradient-text text-base">Next Control</span>
-                        </Link>
-                        {user && (
-                            <Badge
-                                variant="outline"
-                                className={`text-xs uppercase tracking-wider ${ROLE_COLORS[user.role] || ''}`}
-                            >
-                                {ROLE_LABELS[user.role] || user.role}
-                            </Badge>
-                        )}
-                    </div>
                 </header>
 
-                {/* Page content */}
-                <main className="flex-1 p-4 sm:p-6 pb-20 md:pb-6 overflow-auto">
+                <div className="p-4 sm:p-6">
                     <PageTransition>{children}</PageTransition>
-                </main>
-            </div>
+                </div>
+            </main>
 
-            {/* Mobile Bottom Navigation */}
+            {/* ─── Mobile Bottom Nav ─── */}
             {navLinks.length > 0 && <MobileBottomNav navLinks={navLinks} />}
+
+            {/* ─── Global overlays ─── */}
+            <AppNavigator />
+            <OnboardingWizard />
         </div>
     );
 }
