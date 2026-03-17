@@ -10,7 +10,7 @@ const roleRoutes: Record<string, string> = {
     admin: '/admin',
     seller: '/seller',
     closer: '/closer',
-    client: '/client',
+    client: '/agent',
     cs: '/cs',
 };
 

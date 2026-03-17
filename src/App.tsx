@@ -26,6 +26,7 @@ import IntelligenceHub from "@/pages/admin/IntelligenceHub";
 import CallsPipeline from "@/pages/admin/CallsPipeline";
 import BetaManagement from "@/pages/admin/BetaManagement";
 import WeeklyReportPage from "@/pages/client/WeeklyReportPage";
+import AgentPage from "@/pages/client/AgentPage";
 
 // Public Form Pages (no auth)
 import ExpertForm from "@/pages/forms/ExpertForm";
@@ -176,6 +177,18 @@ const App = () => (
                 <RoleGuard allowedRoles={['admin']}>
                   <DashboardLayout>
                     <BetaManagement />
+                  </DashboardLayout>
+                </RoleGuard>
+              }
+            />
+
+            {/* Agent Route — client's primary page */}
+            <Route
+              path="/agent"
+              element={
+                <RoleGuard allowedRoles={['client', 'admin']}>
+                  <DashboardLayout>
+                    <AgentPage />
                   </DashboardLayout>
                 </RoleGuard>
               }

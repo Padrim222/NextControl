@@ -262,9 +262,9 @@ export default function ClientDashboard() {
                                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 mb-3 group-hover:scale-105 transition-transform">
                                     <Brain className="h-6 w-6 text-blue-500" />
                                 </div>
-                                <h3 className="font-semibold mb-1">Consultoria de Bolso</h3>
+                                <h3 className="font-semibold mb-1">Materiais Consultoria</h3>
                                 <p className="text-sm text-muted-foreground">
-                                    Tire dúvidas estratégicas com IA enquanto seu projeto é configurado
+                                    Fale com seu consultor enquanto seu projeto é configurado
                                 </p>
                             </CardContent>
                         </Card>
@@ -328,8 +328,8 @@ export default function ClientDashboard() {
                                 <Brain className="h-6 w-6 text-blue-500" />
                             </div>
                             <div>
-                                <h3 className="font-semibold">Consultoria de Bolso</h3>
-                                <p className="text-sm text-muted-foreground">Tire dúvidas estratégicas com IA</p>
+                                <h3 className="font-semibold">Materiais Consultoria</h3>
+                                <p className="text-sm text-muted-foreground">Fale com seu consultor</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -523,7 +523,7 @@ export default function ClientDashboard() {
                                     Calls Analisadas
                                 </CardTitle>
                                 <CardDescription>
-                                    Calls de vendas aprovadas pela equipe com análise IA
+                                    Calls de vendas aprovadas pela equipe com análise especializada
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>

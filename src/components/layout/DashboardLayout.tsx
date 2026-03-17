@@ -29,7 +29,7 @@ const ROLE_HOME: Record<UserRole, string> = {
     admin: '/admin',
     seller: '/seller',
     closer: '/closer',
-    client: '/client',
+    client: '/agent',
     cs: '/cs',
 };
 
@@ -124,17 +124,9 @@ const NAV_GROUPS: Record<string, NavGroup[]> = {
     ],
     client: [
         {
-            label: 'FAZER',
+            label: 'CONSULTORIA',
             items: [
-                { label: 'Meu Projeto', path: '/client' },
-                { label: 'Preencher Briefing', path: '/client/onboarding' },
-            ],
-        },
-        {
-            label: 'SUPORTE',
-            items: [
-                { label: 'Consultoria IA', path: '/training/coach' },
-                { label: 'Materiais', path: '/training' },
+                { label: '💬 Consultoria', path: '/agent' },
             ],
         },
     ],
@@ -166,10 +158,7 @@ const NAV_LINKS: Record<string, { label: string; path: string }[]> = {
         { label: 'Treinamento', path: '/training' },
     ],
     client: [
-        { label: 'Dashboard', path: '/client' },
-        { label: 'Briefing', path: '/client/onboarding' },
-        { label: 'Coach', path: '/training/coach' },
-        { label: 'Materiais', path: '/training' },
+        { label: 'Consultoria', path: '/agent' },
     ],
 };
 
