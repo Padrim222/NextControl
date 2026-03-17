@@ -20,12 +20,20 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
   },
+  build: {
+    rollupOptions: {
+      external: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
+    },
+  },
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'robots.txt'],
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
+      },
       manifest: {
         name: 'Next Control — Consultoria de Bolso',
         short_name: 'Next Control',
