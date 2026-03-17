@@ -178,7 +178,7 @@ export default function AgentPage() {
         body: {
           message: text,
           agent_type: mode,
-          channel: 'whatsapp',
+          channel: 'web',
           client_id: user?.client_id ?? null,
           conversation_id: conversationId,
         },

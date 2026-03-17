@@ -132,9 +132,9 @@ async function researchPhase(
                 if (!rpcErr && chunks && chunks.length > 0) {
                     // Sort by similarity desc, take top 5
                     const sorted = [...chunks].sort((a: any, b: any) => b.similarity - a.similarity)
-                    ragChunks = sorted.slice(0, 5).map((c: any) => ({
+                    ragChunks = sorted.slice(0, 4).map((c: any) => ({
                         title: c.title as string,
-                        content: (c.content as string).slice(0, 900),
+                        content: (c.content as string).slice(0, 3500),
                         similarity: Math.round((c.similarity as number) * 100) / 100,
                     }))
                 }
@@ -165,7 +165,7 @@ async function researchPhase(
         if (fallback) {
             ragChunks = fallback.map((c: any) => ({
                 title: c.title as string,
-                content: (c.content as string).slice(0, 900),
+                content: (c.content as string).slice(0, 3500),
                 similarity: 0.5,
             }))
         }
