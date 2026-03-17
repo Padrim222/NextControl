@@ -144,20 +144,20 @@ async function researchPhase(
         }
     }
 
-    // Fallback to ILIKE if no embeddings configured or no results
+    // Fallback: return all active docs for this agent_type + client (no embedding needed)
     if (ragChunks.length === 0) {
-        const snippet = query.slice(0, 60)
         let q = (supabase as any)
             .from('rag_documents')
             .select('id, title, content, agent_type')
             .eq('is_active', true)
-            .or(`title.ilike.%${snippet}%,content.ilike.%${snippet}%`)
-            .limit(5)
+            .order('created_at', { ascending: false })
+            .limit(4)
 
         if (agentType !== 'geral') {
             q = q.in('agent_type', [agentType, 'geral'])
         }
         if (clientId) {
+            // prefer client-specific docs; also include global docs
             q = q.or(`client_id.eq.${clientId},client_id.is.null`)
         }
 
