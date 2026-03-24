@@ -12,9 +12,7 @@
  * The user's machine does the heavy lifting, and we only receive the small audio.
  */
 
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
-
+// Dynamic imports — @ffmpeg is externalized in vite config, load only when needed
 type ProgressCallback = (progress: number, message: string) => void;
 
 interface ExtractionResult {
@@ -25,13 +23,16 @@ interface ExtractionResult {
     compressedSizeMB: number;
 }
 
-let ffmpegInstance: FFmpeg | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let ffmpegInstance: any = null;
 
-async function getFFmpeg(onProgress?: ProgressCallback): Promise<FFmpeg> {
+async function getFFmpeg(onProgress?: ProgressCallback): Promise<any> {
     if (ffmpegInstance) return ffmpegInstance;
 
     onProgress?.(5, 'Carregando motor de conversão...');
 
+    const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+    const { toBlobURL } = await import('@ffmpeg/util');
     const ffmpeg = new FFmpeg();
 
     // Load single-thread core from CDN (no SharedArrayBuffer needed)
@@ -90,6 +91,7 @@ export async function extractAudioFromVideo(
     // Step 2: Write video to virtual filesystem
     onProgress?.(20, `Lendo vídeo (${originalSizeMB.toFixed(0)}MB)...`);
     const inputName = 'input' + getExtension(videoFile.name);
+    const { fetchFile } = await import('@ffmpeg/util');
     await ffmpeg.writeFile(inputName, await fetchFile(videoFile));
 
     // Step 3: Set up progress monitoring

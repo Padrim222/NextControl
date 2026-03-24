@@ -326,7 +326,7 @@ export default function IntelligenceHub() {
                                     <FileText className="h-8 w-8 text-amber-500" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium truncate">{file?.name}</p>
-                                        <p className="text-xs text-muted-foreground">{(file?.size! / 1024 / 1024).toFixed(2)} MB</p>
+                                        <p className="text-xs text-muted-foreground">{((file?.size ?? 0) / 1024 / 1024).toFixed(2)} MB</p>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
@@ -364,7 +364,7 @@ export default function IntelligenceHub() {
                         ) : (
                             <div className="space-y-3">
                                 {materials.map((m) => {
-                                    const filename = m.file_url.split('/').pop();
+                                    const filename = m.file_url?.split('/').pop() ?? 'arquivo';
                                     return (
                                         <div key={m.id} className="flex items-center justify-between p-3 rounded-md border bg-card hover:bg-muted/50 transition-colors">
                                             <div className="flex items-center gap-3 overflow-hidden">

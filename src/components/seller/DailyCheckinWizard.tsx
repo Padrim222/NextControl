@@ -250,7 +250,7 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
         setIsSubmitting(true);
 
         try {
-            let printUrls: string[] = [];
+            const printUrls: string[] = [];
             let callUrl: string | null = null;
 
             // 1. Upload Print (single)
@@ -516,22 +516,20 @@ export default function DailyCheckinWizard({ sellerType, onSuccess }: DailyCheck
                                     ))}
 
                                     {/* Objections (Seller and Closer) */}
-                                    {true && (
-                                        <div className="space-y-2 mt-4">
-                                            <div className="flex items-center justify-between">
-                                                <Label>Principais Objeções</Label>
-                                                <InstructionBalloon title="Objeções" side="left">
-                                                    Liste os motivos de "Não" mais comuns hoje. A IA vai usar isso para sugerir contornos.
-                                                </InstructionBalloon>
-                                            </div>
-                                            <Textarea
-                                                value={objectionsText}
-                                                onChange={e => setObjectionsText(e.target.value)}
-                                                placeholder="Liste as principais objeções (uma por linha)"
-                                                rows={4}
-                                            />
+                                    <div className="space-y-2 mt-4">
+                                        <div className="flex items-center justify-between">
+                                            <Label>Principais Objeções</Label>
+                                            <InstructionBalloon title="Objeções" side="left">
+                                                Liste os motivos de "Não" mais comuns hoje. A IA vai usar isso para sugerir contornos.
+                                            </InstructionBalloon>
                                         </div>
-                                    )}
+                                        <Textarea
+                                            value={objectionsText}
+                                            onChange={e => setObjectionsText(e.target.value)}
+                                            placeholder="Liste as principais objeções (uma por linha)"
+                                            rows={4}
+                                        />
+                                    </div>
                                 </div>
                             )}
 

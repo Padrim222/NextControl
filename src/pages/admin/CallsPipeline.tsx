@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +29,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { VideoUploader } from '@/components/calls/VideoUploader';
+const VideoUploader = lazy(() =>
+    import('@/components/calls/VideoUploader').then(m => ({ default: m.VideoUploader }))
+);
 
 interface CallUpload {
     id: string;
@@ -312,6 +314,7 @@ export default function CallsPipeline() {
 
                 {/* Video Uploader */}
                 {showUploader && (
+                  <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Carregando uploader...</div>}>
                     <VideoUploader
                         disabled={isUploading}
                         onAudioReady={async (audioFile, meta) => {
@@ -396,6 +399,7 @@ export default function CallsPipeline() {
                         }}
 
                     />
+                  </Suspense>
                 )}
 
                 {/* Pipeline Status Cards */}
