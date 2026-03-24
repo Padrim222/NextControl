@@ -44,10 +44,8 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
         { icon: LayoutDashboard, label: 'Dashboard', desc: 'Visão geral', path: '/closer' },
     ],
     client: [
-        { icon: LayoutDashboard, label: 'Meu Plano', desc: 'Status do projeto', path: '/client' },
-        { icon: BookOpen, label: 'Conteúdos IA', desc: 'Materiais gerados', path: '/training' },
-        { icon: Phone, label: 'Calls', desc: 'Análises de chamadas', path: '/training/coach' },
-        { icon: BarChart3, label: 'Relatórios', desc: 'Relatórios semanais', path: '/seller/evolution' },
+        { icon: MessageSquare, label: 'Consultoria', desc: 'Falar com o agente IA', path: '/agent' },
+        { icon: LayoutDashboard, label: 'Onboarding', desc: 'Completar briefing do negócio', path: '/client/onboarding' },
     ],
     team_member: [
         { icon: MessageSquare, label: 'Consultoria de Bolso', desc: 'Perguntar ao Agente SS', path: '/training/coach' },
@@ -58,7 +56,7 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
     admin: [
         { icon: LayoutDashboard, label: 'Dashboard', desc: 'Painel administrativo', path: '/admin' },
         { icon: Users, label: 'Clientes', desc: 'Gerenciar clientes', path: '/admin/manage' },
-        { icon: Phone, label: 'Pipeline de Calls', desc: 'Análise de chamadas', path: '/training/coach' },
+        { icon: Phone, label: 'Pipeline de Calls', desc: 'Análise de chamadas', path: '/admin/calls-pipeline' },
         { icon: Database, label: 'Base RAG', desc: 'Gerenciar base de conhecimento', path: '/admin/rag' },
     ],
     cs: [

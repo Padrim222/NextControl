@@ -1,5 +1,4 @@
-import html2canvas from 'html2canvas-pro';
-import { jsPDF } from 'jspdf';
+// Dynamic imports — keeps jsPDF + html2canvas out of the initial bundle (~350 KB saved)
 
 /**
  * Renders HTML string into a hidden iframe, captures it as canvas, and generates a downloadable PDF.
@@ -19,6 +18,11 @@ export async function downloadReportAsPDF(htmlContent: string, filename: string 
     try {
         // Wait for rendering
         await new Promise(resolve => setTimeout(resolve, 300));
+
+        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+            import('html2canvas-pro'),
+            import('jspdf'),
+        ]);
 
         const canvas = await html2canvas(container, {
             scale: 2,

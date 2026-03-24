@@ -24,7 +24,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   '/admin': LayoutDashboard,
   '/admin/manage': Users,
   '/admin/rag': Database,
-  '/client': LayoutDashboard,
+  '/agent': MessageSquare,
   '/cs': Inbox,
 };
 

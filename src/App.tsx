@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,33 +8,36 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { RoleGuard } from "@/components/layout/RoleGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
-// Pages
+// Eager — always needed on first load
 import LandingPage from "@/pages/LandingPage";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
-import SellerDashboard from "@/pages/seller/SellerDashboard";
-import DailyReport from "@/pages/seller/DailyReport";
-import WeeklyEvolution from "@/pages/seller/WeeklyEvolution";
-import CloserDashboard from "@/pages/closer/CloserDashboard";
-import CallAnalysis from "@/pages/closer/CallAnalysis";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminManage from "@/pages/admin/AdminManage";
-import ClientDashboard from "@/pages/client/ClientDashboard";
-import CSInbox from "@/pages/cs/CSInbox";
-import TrainingHub from "@/pages/training/TrainingHub";
-import CoachChat from "@/pages/training/CoachChat";
-import RagManager from "@/pages/admin/RagManager";
-import IntelligenceHub from "@/pages/admin/IntelligenceHub";
-import CallsPipeline from "@/pages/admin/CallsPipeline";
-import BetaManagement from "@/pages/admin/BetaManagement";
-import AgentPage from "@/pages/client/AgentPage";
-import OnboardingForm from "@/pages/client/OnboardingForm";
+import NotFound from "@/pages/NotFound";
+
+// Lazy — loaded only when the route is visited
+const SellerDashboard  = lazy(() => import("@/pages/seller/SellerDashboard"));
+const DailyReport      = lazy(() => import("@/pages/seller/DailyReport"));
+const WeeklyEvolution  = lazy(() => import("@/pages/seller/WeeklyEvolution"));
+const CloserDashboard  = lazy(() => import("@/pages/closer/CloserDashboard"));
+const CallAnalysis     = lazy(() => import("@/pages/closer/CallAnalysis"));
+const AdminDashboard   = lazy(() => import("@/pages/admin/AdminDashboard"));
+const AdminManage      = lazy(() => import("@/pages/admin/AdminManage"));
+const RagManager       = lazy(() => import("@/pages/admin/RagManager"));
+const IntelligenceHub  = lazy(() => import("@/pages/admin/IntelligenceHub"));
+const CallsPipeline    = lazy(() => import("@/pages/admin/CallsPipeline"));
+const BetaManagement   = lazy(() => import("@/pages/admin/BetaManagement"));
+const ClientDashboard  = lazy(() => import("@/pages/client/ClientDashboard"));
+const AgentPage        = lazy(() => import("@/pages/client/AgentPage"));
+const OnboardingForm   = lazy(() => import("@/pages/client/OnboardingForm"));
+const CSInbox          = lazy(() => import("@/pages/cs/CSInbox"));
+const TrainingHub      = lazy(() => import("@/pages/training/TrainingHub"));
+const CoachChat        = lazy(() => import("@/pages/training/CoachChat"));
 
 // Public Form Pages (no auth)
-import ExpertForm from "@/pages/forms/ExpertForm";
-import SellerForm from "@/pages/forms/SellerForm";
-import CloserForm from "@/pages/forms/CloserForm";
-import FormSuccess from "@/pages/forms/FormSuccess";
+const ExpertForm  = lazy(() => import("@/pages/forms/ExpertForm"));
+const SellerForm  = lazy(() => import("@/pages/forms/SellerForm"));
+const CloserForm  = lazy(() => import("@/pages/forms/CloserForm"));
+const FormSuccess = lazy(() => import("@/pages/forms/FormSuccess"));
 
 const queryClient = new QueryClient();
 
@@ -44,6 +48,7 @@ const App = () => (
       <Toaster />
       <BrowserRouter>
         <AuthProvider>
+          <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-solar" /></div>}>
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<LandingPage />} />
@@ -257,8 +262,9 @@ const App = () => (
             />
 
             {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

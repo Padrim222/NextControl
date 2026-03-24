@@ -11,6 +11,15 @@ Deno.serve(async (req) => {
     }
 
     try {
+        // Auth check — only authenticated users can trigger transcription
+        const authHeader = req.headers.get('Authorization')
+        if (!authHeader) {
+            return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 401,
+            })
+        }
+
         const contentType = req.headers.get("content-type") || ""
 
         if (!contentType.includes("multipart/form-data")) {

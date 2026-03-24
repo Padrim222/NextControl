@@ -90,18 +90,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.replace('/');
   };
 
-  const register = async (email: string, password: string, name: string, role: UserRole): Promise<boolean> => {
+  const register = async (email: string, password: string, name: string, _role: UserRole): Promise<boolean> => {
     if (!supabase) { toast.error('Supabase não conectado'); return false; }
     setIsLoading(true);
+    // Role is always 'client' on self-registration — never trust the caller.
+    // Privileged roles (admin, seller, closer, cs) are created only via /admin/manage.
+    const safeRole: UserRole = 'client';
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email, password, options: { data: { name, role } }
+      email, password, options: { data: { name, role: safeRole } }
     });
     if (authError || !authData.user) {
       toast.error(`Erro no cadastro: ${authError?.message}`);
       setIsLoading(false);
       return false;
     }
-    await supabase.from('users').upsert([{ id: authData.user.id, email, name, role }], { onConflict: 'id' });
+    await supabase.from('users').upsert([{ id: authData.user.id, email, name, role: safeRole }], { onConflict: 'id' });
     toast.success('Conta criada com sucesso!');
     setIsLoading(false);
     return true;

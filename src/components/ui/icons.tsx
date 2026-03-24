@@ -61,6 +61,7 @@ export {
   ArrowDownRight,
   BarChart2,
   BarChart3,
+  Building2,
   Camera,
   ClipboardCheck,
   ClipboardCopy,

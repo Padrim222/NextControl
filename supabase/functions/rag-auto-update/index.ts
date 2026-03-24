@@ -12,6 +12,18 @@ Deno.serve(async (req) => {
     }
 
     try {
+        // Auth check — only service-role or admin callers allowed (background/cron function)
+        const authHeader = req.headers.get('Authorization')
+        const cronSecret = Deno.env.get('CRON_SECRET')
+        const isServiceCall = authHeader === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+        const isCronCall = cronSecret && authHeader === `Bearer ${cronSecret}`
+        if (!isServiceCall && !isCronCall) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 401,
+            })
+        }
+
         const supabase = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
