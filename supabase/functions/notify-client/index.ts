@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
                     <p><strong>Data:</strong> ${new Date(submission.submission_date).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <p>Acesse o app para ver os detalhes e planos de ação:</p>
-                <a href="https://nextbase360.com/client" style="display: inline-block; background-color: #E6B84D; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Ver Análise Completa</a>
+                <a href="https://nextcontrol.app/client" style="display: inline-block; background-color: #E6B84D; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Ver Análise Completa</a>
             </div>
         </div>
         `
@@ -89,7 +89,8 @@ Deno.serve(async (req) => {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            from: 'Treinador <onboarding@resend.dev>', // Update this for production
+                            // TODO: verificar domínio nextcontrol.app no painel Resend antes do deploy
+                            from: 'Treinador <noreply@nextcontrol.app>',
                             to: clientUser.email,
                             subject,
                             html

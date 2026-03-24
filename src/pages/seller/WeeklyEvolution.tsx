@@ -34,7 +34,13 @@ interface WeekData {
     topImprovements: string[];
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipProps {
+    active?: boolean;
+    payload?: { value: number }[];
+    label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload?.length) {
         return (
             <div
@@ -69,7 +75,7 @@ export default function WeeklyEvolution() {
             const eightWeeksAgo = new Date();
             eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
 
-            const { data: submissions } = await (supabase as any)
+            const { data: submissions } = await supabase
                 .from('daily_submissions')
                 .select('id, submission_date')
                 .eq('seller_id', user.id)
@@ -78,8 +84,8 @@ export default function WeeklyEvolution() {
 
             if (!submissions?.length) { setIsLoading(false); return; }
 
-            const subIds = submissions.map((s: any) => s.id);
-            const { data: analyses } = await (supabase as any)
+            const subIds = submissions.map((s) => s.id);
+            const { data: analyses } = await supabase
                 .from('analyses')
                 .select('submission_id, score, strengths, improvements, created_at')
                 .in('submission_id', subIds)
@@ -87,7 +93,7 @@ export default function WeeklyEvolution() {
 
             const weekMap = new Map<string, { scores: number[]; strengths: string[]; improvements: string[]; count: number }>();
 
-            submissions.forEach((sub: any) => {
+            submissions.forEach((sub) => {
                 const date = new Date(sub.submission_date);
                 const weekStart = new Date(date);
                 weekStart.setDate(date.getDate() - date.getDay());
@@ -99,7 +105,7 @@ export default function WeeklyEvolution() {
                 const week = weekMap.get(weekKey)!;
                 week.count++;
 
-                const analysis = analyses?.find((a: any) => a.submission_id === sub.id);
+                const analysis = analyses?.find((a) => a.submission_id === sub.id);
                 if (analysis) {
                     if (analysis.score) week.scores.push(analysis.score);
                     if (analysis.strengths) week.strengths.push(...analysis.strengths);

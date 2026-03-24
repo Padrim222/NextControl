@@ -6,11 +6,9 @@ import { UserRole } from '@/types';
 import { motion } from 'framer-motion';
 import { Zap, ArrowRight, User, Mail, Lock, Briefcase } from '@/components/ui/icons';
 
+// Roles de equipe são criadas apenas pelo admin em /admin/manage
 const ROLES: { value: UserRole; label: string }[] = [
     { value: 'client', label: 'Cliente' },
-    { value: 'seller', label: 'Seller (Vendedor)' },
-    { value: 'closer', label: 'Closer (Fechador)' },
-    { value: 'cs', label: 'CS de Vendas' },
 ];
 
 const inputStyle: React.CSSProperties = {

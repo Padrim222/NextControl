@@ -78,7 +78,7 @@ export function AgentSuggestionsPanel() {
     const fetchSuggestions = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase!
                 .from('agent_suggestions')
                 .select('*, client:clients(name)')
                 .eq('status', 'pending')
@@ -98,7 +98,7 @@ export function AgentSuggestionsPanel() {
         setProcessing(suggestion.id);
         try {
             // 1. Ingest into RAG
-            const { error: ragError } = await (supabase as any).functions.invoke('rag-ingest', {
+            const { error: ragError } = await supabase!.functions.invoke('rag-ingest', {
                 body: {
                     title: suggestion.title,
                     content: suggestion.suggestion_text,
@@ -110,7 +110,7 @@ export function AgentSuggestionsPanel() {
             if (ragError) throw ragError;
 
             // 2. Update suggestion status
-            const { error: updateError } = await (supabase as any)
+            const { error: updateError } = await supabase!
                 .from('agent_suggestions')
                 .update({
                     status: 'approved',
@@ -133,7 +133,7 @@ export function AgentSuggestionsPanel() {
     const handleReject = async (suggestion: AgentSuggestion) => {
         setProcessing(suggestion.id);
         try {
-            const { error } = await (supabase as any)
+            const { error } = await supabase!
                 .from('agent_suggestions')
                 .update({
                     status: 'rejected',

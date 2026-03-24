@@ -140,7 +140,7 @@ ${transcription}`
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': 'https://nextbase360.com',
+                'HTTP-Referer': 'https://nextcontrol.app',
                 'X-Title': 'Call Analysis - Next Control',
             },
             body: JSON.stringify({
@@ -196,7 +196,11 @@ ${transcription}`
                 score_comunicacao: evaluation.score_comunicacao || 0,
                 score_geral: evaluation.score_geral || 0,
                 pontos_fortes: evaluation.pontos_fortes || [],
+                gaps_criticos: evaluation.gaps_criticos || [],
+                acoes_recomendadas: evaluation.acoes_recomendadas || [],
                 melhorias: evaluation.melhorias || [],
+                insights_convertidas: evaluation.insights_convertidas || [],
+                insights_perdidas: evaluation.insights_perdidas || [],
                 resultado: evaluation.resultado || 'perdeu',
                 feedback_detalhado: evaluation.feedback_detalhado || '',
                 nivel: evaluation.nivel || 'Iniciante',

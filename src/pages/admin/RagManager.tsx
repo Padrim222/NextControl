@@ -69,7 +69,7 @@ export default function RagManager() {
     }, []);
 
     async function fetchClients() {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('clients')
             .select('id, name')
             .order('name', { ascending: true });
@@ -81,7 +81,7 @@ export default function RagManager() {
 
     async function fetchDocuments() {
         setLoading(true);
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('rag_documents')
             .select('id, title, content, category, agent_type, is_active, created_at')
             .order('created_at', { ascending: false });
@@ -119,8 +119,9 @@ export default function RagManager() {
             setNewDoc({ title: '', content: '', category: '', agent_type: 'geral', client_id: '' });
             setShowForm(false);
             fetchDocuments();
-        } catch (error: any) {
-            toast.error(error.message || 'Erro ao adicionar documento');
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Erro ao adicionar documento';
+            toast.error(message);
         }
         setIngesting(false);
     }
@@ -144,14 +145,15 @@ export default function RagManager() {
             if (!response.data?.results?.length) {
                 toast.info('Nenhum resultado encontrado');
             }
-        } catch (error: any) {
-            toast.error(error.message || 'Erro na busca');
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Erro na busca';
+            toast.error(message);
         }
         setSearching(false);
     }
 
     async function handleDelete(id: string) {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('rag_documents')
             .delete()
             .eq('id', id);

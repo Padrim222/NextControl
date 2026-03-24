@@ -37,7 +37,7 @@ export function FormPendingBanner({ formType }: FormPendingBannerProps) {
             } else {
                 dateFilter = now.toISOString().split('T')[0];
             }
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('form_submissions')
                 .select('id')
                 .eq('form_type', formType)

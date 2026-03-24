@@ -60,14 +60,7 @@ Deno.serve(async (req) => {
 
             const data = await response.json()
             transcriptionText = data.text
-        } else if (openRouterKey) {
-            // Fallback: convert audio to base64 and use OpenRouter chat model to "transcribe"
-            // This is a workaround — real transcription needs Groq or OpenAI Whisper
-            const arrayBuffer = await audioFile.arrayBuffer()
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-
-            // Since OpenRouter doesn't have a direct whisper endpoint,
-            // we'll inform the user that GROQ_API_KEY is needed for transcription
+        } else {
             throw new Error("Transcrição de áudio requer GROQ_API_KEY. Configure nos secrets do Supabase (Dashboard > Edge Functions > Secrets).")
         }
 

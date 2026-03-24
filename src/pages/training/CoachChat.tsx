@@ -201,7 +201,7 @@ export default function CoachChat() {
     const loadHistory = async () => {
         if (!supabase || !user) return;
         try {
-            const { data } = await (supabase as any)
+            const { data } = await supabase
                 .from('coach_interactions')
                 .select('*')
                 .eq('seller_id', user.id)
@@ -256,7 +256,7 @@ export default function CoachChat() {
                 .filter(m => m.id !== 'welcome')
                 .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
 
-            const { data, error: fnError } = await (supabase as any).functions.invoke('coach-chat', {
+            const { data, error: fnError } = await supabase.functions.invoke('coach-chat', {
                 body: {
                     seller_id: user.id,
                     message: text.trim(),

@@ -37,7 +37,7 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
             let ragContext = '';
             const { data: clientObj } = await supabase.from('clients').select('id').eq('name', clientName).single();
             if (clientObj) {
-                const { data: materials } = await (supabase as any)
+                const { data: materials } = await supabase
                     .from('client_materials')
                     .select('title, description')
                     .eq('client_id', clientObj.id)
@@ -45,13 +45,13 @@ export function StrategistPanel({ clientName, briefing, onStrategySent }: Strate
 
                 if (materials && materials.length > 0) {
                     ragContext = "\n\n=== CONTEXTO DA BASE RAG DO CLIENTE ===\n" +
-                        materials.map((m: any) => `* MATERIAL: ${m.title}\n* CONTEÚDO/RESUMO: ${m.description || 'Sem descrição detalhada'}`).join('\n\n') +
+                        materials.map((m) => `* MATERIAL: ${m.title}\n* CONTEÚDO/RESUMO: ${m.description || 'Sem descrição detalhada'}`).join('\n\n') +
                         "\n=======================================\n\nUse estritamente as informações do contexto acima para embasar sua resposta.";
                 }
             }
 
             // Call coach-chat edge function with strategist context
-            const { data, error: fnError } = await (supabase as any).functions.invoke('coach-chat', {
+            const { data, error: fnError } = await supabase.functions.invoke('coach-chat', {
                 body: {
                     message: `[MODO ESTRATEGISTA YORIK — CONSULTORIA DE ELITE]\n\nCLIENTE: ${clientName}\n\nDEMANDA DO ESTRATEGISTA:\n"${inputBriefing}"\n\n${ragContext}\n\nINSTRUÇÕES PARA YORIK:\n1. Analise a demanda comparando com as regras de negócio do RAG acima.\n2. Não responda com clichês. Seja tático e cirúrgico.\n3. Gere 2-3 "Rotas de Guerra" (caminhos estratégicos).\n\nFORMATO DE CADA ROTA:\n### [Emoji] Nome da Rota\n**Diagnóstico:** 1 frase sobre o porquê desta rota (use dados do RAG se possível).\n**Plano de Ataque:** 4 passos acionáveis passo-a-passo.\n**KPI de Sucesso:** O que monitorar para saber se funcionou.\n**Prioridade:** [Alta/Média/Baixa]\n\nResponda em Markdown. Use um tom de consultor sênior da Next Control.`,
                     conversation_history: [],

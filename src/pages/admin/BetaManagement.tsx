@@ -51,8 +51,8 @@ export default function BetaManagement() {
         setIsLoading(true);
         try {
             const [flagRes, clientRes] = await Promise.all([
-                (supabase as any).from('feature_flags').select('*').order('flag_key'),
-                (supabase as any).from('clients').select('id, name, company, is_beta').order('name'),
+                supabase.from('feature_flags').select('*').order('flag_key'),
+                supabase.from('clients').select('id, name, company, is_beta').order('name'),
             ]);
             setFlags(flagRes.data || []);
             setClients(clientRes.data || []);
@@ -64,7 +64,7 @@ export default function BetaManagement() {
     };
 
     const toggleFlag = async (flag: FeatureFlag) => {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('feature_flags')
             .update({ is_enabled: !flag.is_enabled, updated_at: new Date().toISOString() })
             .eq('id', flag.id);
@@ -78,7 +78,7 @@ export default function BetaManagement() {
     };
 
     const toggleBeta = async (client: ClientRow) => {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('clients')
             .update({ is_beta: !client.is_beta })
             .eq('id', client.id);
@@ -97,7 +97,7 @@ export default function BetaManagement() {
             ? flag.client_ids.filter(id => id !== clientId)
             : [...flag.client_ids, clientId];
 
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('feature_flags')
             .update({ client_ids: newIds, updated_at: new Date().toISOString() })
             .eq('id', flag.id);

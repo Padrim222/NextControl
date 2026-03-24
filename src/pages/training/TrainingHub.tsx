@@ -46,7 +46,7 @@ export default function TrainingHub() {
     const fetchMaterials = async () => {
         if (!supabase) return;
         try {
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('training_materials')
                 .select('*')
                 .eq('is_active', true)

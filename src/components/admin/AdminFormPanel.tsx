@@ -46,7 +46,7 @@ export function AdminFormPanel() {
         if (!supabase) return;
         setIsLoading(true);
         try {
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase!
                 .from('form_submissions')
                 .select('*')
                 .order('created_at', { ascending: false })
@@ -74,7 +74,7 @@ export function AdminFormPanel() {
     const handleAnalyzeForm = async (sub: FormSubmission) => {
         setIsAnalyzing(true);
         try {
-            const { data, error } = await (supabase as any).functions.invoke('analyze-form-submission', {
+            const { data, error } = await supabase!.functions.invoke('analyze-form-submission', {
                 body: { id: sub.id },
             });
             if (error) throw error;
@@ -298,13 +298,13 @@ export function AdminFormPanel() {
                             </div>
 
                             {/* Mostrar IA se houver */}
-                            {(selectedForm as any).data?.ai_analysis && (
+                            {(selectedForm.data as Record<string, unknown>)?.ai_analysis && (
                                 <div className="mt-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
                                     <h3 className="font-medium text-primary mb-2 flex items-center gap-2">
                                         <Sparkles className="h-4 w-4" /> Feedback da Inteligência Artificial
                                     </h3>
                                     <pre className="text-sm whitespace-pre-wrap font-sans">
-                                        {(selectedForm as any).data.ai_analysis}
+                                        {String((selectedForm.data as Record<string, unknown>).ai_analysis)}
                                     </pre>
                                 </div>
                             )}

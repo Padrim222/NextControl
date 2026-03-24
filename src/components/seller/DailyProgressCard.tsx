@@ -46,7 +46,7 @@ export function DailyProgressCard({ submissions, sellerType = 'seller' }: DailyP
 
         for (const item of monitorKeys) {
             const currentValue = Number(todayMetrics[item.key]) || 0;
-            const sum = history.reduce((acc, s) => acc + (Number((s.metrics as any)?.[item.key]) || 0), 0);
+            const sum = history.reduce((acc, s) => acc + (Number((s.metrics as Record<string, unknown>)?.[item.key]) || 0), 0);
             const avg = sum / history.length;
 
             if (avg > 1 && currentValue < avg * 0.5) { // Drop of 50%+ and has some benchmark

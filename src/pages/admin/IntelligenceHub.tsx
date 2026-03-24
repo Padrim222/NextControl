@@ -37,7 +37,7 @@ export default function IntelligenceHub() {
         fetchClients();
 
         // Inscrever no canal Realtime para acompanhar o processamento
-        const channel = (supabase as any)
+        const channel = supabase
             .channel('materials_status')
             .on(
                 'postgres_changes',
@@ -85,7 +85,7 @@ export default function IntelligenceHub() {
 
     async function fetchMaterials() {
         setLoading(true);
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('client_materials')
             .select('*')
             .order('created_at', { ascending: false });
@@ -158,7 +158,7 @@ export default function IntelligenceHub() {
             setProgressText('Salvando registro...');
 
             // 2. Criar Registro no DB com status uploading
-            const { data: materialData, error: dbError } = await (supabase as any)
+            const { data: materialData, error: dbError } = await supabase
                 .from('client_materials')
                 .insert([{
                     client_id: materialType === 'produto_cliente' && clientId !== 'none' ? clientId : null,
@@ -190,9 +190,10 @@ export default function IntelligenceHub() {
                 }
             });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Upload error:', error);
-            toast.error('Erro ao subir arquivo: ' + error.message);
+            const message = error instanceof Error ? error.message : 'Erro desconhecido';
+            toast.error('Erro ao subir arquivo: ' + message);
             setActiveProcessId(null);
         } finally {
             setUploading(false);
@@ -203,7 +204,7 @@ export default function IntelligenceHub() {
         if (!confirm('Deletar este material limpa todos os vetores da IA associados a ele. Tem certeza?')) return;
 
         // Tabela material_chunks tá vinculada via ON DELETE CASCADE
-        const { error: dbError } = await (supabase as any).from('client_materials').delete().eq('id', id);
+        const { error: dbError } = await supabase.from('client_materials').delete().eq('id', id);
         
         if (!dbError) {
             await supabase.storage.from('materials').remove([url]);

@@ -193,7 +193,7 @@ Responda em JSON:
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': 'https://nextbase360.com',
+                'HTTP-Referer': 'https://nextcontrol.app',
                 'X-Title': 'Monthly Report Generator',
             },
             body: JSON.stringify({

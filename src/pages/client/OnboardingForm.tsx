@@ -187,10 +187,8 @@ export default function OnboardingForm() {
 
         setIsSubmitting(true);
         try {
-            const sb = supabase as any;
-
             // 1. Save raw JSON to client_onboarding table
-            const { error: dbError } = await sb
+            const { error: dbError } = await supabase
                 .from('client_onboarding')
                 .insert({
                     client_id: clientId,

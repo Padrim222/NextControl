@@ -45,7 +45,7 @@ export function ClientMaterialsPanel() {
 
         const fetchMaterials = async () => {
             setIsLoading(true);
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('client_materials')
                 .select('*')
                 .eq('client_id', selectedClient)
@@ -99,7 +99,7 @@ export function ClientMaterialsPanel() {
 
             const { data: userAuth } = await supabase.auth.getUser();
 
-            const { error } = await (supabase as any).from('client_materials').insert({
+            const { error } = await supabase.from('client_materials').insert({
                 client_id: selectedClient,
                 title,
                 description,
@@ -124,7 +124,7 @@ export function ClientMaterialsPanel() {
             setAgentTarget('both');
 
             // Refresh list
-            const { data: newMaterials } = await (supabase as any)
+            const { data: newMaterials } = await supabase
                 .from('client_materials')
                 .select('*')
                 .eq('client_id', selectedClient)
@@ -132,9 +132,10 @@ export function ClientMaterialsPanel() {
 
             if (newMaterials) setMaterials(newMaterials as ClientMaterial[]);
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Erro no upload:', error);
-            toast.error(`Falha: ${error?.message || 'Erro no envio'}`);
+            const msg = error instanceof Error ? error.message : 'Erro no envio';
+            toast.error(`Falha: ${msg}`);
         } finally {
             setIsUploading(false);
         }
@@ -192,7 +193,7 @@ export function ClientMaterialsPanel() {
 
                             <div className="space-y-2">
                                 <Label>Tipo de Arquivo</Label>
-                                <Select value={fileType} onValueChange={(v: any) => setFileType(v)}>
+                                <Select value={fileType} onValueChange={(v: string) => setFileType(v as 'link' | 'pdf' | 'video' | 'doc')}>
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
@@ -342,7 +343,7 @@ export function ClientMaterialsPanel() {
                                                     <FileText className="h-4 w-4 text-solar" />
                                                 )}
                                                 <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter">
-                                                    {(mat as any).category || 'Metodologia'}
+                                                    {mat.category || 'Metodologia'}
                                                 </span>
                                             </div>
                                         </div>

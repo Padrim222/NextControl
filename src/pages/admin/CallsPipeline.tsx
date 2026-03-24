@@ -103,7 +103,7 @@ export default function CallsPipeline() {
     const fetchCallUploads = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('call_uploads')
                 .select('*, closer:users!closer_id(name, email), client:clients!client_id(name)')
                 .order('created_at', { ascending: false })
@@ -136,7 +136,7 @@ export default function CallsPipeline() {
         if (!user) return;
         setIsProcessing(true);
         try {
-            const { error } = await (supabase as any)
+            const { error } = await supabase
                 .from('call_uploads')
                 .update({
                     status: 'approved',
@@ -163,7 +163,7 @@ export default function CallsPipeline() {
         if (!user) return;
         setIsProcessing(true);
         try {
-            const { error } = await (supabase as any)
+            const { error } = await supabase
                 .from('call_uploads')
                 .update({
                     status: 'rejected',
@@ -194,7 +194,7 @@ export default function CallsPipeline() {
         setIsProcessing(true);
         try {
             // Update status to analyzing
-            await (supabase as any)
+            await supabase
                 .from('call_uploads')
                 .update({ status: 'analyzing' })
                 .eq('id', call.id);
@@ -222,7 +222,7 @@ export default function CallsPipeline() {
             const evaluation = await response.json();
 
             // Update call upload with evaluation reference
-            await (supabase as any)
+            await supabase
                 .from('call_uploads')
                 .update({
                     status: 'analyzed',
@@ -235,7 +235,7 @@ export default function CallsPipeline() {
         } catch (err) {
             console.error('Error analyzing:', err);
             // Revert status
-            await (supabase as any)
+            await supabase
                 .from('call_uploads')
                 .update({ status: 'ready' })
                 .eq('id', call.id);
@@ -330,7 +330,7 @@ export default function CallsPipeline() {
                                     .getPublicUrl(filename);
 
                                 // 2. Create call_upload record
-                                const { data: insertData, error: insertError } = await (supabase as any)
+                                const { data: insertData, error: insertError } = await supabase
                                     .from('call_uploads')
                                     .insert({
                                         upload_source: 'manual',
@@ -354,7 +354,7 @@ export default function CallsPipeline() {
                                 formData.append('file', audioFile, audioFile.name);
                                 
                                 const session = (await supabase.auth.getSession()).data.session;
-                                const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://mldbflihdejmddmapwnz.supabase.co'}/functions/v1/transcribe-audio`, {
+                                const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${session?.access_token}`,
@@ -365,12 +365,12 @@ export default function CallsPipeline() {
                                 const data = await response.json();
                                 if (!response.ok || data?.error) {
                                   // Fallback to uploaded status if transcription fails
-                                  await (supabase as any).from('call_uploads').update({ status: 'uploaded' }).eq('id', insertData.id);
+                                  await supabase.from('call_uploads').update({ status: 'uploaded' }).eq('id', insertData.id);
                                   throw new Error(data?.error || `HTTP ${response.status}`);
                                 }
                                 
                                 // 4. Update status to ready
-                                await (supabase as any)
+                                await supabase
                                   .from('call_uploads')
                                   .update({ 
                                     status: 'ready', 

@@ -72,11 +72,11 @@ export default function CSInbox() {
             const today = new Date().toISOString().split('T')[0];
 
             // 1. Fetch all sellers
-            const { data: usersData } = await (supabase as any)
+            const { data: usersData } = await supabase
                 .from('users')
                 .select('*')
                 .in('role', ['seller', 'closer', 'admin']);
-            // Admin might be a seller too? Usually roles are distinct. 
+            // Admin might be a seller too? Usually roles are distinct.
             // But let's stick to seller/closer.
 
             const sellersList = (usersData || []).filter((u: User) =>
@@ -84,22 +84,22 @@ export default function CSInbox() {
             );
 
             // 2. Fetch today's submissions (for status)
-            const { data: todaySubs } = await (supabase as any)
+            const { data: todaySubs } = await supabase
                 .from('daily_submissions')
                 .select('seller_id')
                 .eq('submission_date', today);
 
-            const todaySellerIds = new Set((todaySubs || []).map((s: any) => s.seller_id));
+            const todaySellerIds = new Set((todaySubs || []).map((s) => s.seller_id));
 
             // 3. Fetch PENDING submissions
-            const { data: pending } = await (supabase as any)
+            const { data: pending } = await supabase
                 .from('daily_submissions')
                 .select('*')
                 .eq('status', 'pending')
                 .order('created_at', { ascending: false });
 
             // 4. Fetch APPROVED today (for stats)
-            const { count: approvedCount } = await (supabase as any)
+            const { count: approvedCount } = await supabase
                 .from('daily_submissions')
                 .select('*', { count: 'exact', head: true })
                 .eq('status', 'approved')
@@ -132,7 +132,7 @@ export default function CSInbox() {
             });
 
             // Fetch client questions
-            const { data: questions } = await (supabase as any)
+            const { data: questions } = await supabase
                 .from('client_questions')
                 .select('*')
                 .order('created_at', { ascending: false });
@@ -147,7 +147,7 @@ export default function CSInbox() {
         if (!answerText.trim() || !supabase || !user) return;
         setIsSendingAnswer(true);
         try {
-            const { error } = await (supabase as any)
+            const { error } = await supabase
                 .from('client_questions')
                 .update({
                     response_text: answerText.trim(),
@@ -171,7 +171,7 @@ export default function CSInbox() {
 
     const handleApprove = async (id: string) => {
         try {
-            const { error } = await (supabase as any)
+            const { error } = await supabase
                 .from('daily_submissions')
                 .update({ status: 'approved' })
                 .eq('id', id);
@@ -213,7 +213,7 @@ export default function CSInbox() {
 
             // Use direct fetch instead of supabase.functions.invoke to ensure
             // multipart/form-data Content-Type is set correctly by the browser
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://mldbflihdejmddmapwnz.supabase.co';
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
             const session = (await supabase.auth.getSession()).data.session;
             const token = session?.access_token;
 
@@ -235,7 +235,7 @@ export default function CSInbox() {
             toast.success('Áudio transcrito com sucesso!');
 
             // 1. Get current notes to avoid overwriting
-            const { data: sub } = await (supabase as any)
+            const { data: sub } = await supabase
                 .from('daily_submissions')
                 .select('notes')
                 .eq('id', submissionId)
@@ -245,7 +245,7 @@ export default function CSInbox() {
             const newNote = `${existingNote}\n\n--- FEEDBACK CS ---\n${transcription}`.trim();
 
             // 2. Update submission with the feedback
-            const { error: updateError } = await (supabase as any)
+            const { error: updateError } = await supabase
                 .from('daily_submissions')
                 .update({ notes: newNote })
                 .eq('id', submissionId);

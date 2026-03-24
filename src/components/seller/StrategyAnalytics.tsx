@@ -28,14 +28,14 @@ export function StrategyAnalytics() {
 
     const fetchStrategies = async () => {
         setIsLoading(true);
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('strategy_log')
             .select('*')
             .eq('seller_id', user?.id)
             .order('created_at', { ascending: false })
             .limit(20);
 
-        if (!error && data) setStrategies(data);
+        if (!error && data) setStrategies(data as unknown as StrategyEntry[]);
         setIsLoading(false);
     };
 

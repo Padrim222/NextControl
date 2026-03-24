@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return false;
     }
-    await (supabase as any).from('users').upsert([{ id: authData.user.id, email, name, role }], { onConflict: 'id' });
+    await supabase.from('users').upsert([{ id: authData.user.id, email, name, role }], { onConflict: 'id' });
     toast.success('Conta criada com sucesso!');
     setIsLoading(false);
     return true;

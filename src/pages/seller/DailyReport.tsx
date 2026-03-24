@@ -37,7 +37,7 @@ export default function DailyReport() {
 
             // Fetch seller type
             if (user?.id) {
-                const { data: profile } = await (supabase as any)
+                const { data: profile } = await supabase
                     .from('users')
                     .select('seller_type')
                     .eq('id', user.id)
@@ -76,7 +76,7 @@ export default function DailyReport() {
         if (submitted && isAnalyzing && submissionId) {
             // Poll for analysis every 3 seconds
             interval = setInterval(async () => {
-                const { data } = await (supabase as any)
+                const { data } = await supabase
                     .from('analyses')
                     .select('*')
                     .eq('submission_id', submissionId)

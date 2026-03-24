@@ -73,7 +73,7 @@ export default function AdminDashboard() {
             const isoDate = dateLimit.toISOString();
 
             // Fetch users
-            const { data: usersData } = await (supabase as any)
+            const { data: usersData } = await supabase
                 .from('users')
                 .select('*')
                 .order('created_at', { ascending: false });
@@ -86,7 +86,7 @@ export default function AdminDashboard() {
             if (clientsData) setClients(clientsData);
 
             // Fetch daily submissions with seller info
-            const { data: subsData } = await (supabase as any)
+            const { data: subsData } = await supabase
                 .from('daily_submissions')
                 .select('*, seller:users!seller_id(name, email, seller_type)')
                 .gte('created_at', isoDate)
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
             if (subsData) setSubmissions(subsData);
 
             // Fetch analyses
-            const { data: analysesData } = await (supabase as any)
+            const { data: analysesData } = await supabase
                 .from('analyses')
                 .select('*')
                 .gte('created_at', isoDate)
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
             if (analysesData) setAnalyses(analysesData);
 
             // Fetch reports
-            const { data: reportsData } = await (supabase as any)
+            const { data: reportsData } = await supabase
                 .from('reports')
                 .select('*')
                 .gte('created_at', isoDate)
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
             if (callData) setCallLogs(callData as CallLog[]);
 
             // Fetch generic form submissions for pending count
-            const { data: formSubsData } = await (supabase as any)
+            const { data: formSubsData } = await supabase
                 .from('form_submissions')
                 .select('*')
                 .or('ai_status.eq.pending,ai_status.is.null')
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
     const handleAnalyze = async (submission: SubmissionWithSeller) => {
         setIsGeneratingAI(true);
         try {
-            const { data: analysis, error } = await (supabase as any).functions.invoke('analyze-submission', {
+            const { data: analysis, error } = await supabase.functions.invoke('analyze-submission', {
                 body: { submission_id: submission.id },
             });
 
@@ -181,7 +181,7 @@ export default function AdminDashboard() {
 
         setIsGeneratingPDF(true);
         try {
-            const { data: reportData, error } = await (supabase as any).functions.invoke('generate-report', {
+            const { data: reportData, error } = await supabase.functions.invoke('generate-report', {
                 body: { submission_id: submission.id, analysis_id: analysis.id },
             });
 
@@ -358,7 +358,7 @@ export default function AdminDashboard() {
                                                     size="sm"
                                                     variant="ghost"
                                                     onClick={async () => {
-                                                        const { error } = await (supabase as any).from('users').update({ status: 'suspended' }).eq('id', pendingUser.id);
+                                                        const { error } = await supabase.from('users').update({ status: 'suspended' }).eq('id', pendingUser.id);
                                                         if (error) { toast.error('Erro'); } else {
                                                             toast.success('Rejeitado');
                                                             setRealUsers(prev => prev.map(u => u.id === pendingUser.id ? { ...u, status: 'suspended' as const } : u));
@@ -371,7 +371,7 @@ export default function AdminDashboard() {
                                                     size="sm"
                                                     className="bg-nc-success hover:bg-nc-success/90 text-white"
                                                     onClick={async () => {
-                                                        const { error } = await (supabase as any).from('users').update({ status: 'active' }).eq('id', pendingUser.id);
+                                                        const { error } = await supabase.from('users').update({ status: 'active' }).eq('id', pendingUser.id);
                                                         if (error) { toast.error('Erro'); } else {
                                                             toast.success('Acesso liberado!');
                                                             setRealUsers(prev => prev.map(u => u.id === pendingUser.id ? { ...u, status: 'active' as const } : u));
@@ -586,8 +586,7 @@ export default function AdminDashboard() {
                                                 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
                                                 // If it's not a full URL, it's a storage path (e.g. "uuid/file.png")
-                                                // Default Supabase URL as fallback if env is missing
-                                                const supabaseBase = supabaseUrl || 'https://mldbflihdejmddmapwnz.supabase.co';
+                                                const supabaseBase = supabaseUrl;
 
                                                 const finalUrl = isFullUrl
                                                     ? url

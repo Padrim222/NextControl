@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { RoleGuard } from "@/components/layout/RoleGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
@@ -25,8 +26,8 @@ import RagManager from "@/pages/admin/RagManager";
 import IntelligenceHub from "@/pages/admin/IntelligenceHub";
 import CallsPipeline from "@/pages/admin/CallsPipeline";
 import BetaManagement from "@/pages/admin/BetaManagement";
-import WeeklyReportPage from "@/pages/client/WeeklyReportPage";
 import AgentPage from "@/pages/client/AgentPage";
+import OnboardingForm from "@/pages/client/OnboardingForm";
 
 // Public Form Pages (no auth)
 import ExpertForm from "@/pages/forms/ExpertForm";
@@ -37,6 +38,7 @@ import FormSuccess from "@/pages/forms/FormSuccess";
 const queryClient = new QueryClient();
 
 const App = () => (
+  <ThemeProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -194,6 +196,16 @@ const App = () => (
               }
             />
 
+            {/* Client Onboarding — briefing form that feeds the RAG knowledge base */}
+            <Route
+              path="/client/onboarding"
+              element={
+                <RoleGuard allowedRoles={['client', 'admin']}>
+                  <OnboardingForm />
+                </RoleGuard>
+              }
+            />
+
             {/* Client Routes — redirect to /agent (client sees only the consulting chat) */}
             <Route path="/client" element={<Navigate to="/agent" replace />} />
             <Route path="/client/weekly-report" element={<Navigate to="/agent" replace />} />
@@ -251,6 +263,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

@@ -131,7 +131,7 @@ export function AgentFeedbackButton({ defaultAgentType = 'geral' }: Props) {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Usuário não autenticado');
 
-            const { data: userData } = await (supabase as any)
+            const { data: userData } = await supabase
                 .from('users')
                 .select('client_id')
                 .eq('id', user.id)
@@ -139,7 +139,7 @@ export function AgentFeedbackButton({ defaultAgentType = 'geral' }: Props) {
 
             const titleWithType = `[${suggestionType.toUpperCase()}] ${title.trim()}`;
 
-            const { error } = await (supabase as any).from('agent_suggestions').insert({
+            const { error } = await supabase.from('agent_suggestions').insert({
                 client_id: userData?.client_id ?? null,
                 user_id: user.id,
                 agent_type: agentType,
@@ -153,8 +153,8 @@ export function AgentFeedbackButton({ defaultAgentType = 'geral' }: Props) {
 
             toast.success('Sugestão enviada! O admin irá revisar em breve.');
             setOpen(false);
-        } catch (e: any) {
-            toast.error(e?.message || 'Erro ao enviar sugestão');
+        } catch (e: unknown) {
+            toast.error(e instanceof Error ? e.message : 'Erro ao enviar sugestão');
         } finally {
             setLoading(false);
         }

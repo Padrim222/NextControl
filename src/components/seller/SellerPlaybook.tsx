@@ -29,14 +29,14 @@ export function SellerPlaybook() {
 
     const fetchPlaybook = async () => {
         setIsLoading(true);
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('seller_scripts')
             .select('*')
             .eq('user_id', user?.id)
             .order('created_at', { ascending: false });
 
         if (!error && data) {
-            setItems(data);
+            setItems(data as unknown as SellerPlaybookItem[]);
         }
         setIsLoading(false);
     };
@@ -45,12 +45,12 @@ export function SellerPlaybook() {
         e.preventDefault();
         if (!user) return;
 
-        const { error } = await (supabase as any).from('seller_scripts').insert({
+        const { error } = await supabase.from('seller_scripts').insert({
             user_id: user.id,
             type: newType,
             title: newTitle,
             content: newContent
-        });
+        } as unknown as import('@/types/database.types').Database['public']['Tables']['seller_scripts']['Insert']);
 
         if (error) {
             toast.error('Erro ao salvar item');
@@ -64,7 +64,7 @@ export function SellerPlaybook() {
     };
 
     const handleDelete = async (id: string) => {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('seller_scripts')
             .delete()
             .eq('id', id);

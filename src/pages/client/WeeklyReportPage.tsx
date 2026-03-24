@@ -71,7 +71,7 @@ export default function WeeklyReportPage() {
         setIsLoading(true);
         try {
             // Client sees only approved/visible reports
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('weekly_analysis_reports')
                 .select('*')
                 .eq('client_visible', true)

@@ -66,8 +66,11 @@ export interface ClientMaterial {
 export interface SellerMetrics {
     followers?: number;
     conversations?: number;
+    conversations_started?: number;
     opportunities?: number;
+    conversations_to_opportunity?: number;
     followups?: number;
+    followups_done?: number;
     quality_score?: number;
     main_objections?: string[];
     approaches?: number;

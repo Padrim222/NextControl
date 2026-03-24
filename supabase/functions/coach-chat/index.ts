@@ -382,7 +382,7 @@ Seja acionável e fundamentado em metodologias como Receita Previsível, Challen
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': 'https://nextbase360.com',
+                'HTTP-Referer': 'https://nextcontrol.app',
                 'X-Title': 'Treinador de Bolso - Next Control',
             },
             body: JSON.stringify({

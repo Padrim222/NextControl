@@ -10,10 +10,10 @@ import { useNavigate } from 'react-router-dom';
 
 interface FollowupItem {
     id: string;
-    prospect_name: string;
+    prospect_name: string | null;
     call_date: string;
-    outcome: string;
-    notes: string;
+    outcome: string | null;
+    notes: string | null;
 }
 
 export function CloserInsightsWidget() {
@@ -28,17 +28,17 @@ export function CloserInsightsWidget() {
 
     const fetchFollowups = async () => {
         setIsLoading(true);
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('call_logs')
             .select('id, prospect_name, call_date, outcome, notes')
-            .eq('closer_id', user?.id)
+            .eq('closer_id', user?.id ?? '')
             .in('outcome', ['reschedule', 'no_sale'])
             .order('call_date', { ascending: false })
             .limit(5);
 
         if (!error && data) {
             const today = new Date();
-            const filtered = data.filter((call: any) => {
+            const filtered = data.filter((call) => {
                 const days = differenceInDays(today, new Date(call.call_date));
                 return days >= 2 && days <= 15;
             });
@@ -82,7 +82,7 @@ export function CloserInsightsWidget() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 px-2 text-xs border border-solar/20 hover:bg-solar hover:text-deep-space"
-                                    onClick={() => navigate(`/seller/report?followup=${encodeURIComponent(item.prospect_name)}`)}
+                                    onClick={() => navigate(`/seller/report?followup=${encodeURIComponent(item.prospect_name ?? '')}`)}
                                 >
                                     Agendar <ChevronRight className="h-3.5 w-3.5 ml-1" />
                                 </Button>

@@ -29,7 +29,7 @@ import { SellerPlaybook } from '@/components/seller/SellerPlaybook';
 import { StrategyAnalytics } from '@/components/seller/StrategyAnalytics';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { DailySubmission, Analysis } from '@/types';
+import type { DailySubmission, Analysis, SellerMetrics } from '@/types';
 import { AgentFeedbackButton } from '@/components/AgentFeedbackButton';
 
 export default function SellerDashboard() {
@@ -53,7 +53,7 @@ export default function SellerDashboard() {
             const today = new Date().toISOString().split('T')[0];
 
             // Fetch recent submissions
-            const { data: subs, error: subsError } = await (supabase as any)
+            const { data: subs, error: subsError } = await supabase
                 .from('daily_submissions')
                 .select('*')
                 .eq('seller_id', user.id)
@@ -69,7 +69,7 @@ export default function SellerDashboard() {
 
             // Fetch analyses for all recent submissions
             if (subs?.length) {
-                const { data: analysesData, error: analysesError } = await (supabase as any)
+                const { data: analysesData, error: analysesError } = await supabase
                     .from('analyses')
                     .select('*')
                     .in('submission_id', subs.map((s: DailySubmission) => s.id))
@@ -252,9 +252,9 @@ export default function SellerDashboard() {
                             transition={{ delay: 0.3 }}
                         >
                             {(() => {
-                                const weeklyConversations = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.conversations_started || 0), 0);
-                                const weeklyFollowups = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.followups_done || 0), 0);
-                                const weeklyOpps = submissions.reduce((acc, s) => acc + ((s.metrics as any)?.conversations_to_opportunity || 0), 0);
+                                const weeklyConversations = submissions.reduce((acc, s) => acc + ((s.metrics as SellerMetrics)?.conversations_started || 0), 0);
+                                const weeklyFollowups = submissions.reduce((acc, s) => acc + ((s.metrics as SellerMetrics)?.followups_done || 0), 0);
+                                const weeklyOpps = submissions.reduce((acc, s) => acc + ((s.metrics as SellerMetrics)?.conversations_to_opportunity || 0), 0);
 
                                 let insightTitle = "Insight da IA";
                                 let insightMessage = "Seu ritmo está bom! Mantenha a consistência nos follow-ups para garantir o fechamento da semana.";

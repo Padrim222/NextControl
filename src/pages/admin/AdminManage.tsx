@@ -116,12 +116,12 @@ export default function AdminManage() {
         setIsLoading(true);
         try {
             // Use direct DB queries since they're simpler
-            const { data: usersData } = await (supabase as any)
+            const { data: usersData } = await supabase
                 .from('users')
                 .select('id, name, email, role, seller_type, status, created_at')
                 .order('created_at', { ascending: false });
 
-            const { data: clientsData } = await (supabase as any)
+            const { data: clientsData } = await supabase
                 .from('clients')
                 .select('*')
                 .order('created_at', { ascending: false });
@@ -142,7 +142,8 @@ export default function AdminManage() {
         }
         setIsCreatingUser(true);
         try {
-            const password = newUser.password.trim() || 'NextControl2026!';
+            const generatedPassword = Math.random().toString(36).slice(-8).toUpperCase() + Math.random().toString(36).slice(-8) + '!Nc';
+            const password = newUser.password.trim() || generatedPassword;
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: newUser.email.trim().toLowerCase(),
                 password,
@@ -153,7 +154,7 @@ export default function AdminManage() {
             if (!authData.user) throw new Error('User creation failed');
 
             // Insert into users table
-            await (supabase as any).from('users').upsert([{
+            await supabase.from('users').upsert([{
                 id: authData.user.id,
                 email: newUser.email.trim().toLowerCase(),
                 name: newUser.name.trim(),
@@ -166,8 +167,9 @@ export default function AdminManage() {
             setNewUser({ name: '', email: '', role: 'seller', password: '' });
             setShowUserForm(false);
             fetchData();
-        } catch (error: any) {
-            toast.error(error?.message || 'Erro ao criar usuário');
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Erro ao criar usuário';
+            toast.error(message);
         } finally {
             setIsCreatingUser(false);
         }
@@ -228,7 +230,7 @@ export default function AdminManage() {
             };
 
             if (editingClientId) {
-                const { error } = await (supabase as any)
+                const { error } = await supabase
                     .from('clients')
                     .update(payload)
                     .eq('id', editingClientId);
@@ -236,7 +238,7 @@ export default function AdminManage() {
                 toast.success('Cliente atualizado!');
             } else {
                 // 1. Create client record
-                const { data: clientRecord, error: clientError } = await (supabase as any)
+                const { data: clientRecord, error: clientError } = await supabase
                     .from('clients')
                     .insert(payload)
                     .select('id')
@@ -255,7 +257,7 @@ export default function AdminManage() {
                 if (!authData.user) throw new Error('Falha ao criar usuário auth');
 
                 // 3. Link auth user to users table with client_id
-                await (supabase as any).from('users').upsert([{
+                await supabase.from('users').upsert([{
                     id: authData.user.id,
                     email: clientForm.email.trim().toLowerCase(),
                     name: clientForm.name.trim(),
@@ -305,7 +307,7 @@ export default function AdminManage() {
     const handleDeleteClient = async (clientId: string, clientName: string) => {
         if (!confirm(`Tem certeza que deseja excluir o cliente "${clientName}"?`)) return;
         try {
-            const { error } = await (supabase as any).from('clients').delete().eq('id', clientId);
+            const { error } = await supabase.from('clients').delete().eq('id', clientId);
             if (error) throw error;
             toast.success('Cliente excluído!');
             fetchData();
@@ -428,7 +430,7 @@ export default function AdminManage() {
                                     <UserPlus className="h-4 w-4 text-primary" />
                                     Adicionar Membro
                                 </CardTitle>
-                                <CardDescription>O login será o email e a senha padrão é NextControl2026!</CardDescription>
+                                <CardDescription>O login será o email. Se a senha for omitida, uma senha aleatória será gerada.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
@@ -469,7 +471,7 @@ export default function AdminManage() {
                                         <Label>Senha (opcional)</Label>
                                         <Input
                                             type="text"
-                                            placeholder="NextControl2026!"
+                                            placeholder="Deixe vazio para gerar automaticamente"
                                             value={newUser.password}
                                             onChange={e => setNewUser(prev => ({ ...prev, password: e.target.value }))}
                                         />

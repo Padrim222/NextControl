@@ -129,7 +129,7 @@ export default function CallAnalysis() {
 
     async function fetchHistory() {
         try {
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('call_evaluations')
                 .select('*')
                 .order('created_at', { ascending: false })
@@ -220,7 +220,7 @@ export default function CallAnalysis() {
                 .join('\n')
                 .trim() || 'Análise de call sem melhorias específicas identificadas.';
 
-            await (supabase as any).from('agent_suggestions').insert({
+            await supabase.from('agent_suggestions').insert({
                 user_id: user.id,
                 client_id: user.client_id || null,
                 agent_type: 'closer',

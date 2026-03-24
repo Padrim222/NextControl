@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://nextbase360.com',
+        'HTTP-Referer': 'https://nextcontrol.app',
         'X-Title': 'Consultoria Form',
       },
       body: JSON.stringify({
